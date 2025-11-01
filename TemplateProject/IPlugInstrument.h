@@ -22,8 +22,8 @@ enum EParams
 };
 
 #if IPLUG_DSP
-// will use EParams in TemplateProject_DSP.h
-#include "TemplateProject_DSP.h"
+// will use EParams in IPlugInstrument_DSP.h
+#include "IPlugInstrument_DSP.h"
 #endif
 
 enum EControlTags
@@ -40,10 +40,10 @@ enum EControlTags
 using namespace iplug;
 using namespace igraphics;
 
-class TemplateProject final : public Plugin
+class IPlugInstrument final : public Plugin
 {
 public:
-  TemplateProject(const InstanceInfo& info);
+  IPlugInstrument(const InstanceInfo& info);
 
 #if IPLUG_DSP // http://bit.ly/2S64BDd
 public:
@@ -56,7 +56,7 @@ public:
   bool OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData) override;
 
 private:
-  TemplateProjectDSP<sample> mDSP {16};
+  IPlugInstrumentDSP<sample> mDSP {16};
   IPeakAvgSender<2> mMeterSender;
   ISender<1> mLFOVisSender;
 #endif

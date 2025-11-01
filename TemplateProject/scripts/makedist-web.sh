@@ -11,7 +11,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 IPLUG2_ROOT=../../iPlug2
 PROJECT_ROOT=$SCRIPT_DIR/..
 IPLUG2_ROOT=$SCRIPT_DIR/$IPLUG2_ROOT
-FILE_PACKAGER=$EMSDK/upstream/emscripten/tools/file_packager.py
+FILE_PACKAGER=/opt/homebrew/Cellar/emscripten/4.0.15/libexec/tools/file_packager.py
 EMRUN="python3 ${IPLUG2_ROOT}/Scripts/emrun/emrun.py"
 
 PROJECT_NAME=TemplateProject
@@ -76,7 +76,6 @@ if [ -f ./build-web/imgs@2x.js ]; then rm ./build-web/imgs@2x.js; fi
 if [ -f ./build-web/svgs.js ]; then rm ./build-web/svgs.js; fi
 if [ -f ./build-web/fonts.js ]; then rm ./build-web/fonts.js; fi
 
-FILE_PACKAGER=$EMSDK/upstream/emscripten/tools/file_packager.py
 #package fonts
 FOUND_FONTS=0
 if [ "$(ls -A ./resources/fonts/*.ttf)" ]; then
@@ -130,11 +129,11 @@ if [ "$BUILD_DSP" -eq "1" ]; then
 
   cd $PROJECT_ROOT/build-web/scripts
 
-  # prefix the -wam.js script with scope
-  echo "AudioWorkletGlobalScope.WAM = AudioWorkletGlobalScope.WAM || {}; \
-        AudioWorkletGlobalScope.WAM.$PROJECT_NAME = { ENVIRONMENT: 'WEB' }; \
-        const ModuleFactory = AudioWorkletGlobalScope.WAM.$PROJECT_NAME;" > $PROJECT_NAME-wam.tmp.js;
-  cat $PROJECT_NAME-wam.js >> $PROJECT_NAME-wam.tmp.js
+  # Don't prefix - let emscripten create Module directly
+  # Just ensure AudioWorkletGlobalScope.WAM exists at the top
+  echo "AudioWorkletGlobalScope.WAM = AudioWorkletGlobalScope.WAM || {}; AudioWorkletGlobalScope.WAM.$PROJECT_NAME = { ENVIRONMENT: 'WEB' };" > $PROJECT_NAME-wam.tmp.js;
+  # Read the original file and replace 'var Module' with the AudioWorkletGlobalScope assignment
+  sed "s/var Module=typeof Module!=\"undefined\"?Module:{}/var Module=typeof AudioWorkletGlobalScope.WAM.$PROJECT_NAME!==\"undefined\"?AudioWorkletGlobalScope.WAM.$PROJECT_NAME:{}/g" $PROJECT_NAME-wam.js >> $PROJECT_NAME-wam.tmp.js
   mv $PROJECT_NAME-wam.tmp.js $PROJECT_NAME-wam.js
   
   # copy in WAM SDK and AudioWorklet polyfill scripts

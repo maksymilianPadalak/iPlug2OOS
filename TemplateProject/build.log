@@ -1,0 +1,33 @@
+BUNDLING RESOURCES -----------------------------
+/opt/homebrew/Cellar/python@3.13/3.13.7/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python: can't open file '/upstream/emscripten/tools/file_packager.py': [Errno 2] No such file or directory
+ls: ./resources/img/*.svg: No such file or directory
+ls: ./resources/img/*.png: No such file or directory
+ls: ./resources/img/*@2x*.png: No such file or directory
+MAKING - WAM WASM MODULE -----------------------------
+make: make --makefile TemplateProject-wam-processor.mk
+/opt/homebrew/Cellar/emscripten/4.0.15/libexec/emcc -I/Users/maksymilianpadalak/Desktop/Programming/Berlin-Music-Intelligence/jimmy/iPlug2OOS/TemplateProject/projects/.. -I../../iPlug2/Dependencies/IPlug/WAM_SDK/wamsdk -I../../iPlug2/WDL -I../../iPlug2/WDL/swell -I../../iPlug2/IPlug -I../../iPlug2/IPlug/Extras -I../../iPlug2/IPlug/Extras/Synth -I../../iPlug2/IPlug/Extras/Faust -I../../iPlug2/IPlug/WEB -I../../iPlug2/IGraphics -I../../iPlug2/IGraphics/Drawing -I../../iPlug2/IGraphics/Controls -I../../iPlug2/IGraphics/Platforms -I../../iPlug2/IGraphics/Extras -I../../iPlug2/Dependencies/IGraphics/NanoVG/src -I../../iPlug2/Dependencies/IGraphics/NanoSVG/src -I../../iPlug2/Dependencies/IGraphics/STB -I../../iPlug2/Dependencies/IGraphics/yoga -I../../iPlug2/Dependencies/IGraphics/yoga/yoga -std=c++17 -Wno-bitwise-op-parentheses -DWDL_NO_DEFINE_MINMAX -DNDEBUG=1 -DWAM_API -DIPLUG_DSP=1 -DNO_IGRAPHICS -DSAMPLE_TYPE_FLOAT -I../../iPlug2/IPlug/Extras/Synth  -s ALLOW_MEMORY_GROWTH=1 --bind -s EXPORTED_RUNTIME_METHODS="['ccall', 'cwrap', 'setValue', 'UTF8ToString', 'HEAPF8', 'HEAPF32', 'HEAPU8', 'HEAPU16', 'HEAPU32', 'HEAPF32', 'HEAPF64']" -s BINARYEN_ASYNC_COMPILATION=0 -s SINGLE_FILE=1 -O0 -s ASSERTIONS=0 -s EXPORTED_FUNCTIONS="[ '_malloc', '_free', '_createModule','_wam_init','_wam_terminate','_wam_resize', '_wam_onprocess', '_wam_onmidi', '_wam_onsysex', '_wam_onparam', '_wam_onmessageN', '_wam_onmessageS', '_wam_onmessageA', '_wam_onpatch' ]" -o ../build-web/scripts/TemplateProject-wam.js ../../iPlug2/IPlug/IPlugAPIBase.cpp ../../iPlug2/IPlug/IPlugParameter.cpp ../../iPlug2/IPlug/IPlugPluginBase.cpp ../../iPlug2/IPlug/IPlugPaths.cpp ../../iPlug2/IPlug/IPlugTimer.cpp /Users/maksymilianpadalak/Desktop/Programming/Berlin-Music-Intelligence/jimmy/iPlug2OOS/TemplateProject/projects/../IPlugInstrument.cpp ../../iPlug2/IPlug/WEB/IPlugWAM.cpp ../../iPlug2/Dependencies/IPlug/WAM_SDK/wamsdk/processor.cpp ../../iPlug2/IPlug/IPlugProcessor.cpp ../../iPlug2/IPlug/Extras/Synth/*.cpp
+In file included from /Users/maksymilianpadalak/Desktop/Programming/Berlin-Music-Intelligence/jimmy/iPlug2OOS/TemplateProject/projects/../IPlugInstrument.cpp:1:
+In file included from /Users/maksymilianpadalak/Desktop/Programming/Berlin-Music-Intelligence/jimmy/iPlug2OOS/TemplateProject/projects/../IPlugInstrument.h:4:
+In file included from ../../iPlug2/IGraphics/Controls/IControls.h:19:
+In file included from ../../iPlug2/IGraphics/IControl.h:35:
+In file included from ../../iPlug2/IGraphics/IGraphics.h:48:
+In file included from ../../iPlug2/IGraphics/IGraphicsStructs.h:27:
+../../iPlug2/IGraphics/IGraphicsPrivate.h:290:18: warning: 'codecvt_utf8_utf16<char16_t>' is deprecated [-Wdeprecated-declarations]
+  290 |             std::codecvt_utf8_utf16<char16_t> conv;
+      |                  ^
+/opt/homebrew/Cellar/emscripten/4.0.15/libexec/cache/sysroot/include/c++/v1/codecvt:574:28: note: 'codecvt_utf8_utf16<char16_t>' has been explicitly marked deprecated here
+  574 | class _LIBCPP_TEMPLATE_VIS _LIBCPP_DEPRECATED_IN_CXX17 codecvt_utf8_utf16 : public __codecvt_utf8_utf16<_Elem> {
+      |                            ^
+/opt/homebrew/Cellar/emscripten/4.0.15/libexec/cache/sysroot/include/c++/v1/__config:725:41: note: expanded from macro '_LIBCPP_DEPRECATED_IN_CXX17'
+  725 | #    define _LIBCPP_DEPRECATED_IN_CXX17 _LIBCPP_DEPRECATED
+      |                                         ^
+/opt/homebrew/Cellar/emscripten/4.0.15/libexec/cache/sysroot/include/c++/v1/__config:698:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  698 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+1 warning generated.
+error: /opt/homebrew/Cellar/emscripten/4.0.15/libexec/src/postlibrary.js: undefined exported symbol: "HEAPF8" in EXPORTED_RUNTIME_METHODS
+Error: Aborting compilation due to previous errors
+emcc: error: '/opt/homebrew/opt/node/bin/node /opt/homebrew/Cellar/emscripten/4.0.15/libexec/tools/compiler.mjs -' failed (returned 1)
+make: *** [../build-web/scripts/TemplateProject-wam.js] Error 1
+emmake: error: 'make --makefile TemplateProject-wam-processor.mk' failed (returned 2)
+IPlugWAM WASM compilation failed

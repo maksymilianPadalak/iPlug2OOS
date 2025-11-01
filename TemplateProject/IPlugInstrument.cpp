@@ -1,8 +1,8 @@
-#include "TemplateProject.h"
+#include "IPlugInstrument.h"
 #include "IPlug_include_in_plug_src.h"
 #include "LFO.h"
 
-TemplateProject::TemplateProject(const InstanceInfo& info)
+IPlugInstrument::IPlugInstrument(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
 {
   GetParam(kParamGain)->InitDouble("Gain", 100., 0., 100.0, 0.01, "%");
@@ -86,26 +86,26 @@ TemplateProject::TemplateProject(const InstanceInfo& info)
 }
 
 #if IPLUG_DSP
-void TemplateProject::ProcessBlock(sample** inputs, sample** outputs, int nFrames)
+void IPlugInstrument::ProcessBlock(sample** inputs, sample** outputs, int nFrames)
 {
   mDSP.ProcessBlock(nullptr, outputs, 2, nFrames, mTimeInfo.mPPQPos, mTimeInfo.mTransportIsRunning);
   mMeterSender.ProcessBlock(outputs, nFrames, kCtrlTagMeter);
   mLFOVisSender.PushData({kCtrlTagLFOVis, {float(mDSP.mLFO.GetLastOutput())}});
 }
 
-void TemplateProject::OnIdle()
+void IPlugInstrument::OnIdle()
 {
   mMeterSender.TransmitData(*this);
   mLFOVisSender.TransmitData(*this);
 }
 
-void TemplateProject::OnReset()
+void IPlugInstrument::OnReset()
 {
   mDSP.Reset(GetSampleRate(), GetBlockSize());
   mMeterSender.Reset(GetSampleRate());
 }
 
-void TemplateProject::ProcessMidiMsg(const IMidiMsg& msg)
+void IPlugInstrument::ProcessMidiMsg(const IMidiMsg& msg)
 {
   TRACE;
   
@@ -132,12 +132,12 @@ handle:
   SendMidiMsg(msg);
 }
 
-void TemplateProject::OnParamChange(int paramIdx)
+void IPlugInstrument::OnParamChange(int paramIdx)
 {
   mDSP.SetParam(paramIdx, GetParam(paramIdx)->Value());
 }
 
-void TemplateProject::OnParamChangeUI(int paramIdx, EParamSource source)
+void IPlugInstrument::OnParamChangeUI(int paramIdx, EParamSource source)
 {
   #if IPLUG_EDITOR
   if (auto pGraphics = GetUI())
@@ -152,7 +152,7 @@ void TemplateProject::OnParamChangeUI(int paramIdx, EParamSource source)
   #endif
 }
 
-bool TemplateProject::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData)
+bool IPlugInstrument::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData)
 {
   if(ctrlTag == kCtrlTagBender && msgTag == IWheelControl::kMessageTagSetPitchBendRange)
   {
