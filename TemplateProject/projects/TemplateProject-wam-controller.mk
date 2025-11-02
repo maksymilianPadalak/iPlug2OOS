@@ -1,6 +1,6 @@
 include ../config/TemplateProject-web.mk
 
-TARGET = ../build-web/scripts/TemplateProject-web.js
+TARGET = ../../../public/plugin/scripts/TemplateProject-web.js
 
 SRC += $(WEB_SRC)
 CFLAGS += $(WEB_CFLAGS)

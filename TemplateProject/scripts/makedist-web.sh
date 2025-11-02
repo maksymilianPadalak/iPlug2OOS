@@ -15,6 +15,7 @@ FILE_PACKAGER=/opt/homebrew/Cellar/emscripten/4.0.15/libexec/tools/file_packager
 EMRUN="python3 ${IPLUG2_ROOT}/Scripts/emrun/emrun.py"
 
 PROJECT_NAME=TemplateProject
+BUILD_WEB_DIR=$PROJECT_ROOT/../../public/plugin
 BUILD_DSP=1
 BUILD_EDITOR=1
 WEBSOCKET_MODE=0
@@ -23,7 +24,7 @@ LAUNCH_EMRUN=1
 EMRUN_SERVER=1
 EMRUN_SERVER_PORT=8001
 EMRUN_CONTAINER=0
-SITE_ORIGIN="/"
+SITE_ORIGIN="/plugin/"
 
 cd $PROJECT_ROOT
 
@@ -46,35 +47,35 @@ if [ "$#" -eq 3 ]; then
 fi
 
 # check to see if the build web folder has its own git repo
-if [ -d build-web/.git ]
+if [ -d $BUILD_WEB_DIR/.git ]
 then
   # if so trash only the scripts
-  if [ -d build-web/scripts ]; then
+  if [ -d $BUILD_WEB_DIR/scripts ]; then
     if [ "$BUILD_DSP" -eq "1" ]; then
-      rm build-web/scripts/*-wam.js
+      rm $BUILD_WEB_DIR/scripts/*-wam.js
     fi
 
     if [ "$BUILD_EDITOR" -eq "1" ]; then
-      rm build-web/scripts/*-web.*
+      rm $BUILD_WEB_DIR/scripts/*-web.*
     fi
   fi
 else
   # otherwise trash the whole build-web folder
-  if [ -d build-web ]; then 
-    rm -r build-web
+  if [ -d $BUILD_WEB_DIR ]; then
+    rm -r $BUILD_WEB_DIR
   fi
 
-  mkdir build-web
+  mkdir -p $BUILD_WEB_DIR
 fi
 
-mkdir build-web/scripts
+mkdir -p $BUILD_WEB_DIR/scripts
 
 echo BUNDLING RESOURCES -----------------------------
 
-if [ -f ./build-web/imgs.js ]; then rm ./build-web/imgs.js; fi
-if [ -f ./build-web/imgs@2x.js ]; then rm ./build-web/imgs@2x.js; fi
-if [ -f ./build-web/svgs.js ]; then rm ./build-web/svgs.js; fi
-if [ -f ./build-web/fonts.js ]; then rm ./build-web/fonts.js; fi
+if [ -f $BUILD_WEB_DIR/imgs.js ]; then rm $BUILD_WEB_DIR/imgs.js; fi
+if [ -f $BUILD_WEB_DIR/imgs@2x.js ]; then rm $BUILD_WEB_DIR/imgs@2x.js; fi
+if [ -f $BUILD_WEB_DIR/svgs.js ]; then rm $BUILD_WEB_DIR/svgs.js; fi
+if [ -f $BUILD_WEB_DIR/fonts.js ]; then rm $BUILD_WEB_DIR/fonts.js; fi
 
 #package fonts
 FOUND_FONTS=0
@@ -101,21 +102,21 @@ fi
 FOUND_2XPNGS=0
 if [ "$(ls -A ./resources/img/*@2x*.png)" ]; then
   FOUND_2XPNGS=1
-  mkdir ./build-web/2x/
-  cp ./resources/img/*@2x* ./build-web/2x
+  mkdir $BUILD_WEB_DIR/2x/
+  cp ./resources/img/*@2x* $BUILD_WEB_DIR/2x
   python3 $FILE_PACKAGER imgs@2x.data --use-preload-plugins --preload ./2x@/resources/img/ --use-preload-cache --indexedDB-name="/$PROJECT_NAME_pkg" --exclude *DS_Store >> ./imgs@2x.js
-  rm -r ./build-web/2x
+  rm -r $BUILD_WEB_DIR/2x
 fi
 
-if [ -f ./imgs.js ]; then mv ./imgs.js ./build-web/imgs.js; fi
-if [ -f ./imgs@2x.js ]; then mv ./imgs@2x.js ./build-web/imgs@2x.js; fi
-if [ -f ./svgs.js ]; then mv ./svgs.js ./build-web/svgs.js; fi
-if [ -f ./fonts.js ]; then mv ./fonts.js ./build-web/fonts.js; fi
+if [ -f ./imgs.js ]; then mv ./imgs.js $BUILD_WEB_DIR/imgs.js; fi
+if [ -f ./imgs@2x.js ]; then mv ./imgs@2x.js $BUILD_WEB_DIR/imgs@2x.js; fi
+if [ -f ./svgs.js ]; then mv ./svgs.js $BUILD_WEB_DIR/svgs.js; fi
+if [ -f ./fonts.js ]; then mv ./fonts.js $BUILD_WEB_DIR/fonts.js; fi
 
-if [ -f ./imgs.data ]; then mv ./imgs.data ./build-web/imgs.data; fi
-if [ -f ./imgs@2x.data ]; then mv ./imgs@2x.data ./build-web/imgs@2x.data; fi
-if [ -f ./svgs.data ]; then mv ./svgs.data ./build-web/svgs.data; fi
-if [ -f ./fonts.data ]; then mv ./fonts.data ./build-web/fonts.data; fi
+if [ -f ./imgs.data ]; then mv ./imgs.data $BUILD_WEB_DIR/imgs.data; fi
+if [ -f ./imgs@2x.data ]; then mv ./imgs@2x.data $BUILD_WEB_DIR/imgs@2x.data; fi
+if [ -f ./svgs.data ]; then mv ./svgs.data $BUILD_WEB_DIR/svgs.data; fi
+if [ -f ./fonts.data ]; then mv ./fonts.data $BUILD_WEB_DIR/fonts.data; fi
 
 if [ "$BUILD_DSP" -eq "1" ]; then
   echo MAKING  - WAM WASM MODULE -----------------------------
@@ -127,7 +128,7 @@ if [ "$BUILD_DSP" -eq "1" ]; then
     exit 1
   fi
 
-  cd $PROJECT_ROOT/build-web/scripts
+  cd $BUILD_WEB_DIR/scripts
 
   # Don't prefix - let emscripten create Module directly
   # Just ensure AudioWorkletGlobalScope.WAM exists at the top
@@ -156,7 +157,7 @@ else
   echo "WAM not being built, BUILD_DSP = 0"
 fi
 
-cd $PROJECT_ROOT/build-web
+cd $BUILD_WEB_DIR
 
 # copy in the template HTML - comment this out if you have customised the HTML
 cp $IPLUG2_ROOT/IPlug/WEB/Template/index.html index.html
@@ -204,7 +205,7 @@ if [ $? -ne "0" ]; then
   exit 1
 fi
 
-cd $PROJECT_ROOT/build-web
+cd $BUILD_WEB_DIR
 
 # print payload
 echo payload:
