@@ -57,7 +57,6 @@ public:
 
 private:
   TemplateProjectDSP<sample> mDSP {16};
-  IPeakAvgSender<2> mMeterSender;
   ISender<1> mLFOVisSender;
 #endif
 };

@@ -17,70 +17,159 @@ TemplateProject::TemplateProject(const InstanceInfo& info)
   GetParam(kParamLFORateMode)->InitBool("LFO Sync", true);
   GetParam(kParamLFODepth)->InitPercentage("LFO Depth");
     
-#if IPLUG_EDITOR // http://bit.ly/2S64BDd
+#if IPLUG_EDITOR
   mMakeGraphicsFunc = [&]() {
-    return MakeGraphics(*this, PLUG_WIDTH, PLUG_HEIGHT, PLUG_FPS, GetScaleForScreen(PLUG_WIDTH, PLUG_HEIGHT));
+    return MakeGraphics(*this, PLUG_WIDTH, PLUG_HEIGHT, PLUG_FPS, 1.0f);
   };
-  
+
   mLayoutFunc = [&](IGraphics* pGraphics) {
-    pGraphics->AttachCornerResizer(EUIResizerMode::Scale, false);
-    pGraphics->AttachPanelBackground(COLOR_GRAY);
+    // Berlin Brutalist UI Style - Black background, white text, zero rounded corners, bold borders
+    const IColor BG_BLACK = IColor(255, 10, 10, 10);
+    const IColor WHITE = IColor(255, 255, 255, 255);
+    const IColor MUTED = IColor(153, 255, 255, 255);
+
+    // Brutalist style: no shadows, no roundness, bold borders
+    const IVStyle BRUTALIST_STYLE = DEFAULT_STYLE
+      .WithColor(kBG, BG_BLACK)
+      .WithColor(kFG, WHITE)
+      .WithColor(kPR, IColor(255, 40, 40, 40))
+      .WithColor(kFR, WHITE)
+      .WithColor(kHL, IColor(255, 200, 200, 200))
+      .WithColor(kSH, BG_BLACK)
+      .WithColor(kX1, IColor(102, 26, 26, 26))
+      .WithColor(kX2, WHITE)
+      .WithRoundness(0.f)
+      .WithFrameThickness(2.f)
+      .WithDrawShadows(false)
+      .WithDrawFrame(true)
+      .WithLabelText(IText(12.f, WHITE))
+      .WithValueText(IText(10.f, MUTED));
+
+    pGraphics->AttachPanelBackground(BG_BLACK);
     pGraphics->EnableMouseOver(true);
-    pGraphics->EnableMultiTouch(true);
-    
+    pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
+
 #ifdef OS_WEB
     pGraphics->AttachPopupMenuControl();
 #endif
 
-//    pGraphics->EnableLiveEdit(true);
-    pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
-    const IRECT b = pGraphics->GetBounds().GetPadded(-20.f);
-    const IRECT lfoPanel = b.GetFromLeft(300.f).GetFromTop(200.f);
-    IRECT keyboardBounds = b.GetFromBottom(300);
-    IRECT wheelsBounds = keyboardBounds.ReduceFromLeft(100.f).GetPadded(-10.f);
-    pGraphics->AttachControl(new IVKeyboardControl(keyboardBounds), kCtrlTagKeyboard);
-    pGraphics->AttachControl(new IWheelControl(wheelsBounds.FracRectHorizontal(0.5)), kCtrlTagBender);
-    pGraphics->AttachControl(new IWheelControl(wheelsBounds.FracRectHorizontal(0.5, true), IMidiMsg::EControlChangeMsg::kModWheel));
-//    pGraphics->AttachControl(new IVMultiSliderControl<4>(b.GetGridCell(0, 2, 2).GetPadded(-30), "", DEFAULT_STYLE, kParamAttack, EDirection::Vertical, 0.f, 1.f));
-    const IRECT controls = b.GetGridCell(1, 2, 2);
-    pGraphics->AttachControl(new IVKnobControl(controls.GetGridCell(0, 2, 6).GetCentredInside(90), kParamGain, "Gain"));
-    pGraphics->AttachControl(new IVKnobControl(controls.GetGridCell(1, 2, 6).GetCentredInside(90), kParamNoteGlideTime, "Glide"));
-    const IRECT sliders = controls.GetGridCell(2, 2, 6).Union(controls.GetGridCell(3, 2, 6)).Union(controls.GetGridCell(4, 2, 6));
-    pGraphics->AttachControl(new IVSliderControl(sliders.GetGridCell(0, 1, 4).GetMidHPadded(30.), kParamAttack, "Attack"));
-    pGraphics->AttachControl(new IVSliderControl(sliders.GetGridCell(1, 1, 4).GetMidHPadded(30.), kParamDecay, "Decay"));
-    pGraphics->AttachControl(new IVSliderControl(sliders.GetGridCell(2, 1, 4).GetMidHPadded(30.), kParamSustain, "Sustain"));
-    pGraphics->AttachControl(new IVSliderControl(sliders.GetGridCell(3, 1, 4).GetMidHPadded(30.), kParamRelease, "Release"));
-    pGraphics->AttachControl(new IVLEDMeterControl<2>(controls.GetFromRight(100).GetPadded(-30)), kCtrlTagMeter);
-    
-    pGraphics->AttachControl(new IVKnobControl(lfoPanel.GetGridCell(0, 0, 2, 3).GetCentredInside(60), kParamLFORateHz, "Rate"), kNoTag, "LFO")->Hide(true);
-    pGraphics->AttachControl(new IVKnobControl(lfoPanel.GetGridCell(0, 0, 2, 3).GetCentredInside(60), kParamLFORateTempo, "Rate"), kNoTag, "LFO")->DisablePrompt(false);
-    pGraphics->AttachControl(new IVKnobControl(lfoPanel.GetGridCell(0, 1, 2, 3).GetCentredInside(60), kParamLFODepth, "Depth"), kNoTag, "LFO");
-    pGraphics->AttachControl(new IVKnobControl(lfoPanel.GetGridCell(0, 2, 2, 3).GetCentredInside(60), kParamLFOShape, "Shape"), kNoTag, "LFO")->DisablePrompt(false);
-    pGraphics->AttachControl(new IVSlideSwitchControl(lfoPanel.GetGridCell(1, 0, 2, 3).GetFromTop(30).GetMidHPadded(20), kParamLFORateMode, "Sync", DEFAULT_STYLE.WithShowValue(false).WithShowLabel(false).WithWidgetFrac(0.5f).WithDrawShadows(false), false), kNoTag, "LFO");
-    pGraphics->AttachControl(new IVDisplayControl(lfoPanel.GetGridCell(1, 1, 2, 3).Union(lfoPanel.GetGridCell(1, 2, 2, 3)), "", DEFAULT_STYLE, EDirection::Horizontal, 0.f, 1.f, 0.f, 1024), kCtrlTagLFOVis, "LFO");
-    
-    pGraphics->AttachControl(new IVGroupControl("LFO", "LFO", 10.f, 20.f, 10.f, 10.f));
-    
-    pGraphics->AttachControl(new IVButtonControl(keyboardBounds.GetFromTRHC(200, 30).GetTranslated(0, -30), SplashClickActionFunc,
-      "Show/Hide Keyboard", DEFAULT_STYLE.WithColor(kFG, COLOR_WHITE).WithLabelText({15.f, EVAlign::Middle})))->SetAnimationEndActionFunction(
-      [pGraphics](IControl* pCaller) {
-        static bool hide = false;
-        pGraphics->GetControlWithTag(kCtrlTagKeyboard)->Hide(hide = !hide);
-        pGraphics->Resize(PLUG_WIDTH, hide ? PLUG_HEIGHT / 2 : PLUG_HEIGHT, pGraphics->GetDrawScale());
-    });
-//#ifdef OS_IOS
-//    if(!IsOOPAuv3AppExtension())
-//    {
-//      pGraphics->AttachControl(new IVButtonControl(b.GetFromTRHC(100, 100), [pGraphics](IControl* pCaller) {
-//                               dynamic_cast<IGraphicsIOS*>(pGraphics)->LaunchBluetoothMidiDialog(pCaller->GetRECT().L, pCaller->GetRECT().MH());
-//                               SplashClickActionFunc(pCaller);
-//                             }, "BTMIDI"));
-//    }
-//#endif
-    
+    const IRECT b = pGraphics->GetBounds();
+    const IRECT container = b.GetPadded(-30.f);
+
+    // Title
+    const IRECT titleArea = container.GetFromTop(60.f);
+    pGraphics->AttachControl(new ITextControl(titleArea, "TEMPLATE SYNTH",
+      IText(48.f, WHITE)));
+
+    // Main content area
+    const IRECT workArea = container.GetReducedFromTop(80.f);
+
+    // Bottom: Keyboard + Wheels
+    const IRECT keyboardArea = workArea.GetFromBottom(120.f);
+    const IRECT wheelsBounds = keyboardArea.GetFromLeft(80.f).GetPadded(-5.f);
+    const IRECT keyboardBounds = keyboardArea.GetReducedFromLeft(85.f);
+
+    pGraphics->AttachControl(new IWheelControl(wheelsBounds.FracRectVertical(0.5f, true), IMidiMsg::EControlChangeMsg::kModWheel));
+    pGraphics->AttachControl(new IWheelControl(wheelsBounds.FracRectVertical(0.5f, false)), kCtrlTagBender);
+    pGraphics->AttachControl(new IVKeyboardControl(keyboardBounds, 36, 84), kCtrlTagKeyboard);
+
+    // Content area (above keyboard)
+    const IRECT contentArea = workArea.GetReducedFromBottom(130.f);
+
+    // Layout: 3 sections (ADSR | Main | LFO)
+    // Split into 3 equal columns
+    const float colW = contentArea.W() / 3.0f;
+    const IRECT adsrSection = contentArea.GetFromLeft(colW).GetPadded(-10.f);
+    const IRECT mainSection = contentArea.GetReducedFromLeft(colW).GetFromLeft(colW).GetPadded(-10.f);
+    const IRECT lfoSection = contentArea.GetFromRight(colW).GetPadded(-10.f);
+
+    // ADSR SECTION
+    const IRECT adsrTitle = adsrSection.GetFromTop(30.f);
+    pGraphics->AttachControl(new ITextControl(adsrTitle, "ADSR",
+      IText(32.f, WHITE)));
+
+    const IRECT adsrControls = adsrSection.GetReducedFromTop(40.f);
+    const float sliderW = adsrControls.W() / 4.0f;
+    const float sliderGap = 5.f;
+
+    pGraphics->AttachControl(new IVSliderControl(
+      IRECT(adsrControls.L, adsrControls.T, adsrControls.L + sliderW - sliderGap, adsrControls.B),
+      kParamAttack, "A", BRUTALIST_STYLE.WithWidgetFrac(0.8f), false, EDirection::Vertical));
+
+    pGraphics->AttachControl(new IVSliderControl(
+      IRECT(adsrControls.L + sliderW, adsrControls.T, adsrControls.L + sliderW * 2 - sliderGap, adsrControls.B),
+      kParamDecay, "D", BRUTALIST_STYLE.WithWidgetFrac(0.8f), false, EDirection::Vertical));
+
+    pGraphics->AttachControl(new IVSliderControl(
+      IRECT(adsrControls.L + sliderW * 2, adsrControls.T, adsrControls.L + sliderW * 3 - sliderGap, adsrControls.B),
+      kParamSustain, "S", BRUTALIST_STYLE.WithWidgetFrac(0.8f), false, EDirection::Vertical));
+
+    pGraphics->AttachControl(new IVSliderControl(
+      IRECT(adsrControls.L + sliderW * 3, adsrControls.T, adsrControls.R, adsrControls.B),
+      kParamRelease, "R", BRUTALIST_STYLE.WithWidgetFrac(0.8f), false, EDirection::Vertical));
+
+    // MAIN CONTROLS SECTION
+    const IRECT mainTitle = mainSection.GetFromTop(30.f);
+    pGraphics->AttachControl(new ITextControl(mainTitle, "MAIN",
+      IText(32.f, WHITE)));
+
+    const IRECT mainControls = mainSection.GetReducedFromTop(40.f);
+    const float knobH = mainControls.H() * 0.48f;
+    const IRECT gainKnobRect = mainControls.GetFromTop(knobH);
+    const IRECT glideKnobRect = mainControls.GetFromBottom(knobH);
+
+    pGraphics->AttachControl(new IVKnobControl(gainKnobRect, kParamGain, "GAIN",
+      BRUTALIST_STYLE.WithWidgetFrac(0.7f)));
+    pGraphics->AttachControl(new IVKnobControl(glideKnobRect, kParamNoteGlideTime, "GLIDE",
+      BRUTALIST_STYLE.WithWidgetFrac(0.7f)));
+
+    // LFO SECTION
+    const IRECT lfoTitle = lfoSection.GetFromTop(30.f);
+    pGraphics->AttachControl(new ITextControl(lfoTitle, "LFO",
+      IText(32.f, WHITE)));
+
+    const IRECT lfoControls = lfoSection.GetReducedFromTop(40.f);
+
+    // Simple 2x2 grid layout for LFO knobs
+    const float knobRowH = lfoControls.H() * 0.5f;
+    const float knobColW = lfoControls.W() * 0.5f;
+
+    // Row 1: Shape and Depth
+    const IRECT lfoShapeRect = IRECT(lfoControls.L, lfoControls.T,
+                                      lfoControls.L + knobColW, lfoControls.T + knobRowH).GetPadded(-8.f);
+    const IRECT lfoDepthRect = IRECT(lfoControls.L + knobColW, lfoControls.T,
+                                      lfoControls.R, lfoControls.T + knobRowH).GetPadded(-8.f);
+
+    pGraphics->AttachControl(new IVKnobControl(lfoShapeRect, kParamLFOShape, "SHAPE",
+      BRUTALIST_STYLE.WithWidgetFrac(0.6f)))->DisablePrompt(false);
+    pGraphics->AttachControl(new IVKnobControl(lfoDepthRect, kParamLFODepth, "DEPTH",
+      BRUTALIST_STYLE.WithWidgetFrac(0.6f)));
+
+    // Row 2: Rate and Visualizer
+    const IRECT lfoRateRect = IRECT(lfoControls.L, lfoControls.T + knobRowH,
+                                     lfoControls.L + knobColW, lfoControls.B).GetPadded(-8.f);
+    const IRECT lfoVisRect = IRECT(lfoControls.L + knobColW, lfoControls.T + knobRowH,
+                                    lfoControls.R, lfoControls.B).GetPadded(-8.f);
+
+    // Rate knob (Hz or Tempo based on sync) - both occupy same space
+    pGraphics->AttachControl(new IVKnobControl(lfoRateRect, kParamLFORateHz, "RATE HZ",
+      BRUTALIST_STYLE.WithWidgetFrac(0.6f)), kParamLFORateHz)->Hide(true);
+    pGraphics->AttachControl(new IVKnobControl(lfoRateRect, kParamLFORateTempo, "RATE",
+      BRUTALIST_STYLE.WithWidgetFrac(0.6f)), kParamLFORateTempo)->DisablePrompt(false);
+
+    // Sync toggle (small button at top of rate knob area)
+    const IRECT lfoSyncRect = IRECT(lfoControls.L + 5, lfoControls.T + knobRowH + 5,
+                                     lfoControls.L + knobColW - 5, lfoControls.T + knobRowH + 22);
+    pGraphics->AttachControl(new IVSlideSwitchControl(lfoSyncRect, kParamLFORateMode, "SYNC",
+      BRUTALIST_STYLE.WithShowValue(false).WithWidgetFrac(0.4f).WithLabelText(IText(9.f, WHITE)), false));
+
+    // Visualizer - LFO waveform display (white line on black background)
+    pGraphics->AttachControl(new IVDisplayControl(lfoVisRect, "", BRUTALIST_STYLE.WithColor(kFG, WHITE).WithColor(kBG, BG_BLACK).WithColor(kX1, WHITE), EDirection::Horizontal, 0.f, 1.f, 0.5f, 512, 3.f), kCtrlTagLFOVis);
+
+    // QWERTY keyboard handler for playing notes
     pGraphics->SetQwertyMidiKeyHandlerFunc([pGraphics](const IMidiMsg& msg) {
-                                              pGraphics->GetControlWithTag(kCtrlTagKeyboard)->As<IVKeyboardControl>()->SetNoteFromMidi(msg.NoteNumber(), msg.StatusMsg() == IMidiMsg::kNoteOn);
-                                           });
+      pGraphics->GetControlWithTag(kCtrlTagKeyboard)->As<IVKeyboardControl>()->SetNoteFromMidi(msg.NoteNumber(), msg.StatusMsg() == IMidiMsg::kNoteOn);
+    });
   };
 #endif
 }
@@ -89,20 +178,17 @@ TemplateProject::TemplateProject(const InstanceInfo& info)
 void TemplateProject::ProcessBlock(sample** inputs, sample** outputs, int nFrames)
 {
   mDSP.ProcessBlock(nullptr, outputs, 2, nFrames, mTimeInfo.mPPQPos, mTimeInfo.mTransportIsRunning);
-  mMeterSender.ProcessBlock(outputs, nFrames, kCtrlTagMeter);
   mLFOVisSender.PushData({kCtrlTagLFOVis, {float(mDSP.mLFO.GetLastOutput())}});
 }
 
 void TemplateProject::OnIdle()
 {
-  mMeterSender.TransmitData(*this);
   mLFOVisSender.TransmitData(*this);
 }
 
 void TemplateProject::OnReset()
 {
   mDSP.Reset(GetSampleRate(), GetBlockSize());
-  mMeterSender.Reset(GetSampleRate());
 }
 
 void TemplateProject::ProcessMidiMsg(const IMidiMsg& msg)
@@ -154,12 +240,14 @@ void TemplateProject::OnParamChangeUI(int paramIdx, EParamSource source)
 
 bool TemplateProject::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData)
 {
+#if IPLUG_EDITOR
   if(ctrlTag == kCtrlTagBender && msgTag == IWheelControl::kMessageTagSetPitchBendRange)
   {
     const int bendRange = *static_cast<const int*>(pData);
     mDSP.mSynth.SetPitchBendRange(bendRange);
   }
-  
+#endif
+
   return false;
 }
 #endif
