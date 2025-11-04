@@ -18,6 +18,17 @@ TemplateProject::TemplateProject(const InstanceInfo& info)
   GetParam(kParamLFODepth)->InitPercentage("LFO Depth");
     
 #if IPLUG_EDITOR
+#if defined(WEBVIEW_EDITOR_DELEGATE)
+  // WebView editor delegate setup (for AU/VST3)
+  SetCustomUrlScheme("iplug2");
+  SetEnableDevTools(true);
+  
+  mEditorInitFunc = [&]() {
+    LoadIndexHtml(__FILE__, GetBundleID());
+    EnableScroll(false);
+  };
+#else
+  // IGraphics editor delegate setup (for NanoVG-based UI)
   mMakeGraphicsFunc = [&]() {
     return MakeGraphics(*this, PLUG_WIDTH, PLUG_HEIGHT, PLUG_FPS, 1.0f);
   };
@@ -172,6 +183,7 @@ TemplateProject::TemplateProject(const InstanceInfo& info)
     });
   };
 #endif
+#endif
 }
 
 #if IPLUG_DSP
@@ -179,16 +191,19 @@ void TemplateProject::ProcessBlock(sample** inputs, sample** outputs, int nFrame
 {
   mDSP.ProcessBlock(nullptr, outputs, 2, nFrames, mTimeInfo.mPPQPos, mTimeInfo.mTransportIsRunning);
   mLFOVisSender.PushData({kCtrlTagLFOVis, {float(mDSP.mLFO.GetLastOutput())}});
+  mMeterSender.ProcessBlock(outputs, nFrames, kCtrlTagMeter);
 }
 
 void TemplateProject::OnIdle()
 {
   mLFOVisSender.TransmitData(*this);
+  mMeterSender.TransmitData(*this);
 }
 
 void TemplateProject::OnReset()
 {
   mDSP.Reset(GetSampleRate(), GetBlockSize());
+  mMeterSender.Reset(GetSampleRate());
 }
 
 void TemplateProject::ProcessMidiMsg(const IMidiMsg& msg)
@@ -226,6 +241,7 @@ void TemplateProject::OnParamChange(int paramIdx)
 void TemplateProject::OnParamChangeUI(int paramIdx, EParamSource source)
 {
   #if IPLUG_EDITOR
+  #ifndef NO_IGRAPHICS
   if (auto pGraphics = GetUI())
   {
     if (paramIdx == kParamLFORateMode)
@@ -236,16 +252,19 @@ void TemplateProject::OnParamChangeUI(int paramIdx, EParamSource source)
     }
   }
   #endif
+  #endif
 }
 
 bool TemplateProject::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData)
 {
 #if IPLUG_EDITOR
+#ifndef NO_IGRAPHICS
   if(ctrlTag == kCtrlTagBender && msgTag == IWheelControl::kMessageTagSetPitchBendRange)
   {
     const int bendRange = *static_cast<const int*>(pData);
     mDSP.mSynth.SetPitchBendRange(bendRange);
   }
+#endif
 #endif
 
   return false;

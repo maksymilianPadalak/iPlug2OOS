@@ -1,7 +1,10 @@
 #pragma once
 
 #include "IPlug_include_in_plug_hdr.h"
+#include "ISender.h"
+#ifndef NO_IGRAPHICS
 #include "IControls.h"
+#endif
 
 const int kNumPresets = 1;
 
@@ -38,7 +41,9 @@ enum EControlTags
 };
 
 using namespace iplug;
+#ifndef NO_IGRAPHICS
 using namespace igraphics;
+#endif
 
 class TemplateProject final : public Plugin
 {
@@ -58,5 +63,6 @@ public:
 private:
   TemplateProjectDSP<sample> mDSP {16};
   ISender<1> mLFOVisSender;
+  IPeakAvgSender<2> mMeterSender;
 #endif
 };

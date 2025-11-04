@@ -50,15 +50,16 @@ fi
 if [ -d $BUILD_WEB_DIR/.git ]
 then
   # if so trash only the scripts
-  if [ -d $BUILD_WEB_DIR/scripts ]; then
-    if [ "$BUILD_DSP" -eq "1" ]; then
-      rm $BUILD_WEB_DIR/scripts/*-wam.js
-    fi
+    if [ -d $BUILD_WEB_DIR/scripts ]; then
+      if [ "$BUILD_DSP" -eq "1" ]; then
+        rm $BUILD_WEB_DIR/scripts/*-wam.js
+      fi
 
-    if [ "$BUILD_EDITOR" -eq "1" ]; then
-      rm $BUILD_WEB_DIR/scripts/*-web.*
+      # Skip WEB module cleanup - we're using WebView UI adapter instead
+      # if [ "$BUILD_EDITOR" -eq "1" ]; then
+      #   rm $BUILD_WEB_DIR/scripts/*-web.*
+      # fi
     fi
-  fi
 else
   # otherwise trash the whole build-web folder
   if [ -d $BUILD_WEB_DIR ]; then
@@ -145,6 +146,9 @@ if [ "$BUILD_DSP" -eq "1" ]; then
   cp $IPLUG2_ROOT/IPlug/WEB/Template/scripts/IPlugWAM-awn.js $PROJECT_NAME-awn.js
   cp $IPLUG2_ROOT/IPlug/WEB/Template/scripts/IPlugWAM-awp.js $PROJECT_NAME-awp.js
 
+  # copy WebView-to-WAM adapter script
+  cp $IPLUG2_ROOT/IPlug/WEB/Template/scripts/webview-wam-adapter.js webview-wam-adapter.js
+
   # replace NAME_PLACEHOLDER in the template -awn.js and -awp.js scripts
   sed -i.bak s/NAME_PLACEHOLDER/$PROJECT_NAME/g $PROJECT_NAME-awn.js
   sed -i.bak s/NAME_PLACEHOLDER/$PROJECT_NAME/g $PROJECT_NAME-awp.js
@@ -194,16 +198,30 @@ mkdir styles
 cp $IPLUG2_ROOT/IPlug/WEB/Template/styles/style.css styles/style.css
 cp $IPLUG2_ROOT/IPlug/WEB/Template/favicon.ico favicon.ico
 
-echo MAKING  - WEB WASM MODULE -----------------------------
+# Also copy files to resources/web for plugin builds (AU/VST3)
+PROJECT_RESOURCES_WEB_DIR=$PROJECT_ROOT/resources/web
+mkdir -p $PROJECT_RESOURCES_WEB_DIR/scripts
+mkdir -p $PROJECT_RESOURCES_WEB_DIR/styles
 
-cd $PROJECT_ROOT/projects
+# Copy HTML, CSS, and adapter script
+cp index.html $PROJECT_RESOURCES_WEB_DIR/
+cp styles/style.css $PROJECT_RESOURCES_WEB_DIR/styles/
+cp favicon.ico $PROJECT_RESOURCES_WEB_DIR/
 
-emmake make --makefile $PROJECT_NAME-wam-controller.mk EXTRA_CFLAGS=-DWEBSOCKET_CLIENT=$WEBSOCKET_MODE
+# Copy scripts needed for WebView
+cp scripts/webview-wam-adapter.js $PROJECT_RESOURCES_WEB_DIR/scripts/ 2>/dev/null || true
 
-if [ $? -ne "0" ]; then
-  echo IPlugWEB WASM compilation failed
-  exit 1
-fi
+echo "Files copied to $PROJECT_RESOURCES_WEB_DIR for plugin builds"
+echo "Note: Add the 'web' folder to Xcode project Resources if not already added"
+
+echo "Skipping WEB WASM module build - using WebView UI instead"
+# echo MAKING  - WEB WASM MODULE -----------------------------
+# cd $PROJECT_ROOT/projects
+# emmake make --makefile $PROJECT_NAME-wam-controller.mk EXTRA_CFLAGS=-DWEBSOCKET_CLIENT=$WEBSOCKET_MODE
+# if [ $? -ne "0" ]; then
+#   echo IPlugWEB WASM compilation failed
+#   exit 1
+# fi
 
 cd $BUILD_WEB_DIR
 

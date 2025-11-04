@@ -2,14 +2,14 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>NAME_PLACEHOLDER WAM</title>
+    <title>TemplateProject WAM</title>
     <link href="styles/style.css" rel="stylesheet" type="text/css"/>
     <script src="scripts/audioworklet.js"></script>
-    <script src="scripts/websocket.js"></script>
+    <!--<script src="scripts/websocket.js"></script>-->
     <script async src="fonts.js"></script>
-    <script async src="svgs.js"></script>
-    <script async src="imgs.js"></script>
-    <script async src="imgs@2x.js"></script>
+    <!--<script async src="svgs.js"></script>-->
+    <!--<script async src="imgs.js"></script>-->
+    <!--<script async src="imgs@2x.js"></script>-->
     <!-- WebView-to-WAM Adapter - MUST be loaded before controller scripts -->
     <script src="scripts/webview-wam-adapter.js"></script>
     <script>
@@ -208,7 +208,7 @@
         </div>
       </div>
     <script type='text/javascript'>
-      var NAME_PLACEHOLDER_WAM; // the WAM controller
+      var TemplateProject_WAM; // the WAM controller
       let WEBSOCKET_MODE=false; // this constant will be set by the makedist-web.sh script
 
       if(WEBSOCKET_MODE==true) {
@@ -290,7 +290,7 @@
               }
 
               combo.onchange = e => {
-                NAME_PLACEHOLDER_WAM.midiOut = e.target.options[e.target.selectedIndex].port;
+                TemplateProject_WAM.midiOut = e.target.options[e.target.selectedIndex].port;
               }
             } else {
               for (let input of midiIF.inputs.values()) {
@@ -300,7 +300,7 @@
               }
 
               combo.onchange = e => {
-                NAME_PLACEHOLDER_WAM.midiIn = e.target.options[e.target.selectedIndex].port;
+                TemplateProject_WAM.midiIn = e.target.options[e.target.selectedIndex].port;
               }
             }
 
@@ -695,8 +695,8 @@
         // Send TICK messages periodically to trigger OnIdle() in processor
         // This allows the processor to send SCVFD/SCMFD messages
         idleTimerInterval = setInterval(function() {
-          if (typeof NAME_PLACEHOLDER_WAM !== 'undefined' && NAME_PLACEHOLDER_WAM && typeof NAME_PLACEHOLDER_WAM.sendMessage === 'function') {
-            NAME_PLACEHOLDER_WAM.sendMessage("TICK", "", 0);
+          if (typeof TemplateProject_WAM !== 'undefined' && TemplateProject_WAM && typeof TemplateProject_WAM.sendMessage === 'function') {
+            TemplateProject_WAM.sendMessage("TICK", "", 0);
           }
         }, 16); // ~60fps
       };
@@ -832,7 +832,7 @@
           script1.src = "scripts/wam-controller.js";
           script1.onload = () => {
             var script2 = document.createElement("script");
-            script2.src = "scripts/NAME_PLACEHOLDER-awn.js";
+            script2.src = "scripts/TemplateProject-awn.js";
             script2.onload = () => {
 
               if(AWPF.isAudioWorkletPolyfilled)
@@ -840,20 +840,20 @@
               else
                 console.log("AudioWorklet Supported");
 
-              let inputBuses = [MAXNINPUTS_PLACEHOLDER];
-              let outputBuses = [MAXNOUTPUTS_PLACEHOLDER];
+              let inputBuses = [2];
+              let outputBuses = [2];
               let options = {numberOfInputs: inputBuses.length, inputChannelCount: inputBuses,
                              numberOfOutputs: outputBuses.length, outputChannelCount: outputBuses,
                              processorOptions: {inputChannelCount: inputBuses}};
 
-              NAME_PLACEHOLDERController.importScripts(actx).then(() => {
-                NAME_PLACEHOLDER_WAM = new NAME_PLACEHOLDERController(actx, options);
+              TemplateProjectController.importScripts(actx).then(() => {
+                TemplateProject_WAM = new TemplateProjectController(actx, options);
 
-                if(NAME_PLACEHOLDER_WAM !== undefined) {
+                if(TemplateProject_WAM !== undefined) {
 
                   // Initialize WebView-to-WAM adapter
                   if (typeof window.initWebViewWAMAdapter === 'function') {
-                    window.initWebViewWAMAdapter(NAME_PLACEHOLDER_WAM);
+                    window.initWebViewWAMAdapter(TemplateProject_WAM);
                     const statusEl = document.getElementById('adapterStatus');
                     if (statusEl) {
                       statusEl.textContent = '✓ Adapter initialized - AudioWorklet ready!';
@@ -886,7 +886,7 @@
                     updateParam(10, 0.0);
                   }
 
-                  let NInputs = AWPF.isAudioWorkletPolyfilled ? NAME_PLACEHOLDER_WAM.input.numberOfInputs : NAME_PLACEHOLDER_WAM.numberOfInputs;
+                  let NInputs = AWPF.isAudioWorkletPolyfilled ? TemplateProject_WAM.input.numberOfInputs : TemplateProject_WAM.numberOfInputs;
 
                   if(NInputs > 0) {
                     var constraints = { audio: true, video:false }
@@ -896,11 +896,11 @@
 
                       // connect audioSource to WAM inputs
                       if(AWPF.isAudioWorkletPolyfilled)
-                        audioSource.connect(NAME_PLACEHOLDER_WAM.input)
+                        audioSource.connect(TemplateProject_WAM.input)
                       else
-                        audioSource.connect(NAME_PLACEHOLDER_WAM);
+                        audioSource.connect(TemplateProject_WAM);
 
-                      NAME_PLACEHOLDER_WAM.connect(actx.destination); // connect WAM output to speakers
+                      TemplateProject_WAM.connect(actx.destination); // connect WAM output to speakers
                       connectionsDone();
                     })
                     .catch((err) => {
@@ -909,12 +909,12 @@
                   }
                   else
                   {
-                    NAME_PLACEHOLDER_WAM.connect(actx.destination); // connect WAM output to speakers
+                    TemplateProject_WAM.connect(actx.destination); // connect WAM output to speakers
                     connectionsDone();
                   }
                 }
                 else {
-                  console.log('NAME_PLACEHOLDER_WAM is undefined');
+                  console.log('TemplateProject_WAM is undefined');
                 }
               });
             }
@@ -927,7 +927,7 @@
       // helper method for sending an "arbitary" message to the processor, which can be handled in OnMessage()
       function SendMessageToWAM(msgTag, ctrlTag = -1, data = 0) {
         let propArg = String(msgTag + ":" + ctrlTag);
-        NAME_PLACEHOLDER_WAM.port.postMessage({ "type": "msg", "verb": "SAMFUI", "prop": propArg, "data": data });
+        TemplateProject_WAM.port.postMessage({ "type": "msg", "verb": "SAMFUI", "prop": propArg, "data": data });
       }
 
       var statusElement = document.getElementById('status');

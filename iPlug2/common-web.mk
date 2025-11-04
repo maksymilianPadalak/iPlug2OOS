@@ -95,8 +95,7 @@ WAM_LDFLAGS = -s EXPORTED_RUNTIME_METHODS="['ccall', 'cwrap', 'setValue', 'UTF8T
 --pre-js=$(IPLUG2_ROOT)/IPlug/WEB/Template/scripts/atob-polyfill.js
 #-s ENVIRONMENT=worker
 
-WEB_LDFLAGS = -s EXPORTED_FUNCTIONS=$(WEB_EXPORTS) \
--s EXPORTED_RUNTIME_METHODS="['ccall', 'UTF8ToString']" \
+WEB_LDFLAGS = -s EXPORTED_RUNTIME_METHODS="['ccall', 'UTF8ToString']" \
 -s BINARYEN_ASYNC_COMPILATION=1 \
 -s FORCE_FILESYSTEM=1 \
 -s ENVIRONMENT=web \

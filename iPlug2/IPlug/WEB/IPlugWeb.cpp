@@ -192,4 +192,5 @@ EMSCRIPTEN_BINDINGS(IPlugWeb) {
   function("SMMFD", &_SendMidiMsgFromDelegate);
   function("SSMFD", &_SendSysexMsgFromDelegate);
   function("StartIdleTimer", &_StartIdleTimer);
+  function("testEmbind", optional_override([]() { return 42; }));
 }

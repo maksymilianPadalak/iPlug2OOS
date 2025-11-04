@@ -38,6 +38,13 @@
 		4F037D76261F9DB400A752B5 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4F037D75261F9DB400A752B5 /* Images.xcassets */; };
 		4F037D77261F9DB400A752B5 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4F037D75261F9DB400A752B5 /* Images.xcassets */; };
 		4F03A5AC20A4621100EBDFFB /* IGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F03A55820A4621000EBDFFB /* IGraphics.cpp */; };
+		4F7C49BA255DE0E200DF758A /* IPlugWebView_mac.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4F7C49BA255DE0E200DF7588 /* IPlugWebView_mac.mm */; };
+		4F7C49BD255DE0E300DF758A /* IPlugWebViewEditorDelegate.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F7C49BD255DE0E300DF7588 /* IPlugWebViewEditorDelegate.cpp */; };
+		4F7C49BA255DE0E200DF758A /* IPlugWebViewEditorDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4F7C49BA255DE0E200DF7588 /* IPlugWebViewEditorDelegate.mm */; };
+		4F7C49BE255DE0E200DF758A /* IPlugWebView_mac.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4F7C49BE255DE0E200DF7588 /* IPlugWebView_mac.mm */; settings = {COMPILER_FLAGS = "-fobjc-arc"; }; };
+		4F7C49B9255DE0E200DF758A /* IPlugWebView.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F7C49B9255DE0E200DF7588 /* IPlugWebView.cpp */; };
+		4F7C49D2255DE0E300DF7589 /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F7C49D2255DE0E300DF7588 /* VoiceAllocator.cpp */; };
+		4F7C49D5255DE0E300DF7589 /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F7C49D5255DE0E300DF7588 /* MidiSynth.cpp */; };
 		4F03A5AD20A4621100EBDFFB /* IGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F03A55820A4621000EBDFFB /* IGraphics.cpp */; };
 		4F03A5AE20A4621100EBDFFB /* IGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F03A55820A4621000EBDFFB /* IGraphics.cpp */; };
 		4F03A5AF20A4621100EBDFFB /* IGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F03A55820A4621000EBDFFB /* IGraphics.cpp */; };
@@ -51,6 +58,8 @@
 		4F1A5285205D914A00CF2908 /* IPlugAAX.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F1A5284205D914A00CF2908 /* IPlugAAX.cpp */; };
 		4F1A528C205D916F00CF2908 /* IPlugAU.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F1A528A205D916F00CF2908 /* IPlugAU.cpp */; };
 		4F1B4AE42014D33600BC64D4 /* TemplateProject-macOS-MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 4F1B4AE32014D33600BC64D4 /* TemplateProject-macOS-MainMenu.xib */; };
+		4F9AB11C259C050300653315 /* web in Resources */ = {isa = PBXBuildFile; fileRef = 4FC46E57231440B4000045E7 /* web */; };
+		4F9AB11D259C050B00653315 /* web in Resources */ = {isa = PBXBuildFile; fileRef = 4FC46E57231440B4000045E7 /* web */; };
 		4F2EA978203A50EA008E4850 /* IPlugAPP_dialog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2EA977203A50E9008E4850 /* IPlugAPP_dialog.cpp */; };
 		4F32AE7C231427EC00710734 /* TemplateProjectAU.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F78BE0222E73D0800AD537E /* TemplateProjectAU.framework */; };
 		4F35DEAD207E5C5A00867D8F /* IPlugPluginBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F35DEAB207E5C5A00867D8F /* IPlugPluginBase.cpp */; };
@@ -536,7 +545,7 @@
 		4F7C49BB255DE0E200DF7588 /* IPlugWebView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IPlugWebView.h; sourceTree = "<group>"; };
 		4F7C49BC255DE0E200DF7588 /* IPlugWebViewEditorDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IPlugWebViewEditorDelegate.h; sourceTree = "<group>"; };
 		4F7C49BD255DE0E200DF7588 /* IPlugWebViewEditorDelegate.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IPlugWebViewEditorDelegate.cpp; sourceTree = "<group>"; };
-		4F7C49BE255DE0E200DF7588 /* IPlugWebView.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = IPlugWebView.mm; sourceTree = "<group>"; };
+		4F7C49BE255DE0E200DF7588 /* IPlugWebView_mac.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = IPlugWebView_mac.mm; sourceTree = "<group>"; };
 		4F7C49BF255DE0E200DF7588 /* Easing.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Easing.h; sourceTree = "<group>"; };
 		4F7C49C1255DE0E200DF7588 /* IPlugCocoaEditorDelegate.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = IPlugCocoaEditorDelegate.mm; sourceTree = "<group>"; };
 		4F7C49C2255DE0E200DF7588 /* IPlugCocoaEditorDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IPlugCocoaEditorDelegate.h; sourceTree = "<group>"; };
@@ -1248,7 +1257,7 @@
 				4F7C49BB255DE0E200DF7588 /* IPlugWebView.h */,
 				4F7C49BC255DE0E200DF7588 /* IPlugWebViewEditorDelegate.h */,
 				4F7C49BD255DE0E200DF7588 /* IPlugWebViewEditorDelegate.cpp */,
-				4F7C49BE255DE0E200DF7588 /* IPlugWebView.mm */,
+				4F7C49BE255DE0E200DF7588 /* IPlugWebView_mac.mm */,
 			);
 			path = WebView;
 			sourceTree = "<group>";
@@ -1999,6 +2008,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4F9AB11C259C050300653315 /* web in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2037,6 +2047,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4F9AB11D259C050B00653315 /* web in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2274,27 +2285,21 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				4F7C495F255DDFC500DF7588 /* IPopupMenuControl.cpp in Sources */,
-				4F03A5AF20A4621100EBDFFB /* IGraphics.cpp in Sources */,
-				4F6369E020A464BB0022C370 /* IGraphicsNanoVG_src.m in Sources */,
-				4F6369EE20A466470022C370 /* IControl.cpp in Sources */,
-				4F1A528C205D916F00CF2908 /* IPlugAU.cpp in Sources */,
+																				4F1A528C205D916F00CF2908 /* IPlugAU.cpp in Sources */,
 				4FD52131202A5B9B00A4D22A /* IPlugAU_view_factory.mm in Sources */,
 				4F993F7423055C96000313AF /* IPlugProcessor.cpp in Sources */,
-				4F8C10E320BA2796006320CD /* IGraphicsEditorDelegate.cpp in Sources */,
-				4F6FD2B422675B6300FC59E6 /* IGraphicsCoreText.mm in Sources */,
-				4FDAC0ED207D76C600299363 /* IPlugTimer.cpp in Sources */,
+				4F7C49BE255DE0E200DF758A /* IPlugWebView_mac.mm in Sources */,
+												4FDAC0ED207D76C600299363 /* IPlugTimer.cpp in Sources */,
 				4F78D94513B63BA50032E0F3 /* IPlugAPIBase.cpp in Sources */,
-				4FB1F59320E4B013004157C8 /* IGraphicsMac_view.mm in Sources */,
-				4FD52136202A5BD000A4D22A /* dfx-au-utilities.c in Sources */,
-				4F7C4960255DDFC500DF7588 /* ITextEntryControl.cpp in Sources */,
-				4F5F344420C0226200487201 /* IPlugPaths.mm in Sources */,
-				4F7C495E255DDFC500DF7588 /* IControls.cpp in Sources */,
+								4FD52136202A5BD000A4D22A /* dfx-au-utilities.c in Sources */,
+								4F5F344420C0226200487201 /* IPlugPaths.mm in Sources */,
 				4F35DEB0207E5C5A00867D8F /* IPlugPluginBase.cpp in Sources */,
 				4F78D95C13B63BA50032E0F3 /* IPlugParameter.cpp in Sources */,
-				4FB1F58C20E4B006004157C8 /* IGraphicsMac.mm in Sources */,
-				4F3862F22014BBEC0009F402 /* TemplateProject.cpp in Sources */,
-			);
+								4F3862F22014BBEC0009F402 /* TemplateProject.cpp in Sources */,
+				4F7C49D2255DE0E300DF7589 /* VoiceAllocator.cpp in Sources */,
+				4F7C49D5255DE0E300DF7589 /* MidiSynth.cpp in Sources */,
+				4F7C49BA255DE0E200DF758A /* IPlugWebViewEditorDelegate.mm in Sources */,
+);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		4F3EE1C1231438D000004786 /* Sources */ = {
