@@ -7,6 +7,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { EParams, EControlTags } from '../config/constants';
+import { getDefaultNormalizedValues } from '../utils/parameter';
 
 interface ParameterState {
   // Parameter values (normalized 0-1)
@@ -149,7 +150,8 @@ export function isUpdatingFromProcessor(): boolean {
  * Parameter Provider Component
  */
 export function ParameterProvider({ children }: { children: React.ReactNode }) {
-  const [paramValues, setParamValues] = useState<Map<EParams, number>>(new Map());
+  // Initialize with default values matching C++ DSP defaults
+  const [paramValues, setParamValues] = useState<Map<EParams, number>>(getDefaultNormalizedValues());
   const [controlValues, setControlValues] = useState<Map<EControlTags, number>>(new Map());
   const [meterValues, setMeterValues] = useState({
     left: { peak: 0, rms: 0 },

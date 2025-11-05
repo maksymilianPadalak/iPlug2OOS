@@ -161,6 +161,12 @@ if [ -d "src" ] && [ -f "package.json" ]; then
   npm install --silent 2>/dev/null || true
   npm run build
   echo "✅ React UI built"
+  
+  # Copy processed CSS to style.css for plugin
+  if [ -f "styles/style.processed.css" ]; then
+    cp styles/style.processed.css styles/style.css
+    echo "✅ Processed CSS copied to style.css"
+  fi
 else
   echo "⚠️  React UI source not found, skipping"
 fi

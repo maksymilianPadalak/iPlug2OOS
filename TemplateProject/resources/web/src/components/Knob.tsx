@@ -62,7 +62,7 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
       <div
         ref={knobRef}
         onMouseDown={handleMouseDown}
-        className="relative w-12 h-12 bg-black border-4 border-white cursor-pointer select-none brutal-shadow"
+        className="relative w-12 h-12 bg-black border-4 border-white cursor-pointer select-none"
         style={{
           transform: isDragging ? 'translate(2px, 2px)' : 'translate(0, 0)',
         }}

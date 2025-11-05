@@ -5,8 +5,9 @@
 import React from 'react';
 import { EParams } from '../config/constants';
 import { useParameters } from './ParameterContext';
-import { sendParameterEnum } from '../communication/iplug-bridge';
+import { sendParameterValue } from '../communication/iplug-bridge';
 import { isUpdatingFromProcessor } from './ParameterContext';
+import { actualToNormalized } from '../utils/parameter';
 
 interface DropdownProps {
   paramIdx: EParams;
@@ -17,15 +18,26 @@ interface DropdownProps {
 export function Dropdown({ paramIdx, label, options }: DropdownProps) {
   const { paramValues, setParamValue } = useParameters();
   const value = paramValues.get(paramIdx) ?? 0;
-  const selectedIndex = Math.round(value);
+  
+  // Convert normalized value to enum index
+  const normalizedToEnumIndex = (norm: number): number => {
+    return Math.round(norm * (options.length - 1));
+  };
+  
+  const enumIndexToNormalized = (idx: number): number => {
+    return idx / (options.length - 1);
+  };
+  
+  const selectedIndex = normalizedToEnumIndex(value);
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newIndex = e.target.selectedIndex;
+    const normalizedValue = enumIndexToNormalized(newIndex);
     
-    setParamValue(paramIdx, newIndex);
+    setParamValue(paramIdx, normalizedValue);
     
     if (!isUpdatingFromProcessor()) {
-      sendParameterEnum(paramIdx, newIndex);
+      sendParameterValue(paramIdx, normalizedValue);
     }
   };
 

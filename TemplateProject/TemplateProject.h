@@ -21,6 +21,48 @@ enum EParams
   kParamLFORateTempo,
   kParamLFORateMode,
   kParamLFODepth,
+  // Oscillators
+  kParamOsc1Mix,
+  kParamOsc2Mix,
+  kParamOsc3Mix,
+  kParamOsc1Detune,
+  kParamOsc2Detune,
+  kParamOsc3Detune,
+  kParamOsc1Octave,
+  kParamOsc2Octave,
+  kParamOsc3Octave,
+  kParamOsc1Wave,
+  kParamOsc2Wave,
+  kParamOsc3Wave,
+  // Filter
+  kParamFilterCutoff,
+  kParamFilterResonance,
+  kParamFilterEnvAmount,
+  kParamFilterKeytrack,
+  kParamFilterAttack,
+  kParamFilterDecay,
+  kParamFilterSustain,
+  kParamFilterRelease,
+  // LFO2
+  kParamLFO2RateHz,
+  kParamLFO2RateTempo,
+  kParamLFO2RateMode,
+  kParamLFO2Shape,
+  kParamLFO2Depth,
+  // Delay
+  kParamDelayTime,
+  kParamDelayFeedback,
+  kParamDelayDry,
+  kParamDelayWet,
+  // Sync
+  kParamOscSync,
+  kParamOscSyncRatio,
+  // Reverb
+  kParamReverbRoomSize,
+  kParamReverbDamp,
+  kParamReverbWidth,
+  kParamReverbDry,
+  kParamReverbWet,
   kNumParams
 };
 
