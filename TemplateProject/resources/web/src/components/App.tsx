@@ -27,13 +27,15 @@ export function App() {
 
   return (
     <ParameterProvider>
-      <div className="w-full h-full p-3">
+      <div className="w-full h-full p-3 mx-auto max-w-6xl">
         {/* Compact Header */}
-        <div className="flex items-center justify-between mb-2">
-          <h1 className="text-white font-brutal text-xl font-bold uppercase tracking-wider">
+        <div className="flex items-center justify-center mb-2">
+          <h1 className="text-white font-brutal text-xl font-bold uppercase tracking-wider text-center">
             TEMPLATE SYNTH
           </h1>
-          <p id="adapterStatus" className="wam-only text-yellow-400 text-xs font-mono uppercase tracking-wider">
+        </div>
+        <div className="flex items-center justify-center mb-2">
+          <p id="adapterStatus" className="wam-only text-yellow-400 text-xs font-mono uppercase tracking-wider text-center">
             Waiting for AudioWorklet initialization...
           </p>
         </div>
@@ -57,7 +59,7 @@ export function App() {
         </TabContainer>
 
         {/* Keyboard Section - Always visible */}
-        <div className="brutal-panel p-3 mt-2">
+        <div className="bg-black border-4 border-white p-3 mt-2">
           <PianoKeyboard />
         </div>
       </div>
@@ -68,7 +70,7 @@ export function App() {
 function OscillatorsPage() {
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-white text-sm font-mono uppercase tracking-wider mb-2">OSCILLATORS</h2>
+      <h2 className="text-white text-sm font-mono uppercase tracking-wider mb-2 text-center">OSCILLATORS</h2>
       <div className="flex gap-4 justify-center flex-wrap">
         <OscillatorControls oscNum={1} />
         <OscillatorControls oscNum={2} />
@@ -81,7 +83,7 @@ function OscillatorsPage() {
 function FilterPage() {
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-white text-sm font-mono uppercase tracking-wider mb-2">FILTER</h2>
+      <h2 className="text-white text-sm font-mono uppercase tracking-wider mb-2 text-center">FILTER</h2>
       <div className="flex flex-col items-center gap-3">
         <div className="flex gap-2">
           <Knob paramIdx={EParams.kParamFilterCutoff} label="CUTOFF" />
@@ -108,7 +110,7 @@ function FilterPage() {
 function EnvelopePage() {
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-white text-sm font-mono uppercase tracking-wider mb-2">AMPLITUDE ENVELOPE</h2>
+      <h2 className="text-white text-sm font-mono uppercase tracking-wider mb-2 text-center">AMPLITUDE ENVELOPE</h2>
       <div className="flex flex-col items-center gap-3">
         <div className="flex gap-2">
           <Knob paramIdx={EParams.kParamAttack} label="ATTACK" />
@@ -124,7 +126,7 @@ function EnvelopePage() {
 function LFOPage() {
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-white text-sm font-mono uppercase tracking-wider mb-2">LOW FREQUENCY OSCILLATORS</h2>
+      <h2 className="text-white text-sm font-mono uppercase tracking-wider mb-2 text-center">LOW FREQUENCY OSCILLATORS</h2>
       <div className="flex flex-col gap-6">
         {/* LFO1 */}
         <div className="flex flex-col items-center gap-2">
@@ -180,7 +182,7 @@ function LFOPage() {
 function EffectsPage() {
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-white text-sm font-mono uppercase tracking-wider mb-2">EFFECTS</h2>
+      <h2 className="text-white text-sm font-mono uppercase tracking-wider mb-2 text-center">EFFECTS</h2>
       <div className="flex flex-col gap-6">
         {/* Delay */}
         <div className="flex flex-col items-center gap-2">
@@ -212,7 +214,7 @@ function EffectsPage() {
 function MainPage() {
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-white text-sm font-mono uppercase tracking-wider mb-2">MAIN CONTROLS</h2>
+      <h2 className="text-white text-sm font-mono uppercase tracking-wider mb-2 text-center">MAIN CONTROLS</h2>
       <div className="flex flex-col items-center gap-4">
         <div className="flex gap-2">
           <Knob paramIdx={EParams.kParamGain} label="GAIN" />

@@ -49,7 +49,7 @@ export function Dropdown({ paramIdx, label, options }: DropdownProps) {
       <select
         value={selectedIndex}
         onChange={handleChange}
-        className="bg-black border-2 border-white text-white px-2 py-1 font-mono text-xs uppercase tracking-wider focus:outline-none focus:bg-white focus:text-black cursor-pointer"
+        className="bg-black border-4 border-white text-white px-2 py-1 font-mono text-xs uppercase tracking-wider focus:outline-none focus:bg-white focus:text-black cursor-pointer"
       >
         {options.map((option, index) => (
           <option key={index} value={index} className="bg-black text-white">
