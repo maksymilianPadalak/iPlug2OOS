@@ -154,6 +154,18 @@ fi
 #---------------------------------------------------------------------------------------------------------
 # build xcode project. Change target to build individual formats, or add to All target in the xcode project
 
+# Build React UI before building plugin
+echo "Building React UI..."
+cd $BASEDIR/../resources/web
+if [ -d "src" ] && [ -f "package.json" ]; then
+  npm install --silent 2>/dev/null || true
+  npm run build
+  echo "✅ React UI built"
+else
+  echo "⚠️  React UI source not found, skipping"
+fi
+cd $BASEDIR/..
+
 xcodebuild -project ./projects/$PLUGIN_NAME-macOS.xcodeproj -xcconfig ./config/$PLUGIN_NAME-mac.xcconfig DEMO_VERSION=$DEMO -target "All" -UseModernBuildSystem=NO -configuration Release | tee build-mac.log | xcpretty #&& exit ${PIPESTATUS[0]}
 
 if [ "${PIPESTATUS[0]}" -ne "0" ]; then

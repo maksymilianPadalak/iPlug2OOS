@@ -141,6 +141,11 @@ if [ "$BUILD_DSP" -eq "1" ]; then
   # copy in WAM SDK and AudioWorklet polyfill scripts
   cp $IPLUG2_ROOT/Dependencies/IPlug/WAM_SDK/wamsdk/*.js .
   cp $IPLUG2_ROOT/Dependencies/IPlug/WAM_AWP/*.js .
+  
+  # Assign WAMController to window for global access
+  echo "" >> wam-controller.js
+  echo "// Assign to window for global access" >> wam-controller.js
+  echo "window.WAMController = WAMController;" >> wam-controller.js
 
   # copy in template scripts
   cp $IPLUG2_ROOT/IPlug/WEB/Template/scripts/IPlugWAM-awn.js $PROJECT_NAME-awn.js
@@ -155,6 +160,11 @@ if [ "$BUILD_DSP" -eq "1" ]; then
 
   # replace ORIGIN_PLACEHOLDER in the template -awn.js script
   sed -i.bak s,ORIGIN_PLACEHOLDER,$SITE_ORIGIN,g $PROJECT_NAME-awn.js
+  
+  # Assign controller class to window for global access
+  echo "" >> $PROJECT_NAME-awn.js
+  echo "// Assign to window for global access" >> $PROJECT_NAME-awn.js
+  echo "window.${PROJECT_NAME}Controller = ${PROJECT_NAME}Controller;" >> $PROJECT_NAME-awn.js
 
   rm *.bak
 else
@@ -163,9 +173,21 @@ fi
 
 cd $BUILD_WEB_DIR
 
+# Build TypeScript FIRST before copying (if src directory exists)
+PROJECT_RESOURCES_WEB_DIR=$PROJECT_ROOT/resources/web
+if [ -d "$PROJECT_RESOURCES_WEB_DIR/src" ] && [ -f "$PROJECT_RESOURCES_WEB_DIR/package.json" ]; then
+  echo "Building TypeScript..."
+  cd $PROJECT_RESOURCES_WEB_DIR
+  npm install --silent 2>/dev/null || true
+  npm run build
+  cd $BUILD_WEB_DIR
+  echo "✅ TypeScript compiled"
+fi
+
 # Copy compiled TypeScript bundle if it exists (from resources/web build)
 if [ -f "$PROJECT_RESOURCES_WEB_DIR/scripts/index.bundle.js" ]; then
   cp $PROJECT_RESOURCES_WEB_DIR/scripts/index.bundle.js scripts/ 2>/dev/null || true
+  echo "✅ React bundle copied to public/plugin/scripts/"
 fi
 
 # copy in the template HTML - comment this out if you have customised the HTML
@@ -213,16 +235,7 @@ PROJECT_RESOURCES_WEB_DIR=$PROJECT_ROOT/resources/web
 mkdir -p $PROJECT_RESOURCES_WEB_DIR/scripts
 mkdir -p $PROJECT_RESOURCES_WEB_DIR/styles
 
-# Build TypeScript if src directory exists
-if [ -d "$PROJECT_RESOURCES_WEB_DIR/src" ] && [ -f "$PROJECT_RESOURCES_WEB_DIR/package.json" ]; then
-  echo "Building TypeScript..."
-  cd $PROJECT_RESOURCES_WEB_DIR
-  npm install --silent 2>/dev/null || true
-  npm run build
-  cd $PROJECT_ROOT
-  echo "✅ TypeScript compiled"
-fi
-
+# TypeScript build already happened above, so just copy files
 # Copy HTML, CSS, and adapter script
 if [ -f "index.html" ]; then
   cp index.html $PROJECT_RESOURCES_WEB_DIR/

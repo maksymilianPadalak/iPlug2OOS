@@ -36,9 +36,29 @@ export async function initializeWAM(): Promise<WAMController | null> {
 
   await window.AWPF.polyfill(actx);
 
-  // Load WAM controller scripts
-  await loadScript('scripts/wam-controller.js');
-  await loadScript('scripts/TemplateProject-awn.js');
+  // Load WAM controller scripts (only if not already loaded)
+  console.log('🔍 Checking for WAM scripts...');
+  console.log('WAMController exists:', !!(window as any).WAMController);
+  console.log('TemplateProjectController exists:', !!(window as any).TemplateProjectController);
+  
+  try {
+    if (!(window as any).WAMController) {
+      console.log('📥 Loading wam-controller.js...');
+      await loadScript('scripts/wam-controller.js');
+    } else {
+      console.log('✅ wam-controller.js already loaded');
+    }
+    
+    if (!(window as any).TemplateProjectController) {
+      console.log('📥 Loading TemplateProject-awn.js...');
+      await loadScript('scripts/TemplateProject-awn.js');
+    } else {
+      console.log('✅ TemplateProject-awn.js already loaded');
+    }
+  } catch (error) {
+    console.error('❌ Error loading WAM scripts:', error);
+    return null;
+  }
 
   if (window.AWPF.isAudioWorkletPolyfilled) {
     console.log('AudioWorklet NOT Supported');
@@ -47,7 +67,8 @@ export async function initializeWAM(): Promise<WAMController | null> {
   }
 
   if (!window.TemplateProjectController) {
-    console.error('TemplateProjectController not found');
+    console.error('TemplateProjectController not found after loading scripts');
+    console.error('Available globals:', Object.keys(window).filter(k => k.includes('Template') || k.includes('WAM')));
     return null;
   }
 
@@ -107,14 +128,68 @@ export async function initializeWAM(): Promise<WAMController | null> {
 }
 
 /**
- * Load a script dynamically
+ * Load a script dynamically (only if not already loaded)
  */
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
+    // Check if script is already loaded by checking for global variables FIRST
+    if (src.includes('wam-controller.js') && (window as any).WAMController) {
+      console.log(`✅ ${src} already loaded (WAMController found)`);
+      resolve();
+      return;
+    }
+    if (src.includes('TemplateProject-awn.js') && (window as any).TemplateProjectController) {
+      console.log(`✅ ${src} already loaded (TemplateProjectController found)`);
+      resolve();
+      return;
+    }
+
+    // Check if script tag already exists
+    const existingScript = document.querySelector(`script[src="${src}"]`);
+    if (existingScript) {
+      console.log(`⏳ ${src} script tag exists, waiting for it to load...`);
+      // Wait for it to load
+      let attempts = 0;
+      const maxAttempts = 100; // 5 seconds max (50ms * 100)
+      const checkInterval = setInterval(() => {
+        attempts++;
+        if (src.includes('wam-controller.js') && (window as any).WAMController) {
+          clearInterval(checkInterval);
+          console.log(`✅ ${src} loaded successfully`);
+          resolve();
+        } else if (src.includes('TemplateProject-awn.js') && (window as any).TemplateProjectController) {
+          clearInterval(checkInterval);
+          console.log(`✅ ${src} loaded successfully`);
+          resolve();
+        } else if (attempts >= maxAttempts) {
+          clearInterval(checkInterval);
+          console.error(`❌ ${src} did not load within timeout`);
+          reject(new Error(`Script ${src} did not load within timeout`));
+        }
+      }, 50);
+      return;
+    }
+
+    console.log(`📥 Loading ${src}...`);
     const script = document.createElement('script');
     script.src = src;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+    script.onload = () => {
+      // Double-check the global is available
+      if (src.includes('wam-controller.js') && !(window as any).WAMController) {
+        reject(new Error(`Script ${src} loaded but WAMController not found`));
+        return;
+      }
+      if (src.includes('TemplateProject-awn.js') && !(window as any).TemplateProjectController) {
+        reject(new Error(`Script ${src} loaded but TemplateProjectController not found`));
+        return;
+      }
+      console.log(`✅ ${src} loaded successfully`);
+      resolve();
+    };
+    script.onerror = () => {
+      console.error(`❌ Failed to load script: ${src}`);
+      reject(new Error(`Failed to load script: ${src}`));
+    };
     document.head.appendChild(script);
   });
 }
