@@ -95,20 +95,20 @@ export function PianoKeyboard() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="brutal-title text-xl">KEYBOARD</h2>
-        <div className="text-white text-xs font-mono uppercase tracking-wider">
-          Octave: C{octave} | Use QWERTY keys: A-W-S-E-D-F-T-G-Y-H-U-J-K-O-L (Z/X = octave)
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-white text-xs font-mono uppercase tracking-wider">KEYBOARD</h3>
+        <div className="text-gray-400 text-[10px] font-mono uppercase tracking-wider">
+          C{octave} (Z/X = octave)
         </div>
       </div>
-      <div className="flex relative h-32 mx-auto max-w-4xl">
+      <div className="flex relative h-20 mx-auto max-w-3xl">
         {notes.map((note, index) => {
           const noteOffset = index;
           const isPressed = pressedKeys.has(octave * 12 + noteOffset);
           const isBlackKey = isBlack[index];
 
           if (isBlackKey) {
-            const leftPos = whiteKeyIndex * 70 - 14;
+            const leftPos = whiteKeyIndex * 40 - 10;
             return (
               <div
                 key={index}
@@ -117,7 +117,7 @@ export function PianoKeyboard() {
                 onMouseLeave={() => releaseNote(noteOffset)}
                 onTouchStart={(e) => { e.preventDefault(); playNote(noteOffset); }}
                 onTouchEnd={(e) => { e.preventDefault(); releaseNote(noteOffset); }}
-                className={`absolute w-7 h-20 border-2 border-white cursor-pointer z-10 ${
+                className={`absolute w-5 h-12 border-2 border-white cursor-pointer z-10 ${
                   isPressed ? 'bg-gray-600' : 'bg-black'
                 }`}
                 style={{
@@ -136,7 +136,7 @@ export function PianoKeyboard() {
                 onMouseLeave={() => releaseNote(noteOffset)}
                 onTouchStart={(e) => { e.preventDefault(); playNote(noteOffset); }}
                 onTouchEnd={(e) => { e.preventDefault(); releaseNote(noteOffset); }}
-                className={`relative inline-block w-[70px] h-32 border-2 border-black cursor-pointer ${
+                className={`relative inline-block w-10 h-20 border-2 border-black cursor-pointer ${
                   isPressed ? 'bg-gray-300' : 'bg-white'
                 }`}
                 style={{

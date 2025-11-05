@@ -34,7 +34,7 @@ export function Checkbox({ paramIdx, label }: CheckboxProps) {
         type="checkbox"
         checked={checked}
         onChange={handleChange}
-        className="w-4 h-4 border-2 border-white bg-black accent-white mr-3 cursor-pointer"
+        className="w-3 h-3 border-2 border-white bg-black accent-white mr-2 cursor-pointer"
       />
       {label}
     </label>

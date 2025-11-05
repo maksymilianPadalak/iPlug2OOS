@@ -56,6 +56,10 @@
   .brutal-shadow {
     box-shadow: 4px 4px 0px 0px rgba(255, 255, 255, 1);
   }
+  
+  .brutal-shadow-pressed {
+    box-shadow: 2px 2px 0px 0px rgba(255, 255, 255, 1);
+  }
 }
 
 /* WebView mode: hide WAM-specific UI */

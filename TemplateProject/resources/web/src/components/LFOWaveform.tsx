@@ -65,15 +65,15 @@ export function LFOWaveform() {
   }, [lfoWaveform]);
 
   return (
-    <div className="space-y-2">
-      <label className="block text-white text-xs font-mono uppercase tracking-wider">
+    <div>
+      <label className="block text-white text-[10px] font-mono uppercase tracking-wider mb-1">
         LFO WAVEFORM
       </label>
       <canvas
         ref={canvasRef}
-        width={400}
-        height={80}
-        className="w-full h-20 border-2 border-white bg-black block"
+        width={300}
+        height={40}
+        className="w-full h-10 border-2 border-white bg-black block"
       />
     </div>
   );
