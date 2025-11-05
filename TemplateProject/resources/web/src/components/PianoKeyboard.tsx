@@ -1,10 +1,9 @@
 /**
- * Piano keyboard component
+ * Piano keyboard component - Berlin Brutalism Style
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { sendNoteOn, sendNoteOff } from '../communication/iplug-bridge';
-import { NoteNames } from '../config/constants';
 
 const QWERTY_TO_NOTE: Record<string, number> = {
   'KeyA': 0,   // C
@@ -51,24 +50,21 @@ export function PianoKeyboard() {
     sendNoteOff(noteNum, 0);
   }, [octave, pressedKeys]);
 
-  // Keyboard event handlers
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
 
-      // Octave switching
       if (e.code === 'KeyZ') {
         setOctave(prev => Math.max(0, prev - 1));
-        setPressedKeys(new Set()); // Release all notes
+        setPressedKeys(new Set());
         return;
       }
       if (e.code === 'KeyX') {
         setOctave(prev => Math.min(10, prev + 1));
-        setPressedKeys(new Set()); // Release all notes
+        setPressedKeys(new Set());
         return;
       }
 
-      // Note playing
       const noteOffset = QWERTY_TO_NOTE[e.code];
       if (noteOffset !== undefined) {
         e.preventDefault();
@@ -99,15 +95,13 @@ export function PianoKeyboard() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-        <h3 style={{ color: '#ffffff', margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
-          KEYBOARD
-        </h3>
-        <div style={{ color: '#ffffff', fontSize: '12px' }}>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="brutal-title text-xl">KEYBOARD</h2>
+        <div className="text-white text-xs font-mono uppercase tracking-wider">
           Octave: C{octave} | Use QWERTY keys: A-W-S-E-D-F-T-G-Y-H-U-J-K-O-L (Z/X = octave)
         </div>
       </div>
-      <div style={{ display: 'flex', position: 'relative', height: '120px', margin: '0 auto', maxWidth: '1000px' }}>
+      <div className="flex relative h-32 mx-auto max-w-4xl">
         {notes.map((note, index) => {
           const noteOffset = index;
           const isPressed = pressedKeys.has(octave * 12 + noteOffset);
@@ -123,17 +117,12 @@ export function PianoKeyboard() {
                 onMouseLeave={() => releaseNote(noteOffset)}
                 onTouchStart={(e) => { e.preventDefault(); playNote(noteOffset); }}
                 onTouchEnd={(e) => { e.preventDefault(); releaseNote(noteOffset); }}
+                className={`absolute w-7 h-20 border-2 border-white cursor-pointer z-10 ${
+                  isPressed ? 'bg-gray-600' : 'bg-black'
+                }`}
                 style={{
-                  width: '28px',
-                  height: '70px',
-                  background: isPressed ? '#444444' : '#000000',
-                  border: '1px solid #ffffff',
-                  position: 'absolute',
                   left: `${leftPos}px`,
-                  zIndex: 2,
-                  cursor: 'pointer',
-                  borderRadius: '0 0 4px 4px',
-                  userSelect: 'none', // Prevent text selection
+                  userSelect: 'none',
                 }}
               />
             );
@@ -147,16 +136,11 @@ export function PianoKeyboard() {
                 onMouseLeave={() => releaseNote(noteOffset)}
                 onTouchStart={(e) => { e.preventDefault(); playNote(noteOffset); }}
                 onTouchEnd={(e) => { e.preventDefault(); releaseNote(noteOffset); }}
+                className={`relative inline-block w-[70px] h-32 border-2 border-black cursor-pointer ${
+                  isPressed ? 'bg-gray-300' : 'bg-white'
+                }`}
                 style={{
-                  width: '70px',
-                  height: '120px',
-                  background: isPressed ? '#cccccc' : '#ffffff',
-                  border: '1px solid #000000',
-                  position: 'relative',
-                  display: 'inline-block',
-                  cursor: 'pointer',
-                  borderRadius: '0 0 4px 4px',
-                  userSelect: 'none', // Prevent text selection
+                  userSelect: 'none',
                 }}
               />
             );
@@ -166,4 +150,3 @@ export function PianoKeyboard() {
     </div>
   );
 }
-

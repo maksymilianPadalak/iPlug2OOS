@@ -1,5 +1,5 @@
 /**
- * Slider component for parameter control
+ * Slider component - Berlin Brutalism Style
  */
 
 import React from 'react';
@@ -24,18 +24,16 @@ export function Slider({ paramIdx, label, min = 0, max = 1, step = 0.001 }: Slid
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = Number(e.target.value);
     
-    // Update React state immediately for responsive UI
     setParamValue(paramIdx, newValue);
     
-    // Send to processor only if not updating from processor
     if (!isUpdatingFromProcessor()) {
       sendParameterValue(paramIdx, newValue);
     }
   };
 
   return (
-    <div>
-      <label style={{ color: '#ffffff', fontSize: '12px', display: 'block', marginBottom: '5px' }}>
+    <div className="space-y-2">
+      <label className="block text-white text-xs font-mono uppercase tracking-wider">
         {label}
       </label>
       <input
@@ -45,12 +43,14 @@ export function Slider({ paramIdx, label, min = 0, max = 1, step = 0.001 }: Slid
         step={step}
         value={value}
         onChange={handleChange}
-        style={{ width: '100%' }}
+        className="w-full h-2 bg-black border-2 border-white accent-white cursor-pointer"
+        style={{
+          background: `linear-gradient(to right, #ffffff 0%, #ffffff ${(value - min) / (max - min) * 100}%, #000000 ${(value - min) / (max - min) * 100}%, #000000 100%)`
+        }}
       />
-      <div style={{ color: '#cccccc', fontSize: '10px', textAlign: 'right' }}>
+      <div className="text-gray-400 text-xs font-mono text-right">
         {normalizedToDisplay(paramIdx, value)}
       </div>
     </div>
   );
 }
-

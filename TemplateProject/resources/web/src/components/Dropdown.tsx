@@ -1,5 +1,5 @@
 /**
- * Dropdown component for enum parameters
+ * Dropdown component - Berlin Brutalism Style
  */
 
 import React from 'react';
@@ -22,33 +22,25 @@ export function Dropdown({ paramIdx, label, options }: DropdownProps) {
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newIndex = e.target.selectedIndex;
     
-    // Update React state immediately
     setParamValue(paramIdx, newIndex);
     
-    // Send to processor only if not updating from processor
     if (!isUpdatingFromProcessor()) {
       sendParameterEnum(paramIdx, newIndex);
     }
   };
 
   return (
-    <div>
-      <label style={{ color: '#ffffff', fontSize: '12px', display: 'block', marginBottom: '5px' }}>
+    <div className="space-y-2">
+      <label className="block text-white text-xs font-mono uppercase tracking-wider">
         {label}
       </label>
       <select
         value={selectedIndex}
         onChange={handleChange}
-        style={{
-          width: '100%',
-          padding: '5px',
-          background: '#000000',
-          color: '#ffffff',
-          border: '1px solid #ffffff',
-        }}
+        className="w-full bg-black border-2 border-white text-white px-3 py-2 font-mono text-xs uppercase tracking-wider focus:outline-none focus:bg-white focus:text-black cursor-pointer"
       >
         {options.map((option, index) => (
-          <option key={index} value={index}>
+          <option key={index} value={index} className="bg-black text-white">
             {option}
           </option>
         ))}
@@ -56,4 +48,3 @@ export function Dropdown({ paramIdx, label, options }: DropdownProps) {
     </div>
   );
 }
-

@@ -1,5 +1,5 @@
 /**
- * LFO Waveform visualization component
+ * LFO Waveform visualization - Berlin Brutalism Style
  */
 
 import React, { useRef, useEffect } from 'react';
@@ -47,10 +47,8 @@ export function LFOWaveform() {
       ctx.stroke();
     }
 
-    // Draw immediately and on waveform updates
     drawWaveform();
     
-    // Animate for smooth updates
     let animationFrame: number;
     function animate() {
       if (!ctx) return;
@@ -67,23 +65,16 @@ export function LFOWaveform() {
   }, [lfoWaveform]);
 
   return (
-    <div>
-      <label style={{ color: '#ffffff', fontSize: '12px', display: 'block', marginBottom: '5px' }}>
-        LFO WAVEFORM KURWA
+    <div className="space-y-2">
+      <label className="block text-white text-xs font-mono uppercase tracking-wider">
+        LFO WAVEFORM
       </label>
       <canvas
         ref={canvasRef}
         width={400}
         height={80}
-        style={{
-          width: '100%',
-          height: '80px',
-          border: '2px solid #ffffff',
-          background: '#000000',
-          display: 'block',
-        }}
+        className="w-full h-20 border-2 border-white bg-black block"
       />
     </div>
   );
 }
-

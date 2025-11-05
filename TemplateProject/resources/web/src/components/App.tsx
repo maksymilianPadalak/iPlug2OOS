@@ -1,5 +1,5 @@
 /**
- * Main App component
+ * Main App component - Berlin Brutalism Style
  */
 
 import React from 'react';
@@ -22,42 +22,44 @@ export function App() {
 
   return (
     <ParameterProvider>
-      <div style={{ padding: '15px', maxWidth: '1400px', margin: '0 auto' }}>
-        <h2 style={{ color: '#ffffff', margin: '0 0 15px 0', textAlign: 'center', fontSize: '24px', fontWeight: 'bold' }}>
+      <div className="w-full max-w-7xl mx-auto p-4">
+        {/* Header */}
+        <h1 className="text-white font-brutal text-4xl font-bold uppercase tracking-widest mb-6 text-center">
           TEMPLATE SYNTH
-        </h2>
+        </h1>
         
-        <p id="adapterStatus" className="wam-only" style={{ color: '#ffff00', textAlign: 'center', marginBottom: '15px', fontSize: '11px' }}>
+        <p id="adapterStatus" className="wam-only text-yellow-400 text-center mb-4 text-xs font-mono uppercase tracking-wider">
           Waiting for AudioWorklet initialization... Click "Start web audio!" above to begin.
         </p>
 
         <WAMControls />
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '15px' }}>
+        {/* Control Panels Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           {/* ADSR Section */}
-          <div style={{ border: '2px solid #ffffff', padding: '15px', background: 'rgba(0,0,0,0.3)' }}>
-            <h3 style={{ color: '#ffffff', margin: '0 0 15px 0', fontSize: '24px', fontWeight: 'bold' }}>ADSR</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <Slider paramIdx={EParams.kParamAttack} label="A - Attack" />
-              <Slider paramIdx={EParams.kParamDecay} label="D - Decay" />
-              <Slider paramIdx={EParams.kParamSustain} label="S - Sustain" step={0.01} />
-              <Slider paramIdx={EParams.kParamRelease} label="R - Release" />
+          <div className="brutal-panel">
+            <h2 className="brutal-title">ADSR</h2>
+            <div className="space-y-4">
+              <Slider paramIdx={EParams.kParamAttack} label="A - ATTACK" />
+              <Slider paramIdx={EParams.kParamDecay} label="D - DECAY" />
+              <Slider paramIdx={EParams.kParamSustain} label="S - SUSTAIN" step={0.01} />
+              <Slider paramIdx={EParams.kParamRelease} label="R - RELEASE" />
             </div>
           </div>
 
           {/* Main Controls Section */}
-          <div style={{ border: '2px solid #ffffff', padding: '15px', background: 'rgba(0,0,0,0.3)' }}>
-            <h3 style={{ color: '#ffffff', margin: '0 0 15px 0', fontSize: '24px', fontWeight: 'bold' }}>MAIN</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="brutal-panel">
+            <h2 className="brutal-title">MAIN</h2>
+            <div className="space-y-6">
               <Slider paramIdx={EParams.kParamGain} label="GAIN" />
               <Slider paramIdx={EParams.kParamNoteGlideTime} label="GLIDE" />
             </div>
           </div>
 
           {/* LFO Section */}
-          <div style={{ border: '2px solid #ffffff', padding: '15px', background: 'rgba(0,0,0,0.3)' }}>
-            <h3 style={{ color: '#ffffff', margin: '0 0 15px 0', fontSize: '24px', fontWeight: 'bold' }}>LFO</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <div className="brutal-panel">
+            <h2 className="brutal-title">LFO</h2>
+            <div className="space-y-4">
               <Dropdown
                 paramIdx={EParams.kParamLFOShape}
                 label="SHAPE"
@@ -72,32 +74,30 @@ export function App() {
         </div>
 
         {/* Output Level Meter */}
-        <div style={{ marginTop: '15px', border: '2px solid #ffffff', padding: '12px', background: 'rgba(0,0,0,0.3)' }}>
-          <h3 style={{ color: '#ffffff', margin: '0 0 10px 0', fontSize: '18px', fontWeight: 'bold' }}>
-            OUTPUT LEVEL
-          </h3>
-          <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                <span style={{ color: '#ffffff', fontSize: '11px' }}>L</span>
-                <span style={{ color: '#ffffff', fontSize: '11px' }}>R</span>
+        <div className="brutal-panel mb-6">
+          <h2 className="brutal-title text-xl">OUTPUT LEVEL</h2>
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <div className="flex justify-between mb-2">
+                <span className="text-white text-xs font-mono uppercase">L</span>
+                <span className="text-white text-xs font-mono uppercase">R</span>
               </div>
-              <div style={{ display: 'flex', gap: '8px', height: '180px' }}>
+              <div className="flex gap-2 h-48">
                 <Meter channel={0} />
                 <Meter channel={1} />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
-                <span style={{ color: '#cccccc', fontSize: '10px' }}>-60</span>
-                <span style={{ color: '#cccccc', fontSize: '10px' }}>-40</span>
-                <span style={{ color: '#cccccc', fontSize: '10px' }}>-20</span>
-                <span style={{ color: '#cccccc', fontSize: '10px' }}>0</span>
+              <div className="flex justify-between mt-2">
+                <span className="text-gray-400 text-xs font-mono">-60</span>
+                <span className="text-gray-400 text-xs font-mono">-40</span>
+                <span className="text-gray-400 text-xs font-mono">-20</span>
+                <span className="text-gray-400 text-xs font-mono">0</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Keyboard Section */}
-        <div style={{ marginTop: '15px', border: '2px solid #ffffff', padding: '12px', background: 'rgba(0,0,0,0.3)' }}>
+        <div className="brutal-panel">
           <PianoKeyboard />
         </div>
       </div>
@@ -105,9 +105,6 @@ export function App() {
   );
 }
 
-/**
- * LFO Sync checkbox with conditional rate controls
- */
 function LFOSyncCheckbox() {
   return (
     <Checkbox
@@ -117,9 +114,6 @@ function LFOSyncCheckbox() {
   );
 }
 
-/**
- * LFO Rate controls (Hz or Tempo based on sync)
- */
 function LFORateControls() {
   const { paramValues } = useParameters();
   const syncValue = paramValues.get(EParams.kParamLFORateMode) ?? 1.0;
@@ -139,4 +133,3 @@ function LFORateControls() {
     );
   }
 }
-

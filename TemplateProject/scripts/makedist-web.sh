@@ -240,8 +240,12 @@ mkdir -p $PROJECT_RESOURCES_WEB_DIR/styles
 if [ -f "index.html" ]; then
   cp index.html $PROJECT_RESOURCES_WEB_DIR/
 fi
-if [ -f "styles/style.css" ]; then
-  cp styles/style.css $PROJECT_RESOURCES_WEB_DIR/styles/
+# Copy processed CSS if it exists (from resources/web build)
+if [ -f "$PROJECT_RESOURCES_WEB_DIR/styles/style.processed.css" ]; then
+  cp $PROJECT_RESOURCES_WEB_DIR/styles/style.processed.css styles/style.css 2>/dev/null || true
+  echo "✅ Processed CSS copied to styles/style.css"
+elif [ -f "$PROJECT_RESOURCES_WEB_DIR/styles/style.css" ]; then
+  cp $PROJECT_RESOURCES_WEB_DIR/styles/style.css styles/
 fi
 if [ -f "favicon.ico" ]; then
   cp favicon.ico $PROJECT_RESOURCES_WEB_DIR/

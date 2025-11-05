@@ -1,5 +1,5 @@
 /**
- * Checkbox component for boolean parameters
+ * Checkbox component - Berlin Brutalism Style
  */
 
 import React from 'react';
@@ -21,25 +21,22 @@ export function Checkbox({ paramIdx, label }: CheckboxProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.checked ? 1.0 : 0.0;
     
-    // Update React state immediately
     setParamValue(paramIdx, newValue);
     
-    // Send to processor only if not updating from processor
     if (!isUpdatingFromProcessor()) {
       sendParameterValue(paramIdx, newValue);
     }
   };
 
   return (
-    <label style={{ color: '#ffffff', fontSize: '12px', display: 'block', marginBottom: '5px' }}>
+    <label className="flex items-center text-white text-xs font-mono uppercase tracking-wider cursor-pointer">
       <input
         type="checkbox"
         checked={checked}
         onChange={handleChange}
-        style={{ marginRight: '5px' }}
+        className="w-4 h-4 border-2 border-white bg-black accent-white mr-3 cursor-pointer"
       />
       {label}
     </label>
   );
 }
-

@@ -1,27 +1,61 @@
-* {
-  -webkit-tap-highlight-color: rgba(0,0,0,0);
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+  }
+
+  body {
+    @apply bg-black text-white font-sans;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+    overflow: auto;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', sans-serif;
-  margin: 0;
-  padding: 0;
-  background: #000000;
-  text-align: center;
-  overflow: auto;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
+@layer components {
+  .brutal-panel {
+    @apply border-4 border-white bg-black p-4;
+  }
+  
+  .brutal-title {
+    @apply text-white font-bold text-2xl uppercase tracking-wider mb-4;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+  
+  .brutal-button {
+    @apply bg-black border-4 border-white text-white px-6 py-3 font-bold uppercase tracking-wider;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    transition: all 0.1s ease;
+  }
+  
+  .brutal-button:hover {
+    @apply bg-white text-black;
+  }
+  
+  .brutal-button:active {
+    transform: translate(2px, 2px);
+  }
+}
 
-  /* disable selection */
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  -khtml-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
+@layer utilities {
+  .brutal-shadow {
+    box-shadow: 4px 4px 0px 0px rgba(255, 255, 255, 1);
+  }
 }
 
 /* WebView mode: hide WAM-specific UI */
@@ -41,181 +75,4 @@ body.webview-mode #pluginUI {
 /* WAM mode: show WAM-specific UI */
 body.wam-mode .wam-only {
   display: block;
-}
-
-#buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-  align-items: center;
-  margin: 8px auto;
-  padding: 8px;
-  max-width: 800px;
-  background: transparent;
-  flex-shrink: 0;
-}
-
-#buttons button,
-#buttons select {
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 10px 20px;
-  background: #000000;
-  color: #ffffff;
-  border: 1px solid #ffffff;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-#buttons button:hover:not(:disabled),
-#buttons select:hover {
-  background: #ffffff;
-  color: #000000;
-}
-
-#buttons button:active,
-#buttons select:active {
-  transform: scale(0.98);
-}
-
-#buttons button:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-#buttons select {
-  padding-right: 30px;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='white' d='M5 7L1 3h8z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-}
-
-#buttons progress {
-  width: 100%;
-  height: 20px;
-  border: 1px solid #ffffff;
-  background: #000000;
-  appearance: none;
-}
-
-#buttons progress::-webkit-progress-bar {
-  background: #000000;
-}
-
-#buttons progress::-webkit-progress-value {
-  background: #ffffff;
-}
-
-#buttons progress::-moz-progress-bar {
-  background: #ffffff;
-}
-
-#status {
-  display: inline-block;
-  margin: 16px auto;
-  padding: 12px 24px;
-  font-weight: 600;
-  font-size: 12px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: #ffffff;
-  background: transparent;
-  border: 1px solid #ffffff;
-}
-
-#status:empty {
-  display: none;
-}
-
-#greyout {
-  position: relative;
-  text-align: center;
-  color: #ffffff;
-  flex-shrink: 0;
-  padding: 4px 0;
-}
-
-#wam {
-  text-align: center;
-  padding: 0;
-  padding-top: 20px;
-  animation: fadeIn 0.4s ease-out;
-  width: 100%;
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  min-height: 0;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-#wamheader {
-  padding: 10px 20px;
-  cursor: move;
-  z-index: 10;
-  background: #000000;
-  color: #ffffff;
-  border: 1px solid #ffffff;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 12px;
-}
-
-a, u {
-  text-decoration: none;
-}
-
-a:link, a:visited, a:active {
-  color: #ffffff;
-}
-
-a:hover {
-  color: #cccccc;
-}
-
-label {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-img {
-  pointer-events: none;
-}
-
-.pluginArea {
-  margin: 0 auto;
-  display: block;
-  outline: 0;
-}
-
-div.pluginArea {
-  text-align: center;
-}
-
-/* the canvas *must not* have any border or padding, or mouse coords will be wrong */
-canvas.pluginArea {
-  border: 0px none;
-  background-color: rgba(0, 0, 0, 0);
-  display: block;
-  box-shadow: 0 0 0 1px #ffffff;
-}
-
-.pluginInput {
-  visibility: hidden;
 }

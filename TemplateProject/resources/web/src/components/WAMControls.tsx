@@ -1,5 +1,5 @@
 /**
- * WAM Controls component (only visible in browser mode)
+ * WAM Controls component - Berlin Brutalism Style
  */
 
 import React, { useState } from 'react';
@@ -23,7 +23,6 @@ export function WAMControls() {
         setWamReady(true);
         setIsInitializing(false);
         
-        // Setup MIDI devices after a short delay to ensure everything is ready
         setTimeout(() => {
           setupMIDIDevices();
         }, 100);
@@ -38,29 +37,37 @@ export function WAMControls() {
   };
 
   return (
-    <div className="wam-only">
-      <div id="buttons" style={{ marginBottom: '10px' }}>
+    <div className="wam-only mb-6">
+      <div id="buttons" className="flex flex-wrap gap-2 justify-center mb-4">
         <button
           type="button"
           id="startWebAudioButton"
           onClick={handleStartWebAudio}
           disabled={isInitializing || wamReady}
+          className="brutal-button disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isInitializing ? 'Initializing...' : wamReady ? '✓ Ready' : 'Start web audio!'}
+          {isInitializing ? 'INITIALIZING...' : wamReady ? '✓ READY' : 'START WEB AUDIO!'}
         </button>
-        <select id="midiInSelect" disabled={!wamReady}>
-          <option value="default">Midi input</option>
+        <select 
+          id="midiInSelect" 
+          disabled={!wamReady}
+          className="brutal-button disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <option value="default">MIDI INPUT</option>
         </select>
-        <select id="midiOutSelect" disabled={!wamReady}>
-          <option value="default">Midi output</option>
+        <select 
+          id="midiOutSelect" 
+          disabled={!wamReady}
+          className="brutal-button disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <option value="default">MIDI OUTPUT</option>
         </select>
-        <progress value={0} max={100} id="progress" />
       </div>
-      <div id="greyout" className="wam-only">
-        <div id="status">{status}</div>
+      <div id="greyout" className="wam-only text-center">
+        <div id="status" className="inline-block px-6 py-3 border-2 border-white bg-black text-white text-xs font-mono uppercase tracking-wider">
+          {status}
+        </div>
       </div>
     </div>
   );
 }
-
-
