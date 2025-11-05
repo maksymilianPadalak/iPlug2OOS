@@ -179,6 +179,9 @@ if [ -d "$PROJECT_RESOURCES_WEB_DIR/src" ] && [ -f "$PROJECT_RESOURCES_WEB_DIR/p
   echo "Building TypeScript..."
   cd $PROJECT_RESOURCES_WEB_DIR
   npm install --silent 2>/dev/null || true
+  # Clean old build artifacts to force fresh compilation
+  rm -rf scripts/*.js scripts/*.js.map 2>/dev/null || true
+  rm -f styles/style.processed.css 2>/dev/null || true
   npm run build
   cd $BUILD_WEB_DIR
   echo "✅ TypeScript compiled"

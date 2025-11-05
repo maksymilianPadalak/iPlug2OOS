@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for WebView and WAM modes */
+body.webview-mode .wam-only {
+  display: none !important;
+}
+
+body.webview-mode #wam {
+  padding-top: 0;
+}
+
+body.webview-mode #pluginUI {
+  padding-top: 0;
+}
+
+body.wam-mode .wam-only {
+  display: block;
+}
+

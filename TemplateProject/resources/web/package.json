@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "TemplateProject Web UI",
   "scripts": {
-    "build": "tsc && postcss styles/style.css -o styles/style.processed.css && NODE_ENV=production esbuild scripts/index.js --bundle --format=iife --global-name=TemplateProjectUI --outfile=scripts/index.bundle.js --jsx=automatic --minify --define:process.env.NODE_ENV=\\\"production\\\"",
+    "build": "tsc && postcss styles/style.source.css -o styles/style.processed.css && NODE_ENV=production esbuild scripts/index.js --bundle --format=iife --global-name=TemplateProjectUI --outfile=scripts/index.bundle.js --jsx=automatic --minify --define:process.env.NODE_ENV=\\\"production\\\"",
     "watch": "tsc --watch"
   },
   "dependencies": {
