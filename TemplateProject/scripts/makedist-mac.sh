@@ -156,7 +156,7 @@ fi
 
 # Build React UI before building plugin
 echo "Building React UI..."
-cd $BASEDIR/../resources/web
+cd resources/web
 if [ -d "src" ] && [ -f "package.json" ]; then
   npm install --silent 2>/dev/null || true
   npm run build
@@ -164,7 +164,7 @@ if [ -d "src" ] && [ -f "package.json" ]; then
 else
   echo "⚠️  React UI source not found, skipping"
 fi
-cd $BASEDIR/..
+cd ../..
 
 xcodebuild -project ./projects/$PLUGIN_NAME-macOS.xcodeproj -xcconfig ./config/$PLUGIN_NAME-mac.xcconfig DEMO_VERSION=$DEMO -target "All" -UseModernBuildSystem=NO -configuration Release | tee build-mac.log | xcpretty #&& exit ${PIPESTATUS[0]}
 
