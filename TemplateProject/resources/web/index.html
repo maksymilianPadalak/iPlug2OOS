@@ -12,965 +12,173 @@
     <!--<script async src="imgs@2x.js"></script>-->
     <!-- WebView-to-WAM Adapter - MUST be loaded before controller scripts -->
     <script src="scripts/webview-wam-adapter.js"></script>
-    <script>
-      // Detect environment immediately on page load
-      (function() {
-        let isWebView = false;
-
-        // Check if IPlugSendMsg is already defined (WebView mode)
-        if (typeof window.IPlugSendMsg === 'function') {
-          const funcStr = window.IPlugSendMsg.toString();
-          if (funcStr.includes('webkit.messageHandlers') || funcStr.includes('chrome.webview')) {
-            isWebView = true;
-          }
-        }
-
-        // Apply environment class to body
-        if (isWebView) {
-          document.body.classList.add('webview-mode');
-          // Hide WAM-specific elements immediately
-          document.addEventListener('DOMContentLoaded', function() {
-            const wamOnlyElements = document.querySelectorAll('.wam-only');
-            wamOnlyElements.forEach(el => el.style.display = 'none');
-          });
-        } else {
-          document.body.classList.add('wam-mode');
-        }
-
-        // Store environment globally
-        window._iplugEnv = isWebView ? 'webview' : 'wam';
-      })();
-    </script>
+    <!-- Compiled TypeScript entry point (bundled) -->
+    <script src="scripts/index.bundle.js"></script>
   </head>
   <body>
     <div id="main"></div>
-      <!-- WAM-specific UI elements (hidden in WebView mode) -->
-      <div id="buttons" class="wam-only">
-        <button type="button" id="startWebAudioButton" onclick="startWebAudio()">Start web audio!</button>
-        <select id="midiInSelect" disabled="true"><option value="default">Midi input</option></select>
-        <select id="midiOutSelect" disabled="true"><option value="default">Midi output</option></select>
-        <progress value="0" max="100" id="progress"></progress>
-      </div>
-      <div id="greyout" class="wam-only">
-        <div id="status">Ready - Click 'Start web audio!' to begin</div>
-      </div>
-      <div id="wam">
-        <!-- TemplateProject UI - Universal UI for WebView (AU/VST3) and WAM (Web) -->
-        <div id="pluginUI" style="padding: 15px; max-width: 1400px; margin: 0 auto;">
-          <h2 style="color: #ffffff; margin: 0 0 15px 0; text-align: center; font-size: 24px; font-weight: bold;">TEMPLATE SYNTH</h2>
-          <p id="adapterStatus" class="wam-only" style="color: #ffff00; text-align: center; margin-bottom: 15px; font-size: 11px;">Waiting for AudioWorklet initialization... Click "Start web audio!" above to begin.</p>
+    <!-- WAM-specific UI elements (hidden in WebView mode) -->
+    <div id="buttons" class="wam-only">
+      <button type="button" id="startWebAudioButton" onclick="startWebAudio()">Start web audio!</button>
+      <select id="midiInSelect" disabled="true"><option value="default">Midi input</option></select>
+      <select id="midiOutSelect" disabled="true"><option value="default">Midi output</option></select>
+      <progress value="0" max="100" id="progress"></progress>
+    </div>
+    <div id="greyout" class="wam-only">
+      <div id="status">Ready - Click 'Start web audio!' to begin</div>
+    </div>
+    <div id="wam">
+      <!-- TemplateProject UI - Universal UI for WebView (AU/VST3) and WAM (Web) -->
+      <div id="pluginUI" style="padding: 15px; max-width: 1400px; margin: 0 auto;">
+        <h2 style="color: #ffffff; margin: 0 0 15px 0; text-align: center; font-size: 24px; font-weight: bold;">TEMPLATE SYNTH</h2>
+        <p id="adapterStatus" class="wam-only" style="color: #ffff00; text-align: center; margin-bottom: 15px; font-size: 11px;">Waiting for AudioWorklet initialization... Click "Start web audio!" above to begin.</p>
 
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px;">
-            <!-- ADSR Section -->
-            <div style="border: 2px solid #ffffff; padding: 15px; background: rgba(0,0,0,0.3);">
-              <h3 style="color: #ffffff; margin: 0 0 15px 0; font-size: 24px; font-weight: bold;">ADSR</h3>
-              <div style="display: flex; flex-direction: column; gap: 15px;">
-                <div>
-                  <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">A - Attack</label>
-                  <input type="range" id="paramAttack" min="0" max="1" step="0.001" value="0.01" style="width: 100%;" oninput="updateParam(2, this.value)">
-                  <div style="color: #cccccc; font-size: 10px; text-align: right;" id="paramAttackValue">10 ms</div>
-                </div>
-                <div>
-                  <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">D - Decay</label>
-                  <input type="range" id="paramDecay" min="0" max="1" step="0.001" value="0.01" style="width: 100%;" oninput="updateParam(3, this.value)">
-                  <div style="color: #cccccc; font-size: 10px; text-align: right;" id="paramDecayValue">10 ms</div>
-                </div>
-                <div>
-                  <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">S - Sustain</label>
-                  <input type="range" id="paramSustain" min="0" max="1" step="0.01" value="0.5" style="width: 100%;" oninput="updateParam(4, this.value)">
-                  <div style="color: #cccccc; font-size: 10px; text-align: right;" id="paramSustainValue">50 %</div>
-                </div>
-                <div>
-                  <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">R - Release</label>
-                  <input type="range" id="paramRelease" min="0" max="1" step="0.001" value="0.01" style="width: 100%;" oninput="updateParam(5, this.value)">
-                  <div style="color: #cccccc; font-size: 10px; text-align: right;" id="paramReleaseValue">10 ms</div>
-                </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px;">
+          <!-- ADSR Section -->
+          <div style="border: 2px solid #ffffff; padding: 15px; background: rgba(0,0,0,0.3);">
+            <h3 style="color: #ffffff; margin: 0 0 15px 0; font-size: 24px; font-weight: bold;">ADSR</h3>
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+              <div>
+                <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">A - Attack</label>
+                <input type="range" id="paramAttack" min="0" max="1" step="0.001" value="0.01" style="width: 100%;" oninput="updateParam(2, this.value)">
+                <div style="color: #cccccc; font-size: 10px; text-align: right;" id="paramAttackValue">10 ms</div>
               </div>
-            </div>
-
-            <!-- Main Controls Section -->
-            <div style="border: 2px solid #ffffff; padding: 15px; background: rgba(0,0,0,0.3);">
-              <h3 style="color: #ffffff; margin: 0 0 15px 0; font-size: 24px; font-weight: bold;">MAIN</h3>
-              <div style="display: flex; flex-direction: column; gap: 20px;">
-                <div>
-                  <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">GAIN</label>
-                  <input type="range" id="paramGain" min="0" max="1" step="0.001" value="1.0" style="width: 100%;" oninput="updateParam(0, this.value)">
-                  <div style="color: #cccccc; font-size: 10px; text-align: right;" id="paramGainValue">100 %</div>
-                </div>
-                <div>
-                  <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">GLIDE</label>
-                  <input type="range" id="paramGlide" min="0" max="1" step="0.001" value="0.0" style="width: 100%;" oninput="updateParam(1, this.value)">
-                  <div style="color: #cccccc; font-size: 10px; text-align: right;" id="paramGlideValue">0 ms</div>
-                </div>
+              <div>
+                <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">D - Decay</label>
+                <input type="range" id="paramDecay" min="0" max="1" step="0.001" value="0.01" style="width: 100%;" oninput="updateParam(3, this.value)">
+                <div style="color: #cccccc; font-size: 10px; text-align: right;" id="paramDecayValue">10 ms</div>
               </div>
-            </div>
-
-            <!-- LFO Section -->
-            <div style="border: 2px solid #ffffff; padding: 15px; background: rgba(0,0,0,0.3);">
-              <h3 style="color: #ffffff; margin: 0 0 15px 0; font-size: 24px; font-weight: bold;">LFO</h3>
-              <div style="display: flex; flex-direction: column; gap: 15px;">
-                <div>
-                  <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">SHAPE</label>
-                  <select id="paramLFOShape" style="width: 100%; padding: 5px; background: #000000; color: #ffffff; border: 1px solid #ffffff;" onchange="updateParamEnum(6, this.selectedIndex)">
-                    <option value="0">Triangle</option>
-                    <option value="1">Square</option>
-                    <option value="2">Ramp Up</option>
-                    <option value="3">Ramp Down</option>
-                    <option value="4">Sine</option>
-                  </select>
-                </div>
-                <div>
-                  <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">
-                    <input type="checkbox" id="paramLFOSync" checked style="margin-right: 5px;" onchange="toggleLFOSync()"> SYNC
-                  </label>
-                </div>
-                <div id="lfoRateHzContainer" style="display: none;">
-                  <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">RATE HZ</label>
-                  <input type="range" id="paramLFORateHz" min="0" max="1" step="0.001" value="0.025" style="width: 100%;" oninput="updateParam(7, this.value)">
-                  <div style="color: #cccccc; font-size: 10px; text-align: right;" id="paramLFORateHzValue">1.0 Hz</div>
-                </div>
-                <div id="lfoRateTempoContainer">
-                  <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">RATE</label>
-                  <select id="paramLFORateTempo" style="width: 100%; padding: 5px; background: #000000; color: #ffffff; border: 1px solid #ffffff;" onchange="updateParamEnum(8, this.selectedIndex)">
-                    <option value="0">1/64</option>
-                    <option value="1">1/32</option>
-                    <option value="2">1/16T</option>
-                    <option value="3">1/16</option>
-                    <option value="4">1/16D</option>
-                    <option value="5">1/8T</option>
-                    <option value="6">1/8</option>
-                    <option value="7">1/8D</option>
-                    <option value="8">1/4</option>
-                    <option value="9">1/4D</option>
-                    <option value="10">1/2</option>
-                    <option value="11" selected>1/1</option>
-                    <option value="12">2/1</option>
-                    <option value="13">4/1</option>
-                    <option value="14">8/1</option>
-                  </select>
-                </div>
-                <div>
-                  <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">DEPTH</label>
-                  <input type="range" id="paramLFODepth" min="0" max="1" step="0.001" value="0.0" style="width: 100%;" oninput="updateParam(10, this.value)">
-                  <div style="color: #cccccc; font-size: 10px; text-align: right;" id="paramLFODepthValue">0 %</div>
-                </div>
-                <!-- LFO Waveform Visualization -->
-                <div style="margin-top: 15px;">
-                  <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">LFO WAVEFORM</label>
-                  <canvas id="lfoWaveform" width="400" height="80" style="width: 100%; height: 80px; border: 2px solid #ffffff; background: #000000; display: block;"></canvas>
-                </div>
+              <div>
+                <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">S - Sustain</label>
+                <input type="range" id="paramSustain" min="0" max="1" step="0.01" value="0.5" style="width: 100%;" oninput="updateParam(4, this.value)">
+                <div style="color: #cccccc; font-size: 10px; text-align: right;" id="paramSustainValue">50 %</div>
+              </div>
+              <div>
+                <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">R - Release</label>
+                <input type="range" id="paramRelease" min="0" max="1" step="0.001" value="0.01" style="width: 100%;" oninput="updateParam(5, this.value)">
+                <div style="color: #cccccc; font-size: 10px; text-align: right;" id="paramReleaseValue">10 ms</div>
               </div>
             </div>
           </div>
 
-          <!-- Output Level Meter -->
-          <div style="margin-top: 15px; border: 2px solid #ffffff; padding: 12px; background: rgba(0,0,0,0.3);">
-            <h3 style="color: #ffffff; margin: 0 0 10px 0; font-size: 18px; font-weight: bold;">OUTPUT LEVEL</h3>
-            <div style="display: flex; gap: 15px; align-items: center;">
-              <div style="flex: 1;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                  <span style="color: #ffffff; font-size: 11px;">L</span>
-                  <span style="color: #ffffff; font-size: 11px;">R</span>
-                </div>
-                <div style="display: flex; gap: 8px; height: 180px;">
-                  <!-- Left channel meter -->
-                  <div style="flex: 1; display: flex; flex-direction: column-reverse; gap: 2px; background: rgba(255,255,255,0.1); border: 2px solid #ffffff; position: relative;">
-                    <div id="meterLeft" style="background: linear-gradient(to top, #ff0000 0%, #ffaa00 70%, #00ff00 100%); width: 100%; min-height: 0%; transition: height 0.05s linear;"></div>
-                  </div>
-                  <!-- Right channel meter -->
-                  <div style="flex: 1; display: flex; flex-direction: column-reverse; gap: 2px; background: rgba(255,255,255,0.1); border: 2px solid #ffffff; position: relative;">
-                    <div id="meterRight" style="background: linear-gradient(to top, #ff0000 0%, #ffaa00 70%, #00ff00 100%); width: 100%; min-height: 0%; transition: height 0.05s linear;"></div>
-                  </div>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-top: 5px;">
-                  <span style="color: #cccccc; font-size: 10px;">-60</span>
-                  <span style="color: #cccccc; font-size: 10px;">-40</span>
-                  <span style="color: #cccccc; font-size: 10px;">-20</span>
-                  <span style="color: #cccccc; font-size: 10px;">0</span>
-                </div>
+          <!-- Main Controls Section -->
+          <div style="border: 2px solid #ffffff; padding: 15px; background: rgba(0,0,0,0.3);">
+            <h3 style="color: #ffffff; margin: 0 0 15px 0; font-size: 24px; font-weight: bold;">MAIN</h3>
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+              <div>
+                <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">GAIN</label>
+                <input type="range" id="paramGain" min="0" max="1" step="0.001" value="1.0" style="width: 100%;" oninput="updateParam(0, this.value)">
+                <div style="color: #cccccc; font-size: 10px; text-align: right;" id="paramGainValue">100 %</div>
+              </div>
+              <div>
+                <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">GLIDE</label>
+                <input type="range" id="paramGlide" min="0" max="1" step="0.001" value="0.0" style="width: 100%;" oninput="updateParam(1, this.value)">
+                <div style="color: #cccccc; font-size: 10px; text-align: right;" id="paramGlideValue">0 ms</div>
               </div>
             </div>
           </div>
 
-          <!-- Keyboard Section -->
-          <div style="margin-top: 15px; border: 2px solid #ffffff; padding: 12px; background: rgba(0,0,0,0.3);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <h3 style="color: #ffffff; margin: 0; font-size: 18px; font-weight: bold;">KEYBOARD</h3>
-              <div style="color: #ffffff; font-size: 12px;">
-                Octave: <span id="octaveDisplay">C4</span> |
-                Use QWERTY keys: A-W-S-E-D-F-T-G-Y-H-U-J-K-O-L (Z/X = octave)
+          <!-- LFO Section -->
+          <div style="border: 2px solid #ffffff; padding: 15px; background: rgba(0,0,0,0.3);">
+            <h3 style="color: #ffffff; margin: 0 0 15px 0; font-size: 24px; font-weight: bold;">LFO</h3>
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+              <div>
+                <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">SHAPE</label>
+                <select id="paramLFOShape" style="width: 100%; padding: 5px; background: #000000; color: #ffffff; border: 1px solid #ffffff;" onchange="updateParamEnum(6, this.selectedIndex)">
+                  <option value="0">Triangle</option>
+                  <option value="1">Square</option>
+                  <option value="2">Ramp Up</option>
+                  <option value="3">Ramp Down</option>
+                  <option value="4">Sine</option>
+                </select>
               </div>
-            </div>
-            <div id="pianoKeyboard" style="display: flex; position: relative; height: 120px; margin: 0 auto; max-width: 1000px;">
-              <!-- Piano keys will be generated here -->
+              <div>
+                <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">
+                  <input type="checkbox" id="paramLFOSync" checked style="margin-right: 5px;" onchange="toggleLFOSync()"> SYNC
+                </label>
+              </div>
+              <div id="lfoRateHzContainer" style="display: none;">
+                <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">RATE HZ</label>
+                <input type="range" id="paramLFORateHz" min="0" max="1" step="0.001" value="0.025" style="width: 100%;" oninput="updateParam(7, this.value)">
+                <div style="color: #cccccc; font-size: 10px; text-align: right;" id="paramLFORateHzValue">1.0 Hz</div>
+              </div>
+              <div id="lfoRateTempoContainer">
+                <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">RATE</label>
+                <select id="paramLFORateTempo" style="width: 100%; padding: 5px; background: #000000; color: #ffffff; border: 1px solid #ffffff;" onchange="updateParamEnum(8, this.selectedIndex)">
+                  <option value="0">1/64</option>
+                  <option value="1">1/32</option>
+                  <option value="2">1/16T</option>
+                  <option value="3">1/16</option>
+                  <option value="4">1/16D</option>
+                  <option value="5">1/8T</option>
+                  <option value="6">1/8</option>
+                  <option value="7">1/8D</option>
+                  <option value="8">1/4</option>
+                  <option value="9">1/4D</option>
+                  <option value="10">1/2</option>
+                  <option value="11" selected>1/1</option>
+                  <option value="12">2/1</option>
+                  <option value="13">4/1</option>
+                  <option value="14">8/1</option>
+                </select>
+              </div>
+              <div>
+                <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">DEPTH</label>
+                <input type="range" id="paramLFODepth" min="0" max="1" step="0.001" value="0.0" style="width: 100%;" oninput="updateParam(10, this.value)">
+                <div style="color: #cccccc; font-size: 10px; text-align: right;" id="paramLFODepthValue">0 %</div>
+              </div>
+              <!-- LFO Waveform Visualization -->
+              <div style="margin-top: 15px;">
+                <label style="color: #ffffff; font-size: 12px; display: block; margin-bottom: 5px;">LFO WAVEFORM</label>
+                <canvas id="lfoWaveform" width="400" height="80" style="width: 100%; height: 80px; border: 2px solid #ffffff; background: #000000; display: block;"></canvas>
+              </div>
             </div>
           </div>
         </div>
+
+        <!-- Output Level Meter -->
+        <div style="margin-top: 15px; border: 2px solid #ffffff; padding: 12px; background: rgba(0,0,0,0.3);">
+          <h3 style="color: #ffffff; margin: 0 0 10px 0; font-size: 18px; font-weight: bold;">OUTPUT LEVEL</h3>
+          <div style="display: flex; gap: 15px; align-items: center;">
+            <div style="flex: 1;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span style="color: #ffffff; font-size: 11px;">L</span>
+                <span style="color: #ffffff; font-size: 11px;">R</span>
+              </div>
+              <div style="display: flex; gap: 8px; height: 180px;">
+                <!-- Left channel meter -->
+                <div style="flex: 1; display: flex; flex-direction: column-reverse; gap: 2px; background: rgba(255,255,255,0.1); border: 2px solid #ffffff; position: relative;">
+                  <div id="meterLeft" style="background: linear-gradient(to top, #ff0000 0%, #ffaa00 70%, #00ff00 100%); width: 100%; min-height: 0%; transition: height 0.05s linear;"></div>
+                </div>
+                <!-- Right channel meter -->
+                <div style="flex: 1; display: flex; flex-direction: column-reverse; gap: 2px; background: rgba(255,255,255,0.1); border: 2px solid #ffffff; position: relative;">
+                  <div id="meterRight" style="background: linear-gradient(to top, #ff0000 0%, #ffaa00 70%, #00ff00 100%); width: 100%; min-height: 0%; transition: height 0.05s linear;"></div>
+                </div>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                <span style="color: #cccccc; font-size: 10px;">-60</span>
+                <span style="color: #cccccc; font-size: 10px;">-40</span>
+                <span style="color: #cccccc; font-size: 10px;">-20</span>
+                <span style="color: #cccccc; font-size: 10px;">0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Keyboard Section -->
+        <div style="margin-top: 15px; border: 2px solid #ffffff; padding: 12px; background: rgba(0,0,0,0.3);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h3 style="color: #ffffff; margin: 0; font-size: 18px; font-weight: bold;">KEYBOARD</h3>
+            <div style="color: #ffffff; font-size: 12px;">
+              Octave: <span id="octaveDisplay">C4</span> |
+              Use QWERTY keys: A-W-S-E-D-F-T-G-Y-H-U-J-K-O-L (Z/X = octave)
+            </div>
+          </div>
+          <div id="pianoKeyboard" style="display: flex; position: relative; height: 120px; margin: 0 auto; max-width: 1000px;">
+            <!-- Piano keys will be generated here -->
+          </div>
+        </div>
       </div>
-    <script type='text/javascript'>
-      var TemplateProject_WAM; // the WAM controller
-      let WEBSOCKET_MODE=false; // this constant will be set by the makedist-web.sh script
-
-      if(WEBSOCKET_MODE==true) {
-        document.getElementById('buttons').style.display = 'none';
-      }
-
-      document.addEventListener("keydown", function(e) { if(e.keyCode == 9) {e.preventDefault(); }});
-      document.addEventListener("touchmove", function(e) { e.preventDefault(); }, {passive: false});
-
-      // drag WAM element, from https://www.w3schools.com/howto/howto_js_draggable.asp
-      // dragElement(document.getElementById("wam"));
-
-      // function dragElement(elmnt) {
-      //   var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-      //   if (document.getElementById(elmnt.id + "header")) {
-      //     document.getElementById(elmnt.id + "header").onmousedown = dragMouseDown;
-      //   } else {
-      //     elmnt.onmousedown = dragMouseDown;
-      //   }
-
-      //   function dragMouseDown(e) {
-      //     e = e || window.event;
-      //     e.preventDefault();
-      //     pos3 = e.clientX;
-      //     pos4 = e.clientY;
-      //     document.onmouseup = closeDragElement;
-      //     document.onmousemove = elementDrag;
-      //   }
-
-      //   function elementDrag(e) {
-      //     e = e || window.event;
-      //     e.preventDefault();
-      //     pos1 = pos3 - e.clientX;
-      //     pos2 = pos4 - e.clientY;
-      //     pos3 = e.clientX;
-      //     pos4 = e.clientY;
-      //     elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
-      //     elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
-      //   }
-
-      //   function closeDragElement() {
-      //     document.onmouseup = null;
-      //     document.onmousemove = null;
-      //   }
-      // }
-
-      function toggleFullScreen() {
-        if ((document.fullScreenElement && document.fullScreenElement !== null) ||
-        (!document.mozFullScreen && !document.webkitIsFullScreen)) {
-          if (document.documentElement.requestFullScreen) {
-            document.documentElement.requestFullScreen();
-          } else if (document.documentElement.mozRequestFullScreen) {
-            document.documentElement.mozRequestFullScreen();
-          } else if (document.documentElement.webkitRequestFullScreen) {
-            document.documentElement.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
-          }
-        } else {
-          if (document.cancelFullScreen) {
-            document.cancelFullScreen();
-          } else if (document.mozCancelFullScreen) {
-            document.mozCancelFullScreen();
-          } else if (document.webkitCancelFullScreen) {
-            document.webkitCancelFullScreen();
-          }
-        }
-      }
-
-      function initMidiComboBox (isOutput, element) {
-        let combo = document.querySelector(element);
-        combo.options.length = 0;
-
-        if (navigator.requestMIDIAccess) {
-          navigator.requestMIDIAccess().then((midiIF) => {
-            if(isOutput) {
-              for (let output of midiIF.outputs.values()) {
-                let option = new Option(output.name);
-                option.port = output;
-                combo.appendChild(option);
-              }
-
-              combo.onchange = e => {
-                TemplateProject_WAM.midiOut = e.target.options[e.target.selectedIndex].port;
-              }
-            } else {
-              for (let input of midiIF.inputs.values()) {
-                let option = new Option(input.name);
-                option.port = input;
-                combo.appendChild(option);
-              }
-
-              combo.onchange = e => {
-                TemplateProject_WAM.midiIn = e.target.options[e.target.selectedIndex].port;
-              }
-            }
-
-            if (combo.options.length > 0)
-              combo.onchange({ target:combo });
-          })
-          combo.removeAttribute("disabled");
-        }
-      }
-
-      //https://www.mattmontag.com/web/unlock-web-audio-in-safari-for-ios-and-macos
-      function safariUnlock(audioCtx) {
-        if (audioCtx.state !== 'suspended') return;
-        const b = document.body;
-        const events = ['touchstart','touchend', 'mousedown','keydown'];
-        events.forEach(e => b.addEventListener(e, unlock, false));
-        function unlock() { audioCtx.resume().then(clean); }
-        function clean() { events.forEach(e => b.removeEventListener(e, unlock)); }
-      }
-
-      function connectionsDone() {
-        document.getElementById('startWebAudioButton').setAttribute("disabled", "true");
-        initMidiComboBox(false, "#midiInSelect");
-        initMidiComboBox(true, "#midiOutSelect");
-
-        // Update adapter status
-        const statusEl = document.getElementById('adapterStatus');
-        if (statusEl) {
-          statusEl.textContent = '✓ AudioWorklet initialized and ready!';
-          statusEl.style.color = '#00ff00';
-        }
-      }
-
-      // Parameter update functions
-      let updatingFromProcessor = false; // Flag to prevent feedback loops
-
-      function updateParam(paramIdx, normalizedValue) {
-        if (typeof window.IPlugSendMsg === 'function') {
-          // Only send to processor if not updating from processor
-          if (!updatingFromProcessor) {
-            const value = parseFloat(normalizedValue);
-            console.log("updateParam: paramIdx=" + paramIdx + ", value=" + value);
-            window.IPlugSendMsg({
-              msg: "SPVFUI",
-              paramIdx: paramIdx,
-              value: value
-            });
-          }
-
-          // Always update display values
-          updateParamDisplay(paramIdx, normalizedValue);
-        } else {
-          console.warn("IPlugSendMsg not available yet");
-        }
-      }
-
-      function updateParamEnum(paramIdx, enumValue) {
-        if (typeof window.IPlugSendMsg === 'function') {
-          // Only send to processor if not updating from processor
-          if (!updatingFromProcessor) {
-            window.IPlugSendMsg({
-              msg: "SPVFUI",
-              paramIdx: paramIdx,
-              value: parseFloat(enumValue)
-            });
-          }
-        }
-      }
-
-      function toggleLFOSync() {
-        const syncCheckbox = document.getElementById('paramLFOSync');
-        const syncValue = syncCheckbox.checked ? 1.0 : 0.0;
-        updateParam(9, syncValue);
-
-        // Toggle visibility of Hz vs Tempo controls
-        const hzContainer = document.getElementById('lfoRateHzContainer');
-        const tempoContainer = document.getElementById('lfoRateTempoContainer');
-        if (syncCheckbox.checked) {
-          hzContainer.style.display = 'none';
-          tempoContainer.style.display = 'block';
-        } else {
-          hzContainer.style.display = 'block';
-          tempoContainer.style.display = 'none';
-        }
-      }
-
-      function updateParamDisplay(paramIdx, normalizedValue) {
-        const value = parseFloat(normalizedValue);
-        let displayValue = '';
-
-        switch(paramIdx) {
-          case 0: // Gain (0-100%)
-            displayValue = (value * 100).toFixed(1) + ' %';
-            document.getElementById('paramGainValue').textContent = displayValue;
-            break;
-          case 1: // Note Glide Time (0-30ms)
-            displayValue = (value * 30).toFixed(1) + ' ms';
-            document.getElementById('paramGlideValue').textContent = displayValue;
-            break;
-          case 2: // Attack (1-1000ms, pow curve)
-            const attackMs = 1 + Math.pow(value, 3) * 999;
-            displayValue = attackMs.toFixed(1) + ' ms';
-            document.getElementById('paramAttackValue').textContent = displayValue;
-            break;
-          case 3: // Decay (1-1000ms, pow curve)
-            const decayMs = 1 + Math.pow(value, 3) * 999;
-            displayValue = decayMs.toFixed(1) + ' ms';
-            document.getElementById('paramDecayValue').textContent = displayValue;
-            break;
-          case 4: // Sustain (0-100%)
-            displayValue = (value * 100).toFixed(0) + ' %';
-            document.getElementById('paramSustainValue').textContent = displayValue;
-            break;
-          case 5: // Release (2-1000ms)
-            const releaseMs = 2 + value * 998;
-            displayValue = releaseMs.toFixed(1) + ' ms';
-            document.getElementById('paramReleaseValue').textContent = displayValue;
-            break;
-          case 7: // LFO Rate Hz (0.01-40Hz)
-            const rateHz = 0.01 + value * 39.99;
-            displayValue = rateHz.toFixed(2) + ' Hz';
-            document.getElementById('paramLFORateHzValue').textContent = displayValue;
-            break;
-          case 10: // LFO Depth (0-100%)
-            displayValue = (value * 100).toFixed(1) + ' %';
-            document.getElementById('paramLFODepthValue').textContent = displayValue;
-            break;
-        }
-      }
-
-      // Keyboard state
-      let keyboardOctave = 4; // C4 = 60
-      let pressedKeys = new Set();
-      let keyboardKeys = {}; // Map note number to element
-
-      // QWERTY to note mapping (C major scale starting from C)
-      const qwertyToNote = {
-        'KeyA': 0,   // C
-        'KeyW': 1,   // C#
-        'KeyS': 2,   // D
-        'KeyE': 3,   // D#
-        'KeyD': 4,   // E
-        'KeyF': 5,   // F
-        'KeyT': 6,   // F#
-        'KeyG': 7,   // G
-        'KeyY': 8,   // G#
-        'KeyH': 9,   // A
-        'KeyU': 10,  // A#
-        'KeyJ': 11,  // B
-        'KeyK': 12,  // C (octave)
-        'KeyO': 13,  // C#
-        'KeyL': 14   // D
-      };
-
-      function initKeyboard() {
-        const keyboard = document.getElementById('pianoKeyboard');
-        if (!keyboard) return;
-
-        // Create piano keys (C to C, 13 keys)
-        const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C'];
-        const isBlack = [false, true, false, true, false, false, true, false, true, false, true, false, false];
-
-        let whiteKeyIndex = 0;
-        notes.forEach((note, index) => {
-          const key = document.createElement('div');
-          const noteNum = index;
-          key.dataset.note = noteNum;
-          key.dataset.noteName = note;
-
-          if (isBlack[index]) {
-            // Position black keys between white keys
-            const leftPos = whiteKeyIndex * 70 - 14;
-            key.style.cssText = `
-              width: 28px;
-              height: 70px;
-              background: #000000;
-              border: 1px solid #ffffff;
-              position: absolute;
-              left: ${leftPos}px;
-              z-index: 2;
-              cursor: pointer;
-              border-radius: 0 0 4px 4px;
-            `;
-          } else {
-            key.style.cssText = `
-              width: 70px;
-              height: 120px;
-              background: #ffffff;
-              border: 1px solid #000000;
-              position: relative;
-              display: inline-block;
-              cursor: pointer;
-              border-radius: 0 0 4px 4px;
-            `;
-            whiteKeyIndex++;
-          }
-
-          key.addEventListener('mousedown', (e) => { e.preventDefault(); playNote(noteNum); });
-          key.addEventListener('mouseup', () => releaseNote(noteNum));
-          key.addEventListener('mouseleave', () => releaseNote(noteNum));
-          key.addEventListener('touchstart', (e) => { e.preventDefault(); playNote(noteNum); });
-          key.addEventListener('touchend', (e) => { e.preventDefault(); releaseNote(noteNum); });
-          key.addEventListener('touchcancel', (e) => { e.preventDefault(); releaseNote(noteNum); });
-
-          keyboard.appendChild(key);
-          keyboardKeys[noteNum] = key;
-        });
-      }
-
-      function playNote(noteOffset) {
-        const noteNum = keyboardOctave * 12 + noteOffset;
-        if (pressedKeys.has(noteNum)) return;
-
-        pressedKeys.add(noteNum);
-
-        console.log("playNote: noteOffset=" + noteOffset + ", noteNum=" + noteNum + ", octave=" + keyboardOctave);
-
-        if (typeof window.IPlugSendMsg === 'function') {
-          const msg = {
-            msg: "SMMFUI",
-            statusByte: 0x90, // Note On
-            dataByte1: noteNum,
-            dataByte2: 127 // Velocity
-          };
-          console.log("Calling IPlugSendMsg with:", msg);
-          window.IPlugSendMsg(msg);
-
-          // Visual feedback
-          const key = keyboardKeys[noteOffset];
-          if (key) {
-            key.style.background = key.dataset.noteName.includes('#') ? '#444444' : '#cccccc';
-          }
-        } else {
-          console.error("IPlugSendMsg not available!");
-        }
-      }
-
-      function releaseNote(noteOffset) {
-        const noteNum = keyboardOctave * 12 + noteOffset;
-        if (!pressedKeys.has(noteNum)) return;
-
-        pressedKeys.delete(noteNum);
-
-        if (typeof window.IPlugSendMsg === 'function') {
-          window.IPlugSendMsg({
-            msg: "SMMFUI",
-            statusByte: 0x80, // Note Off
-            dataByte1: noteNum,
-            dataByte2: 0
-          });
-
-          // Visual feedback
-          const key = keyboardKeys[noteOffset];
-          if (key) {
-            key.style.background = key.dataset.noteName.includes('#') ? '#000000' : '#ffffff';
-          }
-        }
-      }
-
-      function updateOctaveDisplay() {
-        const octaveEl = document.getElementById('octaveDisplay');
-        if (octaveEl) {
-          octaveEl.textContent = 'C' + keyboardOctave;
-        }
-      }
-
-      // QWERTY keyboard handler
-      document.addEventListener('keydown', function(e) {
-        if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
-
-        // Octave switching
-        if (e.code === 'KeyZ') {
-          keyboardOctave = Math.max(0, keyboardOctave - 1);
-          updateOctaveDisplay();
-          // Release all current notes
-          pressedKeys.forEach(noteNum => {
-            const noteOffset = noteNum % 12;
-            releaseNote(noteOffset);
-          });
-          return;
-        }
-        if (e.code === 'KeyX') {
-          keyboardOctave = Math.min(10, keyboardOctave + 1);
-          updateOctaveDisplay();
-          // Release all current notes
-          pressedKeys.forEach(noteNum => {
-            const noteOffset = noteNum % 12;
-            releaseNote(noteOffset);
-          });
-          return;
-        }
-
-        // Note playing
-        const noteOffset = qwertyToNote[e.code];
-        if (noteOffset !== undefined) {
-          e.preventDefault();
-          playNote(noteOffset);
-        }
-      });
-
-      document.addEventListener('keyup', function(e) {
-        if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
-
-        const noteOffset = qwertyToNote[e.code];
-        if (noteOffset !== undefined) {
-          e.preventDefault();
-          releaseNote(noteOffset);
-        }
-      });
-
-      // Initialize keyboard on page load
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-          initKeyboard();
-          initLFOWaveform();
-        });
-      } else {
-        initKeyboard();
-        updateOctaveDisplay();
-        initLFOWaveform();
-      }
-
-      // LFO Waveform visualization
-      let lfoWaveformBuffer = new Array(512).fill(0.5);
-      let lfoWaveformIndex = 0;
-
-      function initLFOWaveform() {
-        const canvas = document.getElementById('lfoWaveform');
-        if (!canvas) return;
-
-        const ctx = canvas.getContext('2d');
-        const width = canvas.width;
-        const height = canvas.height;
-
-        function drawWaveform() {
-          ctx.fillStyle = '#000000';
-          ctx.fillRect(0, 0, width, height);
-
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-
-          const centerY = height / 2;
-          const scaleY = height / 2;
-
-          for (let i = 0; i < width; i++) {
-            const bufferIdx = Math.floor((i / width) * lfoWaveformBuffer.length);
-            const value = lfoWaveformBuffer[bufferIdx];
-            const y = centerY - (value - 0.5) * scaleY;
-
-            if (i === 0) {
-              ctx.moveTo(i, y);
-            } else {
-              ctx.lineTo(i, y);
-            }
-          }
-
-          ctx.stroke();
-        }
-
-        function animate() {
-          drawWaveform();
-          requestAnimationFrame(animate);
-        }
-
-        animate();
-      }
-
-      // Output level meter
-      function updateMeter(channel, peak, rms) {
-        const meterEl = channel === 0 ? document.getElementById('meterLeft') : document.getElementById('meterRight');
-        if (!meterEl) return;
-
-        // Convert linear value to dB and then to percentage
-        // Assuming peak is normalized 0-1
-        const db = peak > 0.0001 ? 20 * Math.log10(peak) : -60;
-        const percentage = Math.max(0, Math.min(100, ((db + 60) / 60) * 100));
-
-        meterEl.style.height = percentage + '%';
-      }
-
-      // StartIdleTimer handler - called when processor wants to start periodic updates
-      let idleTimerInterval = null;
-      window.StartIdleTimer = function() {
-        console.log("StartIdleTimer called - setting up periodic TICK messages");
-
-        // Clear any existing timer
-        if (idleTimerInterval) {
-          clearInterval(idleTimerInterval);
-        }
-
-        // Send TICK messages periodically to trigger OnIdle() in processor
-        // This allows the processor to send SCVFD/SCMFD messages
-        idleTimerInterval = setInterval(function() {
-          if (typeof TemplateProject_WAM !== 'undefined' && TemplateProject_WAM && typeof TemplateProject_WAM.sendMessage === 'function') {
-            TemplateProject_WAM.sendMessage("TICK", "", 0);
-          }
-        }, 16); // ~60fps
-      };
-
-      // SCVFD handler - called when control value is received from processor
-      window.SCVFD = function(ctrlTag, normalizedValue) {
-        // kCtrlTagLFOVis = 1
-        if (ctrlTag === 1) {
-          // Update LFO waveform buffer with new value
-          lfoWaveformBuffer[lfoWaveformIndex] = normalizedValue;
-          lfoWaveformIndex = (lfoWaveformIndex + 1) % lfoWaveformBuffer.length;
-        }
-      };
-
-      // SCMFD handler - called when control message is received from processor
-      window.SCMFD = function(ctrlTag, msgTag, dataSize, base64Data) {
-        // kCtrlTagLFOVis = 1, kCtrlTagMeter = 0
-        if (ctrlTag === 1) { // LFO Visualizer (ISenderData<1, float> = 16 bytes)
-          // Decode base64 data
-          if (base64Data && dataSize > 0) {
-            try {
-              const binaryString = atob(base64Data);
-              const buffer = new ArrayBuffer(binaryString.length);
-              const view = new Uint8Array(buffer);
-              for (let i = 0; i < binaryString.length; i++) {
-                view[i] = binaryString.charCodeAt(i);
-              }
-              // ISenderData<1, float> structure: int ctrlTag, int nChans, int chanOffset, float vals[1]
-              const dataView = new DataView(buffer);
-              const lfoValue = dataView.getFloat32(12, true); // vals[0] is at offset 12 (after 3 ints)
-
-              // Update waveform buffer
-              lfoWaveformBuffer[lfoWaveformIndex] = lfoValue;
-              lfoWaveformIndex = (lfoWaveformIndex + 1) % lfoWaveformBuffer.length;
-            } catch (e) {
-              console.error("Error decoding LFO data:", e);
-            }
-          }
-        } else if (ctrlTag === 0) { // Meter (IPeakAvgSender<2> = ISenderData<2, std::pair<float,float>> = 28 bytes)
-          // Decode meter data (peak/rms values)
-          if (base64Data && dataSize > 0) {
-            try {
-              const binaryString = atob(base64Data);
-              const buffer = new ArrayBuffer(binaryString.length);
-              const view = new Uint8Array(buffer);
-              for (let i = 0; i < binaryString.length; i++) {
-                view[i] = binaryString.charCodeAt(i);
-              }
-              // ISenderData<2, std::pair<float,float>> structure:
-              // int ctrlTag (offset 0), int nChans (offset 4), int chanOffset (offset 8)
-              // std::pair<float,float> vals[0] (offset 12: peak, offset 16: avg/rms)
-              // std::pair<float,float> vals[1] (offset 20: peak, offset 24: avg/rms)
-              const dataView = new DataView(buffer);
-              const leftPeak = dataView.getFloat32(12, true);   // vals[0].first (peak)
-              const leftRMS = dataView.getFloat32(16, true);    // vals[0].second (avg/rms)
-              const rightPeak = dataView.getFloat32(20, true);  // vals[1].first (peak)
-              const rightRMS = dataView.getFloat32(24, true);  // vals[1].second (avg/rms)
-
-              // Update meters (use peak values)
-              updateMeter(0, leftPeak, leftRMS);
-              updateMeter(1, rightPeak, rightRMS);
-            } catch (e) {
-              console.error("Error decoding meter data:", e);
-            }
-          }
-        }
-      };
-
-      // SPVFD handler - called when parameter value is received from processor
-      window.SPVFD = function(paramIdx, normalizedValue) {
-        const value = parseFloat(normalizedValue);
-        console.log("SPVFD: paramIdx=" + paramIdx + ", value=" + value);
-
-        // Set flag to prevent feedback loop
-        updatingFromProcessor = true;
-
-        // Update UI to reflect parameter changes from processor
-        switch(paramIdx) {
-          case 0: // Gain
-            document.getElementById('paramGain').value = value;
-            updateParamDisplay(0, value);
-            break;
-          case 1: // Glide
-            document.getElementById('paramGlide').value = value;
-            updateParamDisplay(1, value);
-            break;
-          case 2: // Attack
-            document.getElementById('paramAttack').value = value;
-            updateParamDisplay(2, value);
-            break;
-          case 3: // Decay
-            document.getElementById('paramDecay').value = value;
-            updateParamDisplay(3, value);
-            break;
-          case 4: // Sustain
-            document.getElementById('paramSustain').value = value;
-            updateParamDisplay(4, value);
-            break;
-          case 5: // Release
-            document.getElementById('paramRelease').value = value;
-            updateParamDisplay(5, value);
-            break;
-          case 6: // LFO Shape
-            document.getElementById('paramLFOShape').selectedIndex = Math.round(value);
-            break;
-          case 7: // LFO Rate Hz
-            document.getElementById('paramLFORateHz').value = value;
-            updateParamDisplay(7, value);
-            break;
-          case 8: // LFO Rate Tempo
-            document.getElementById('paramLFORateTempo').selectedIndex = Math.round(value);
-            break;
-          case 9: // LFO Sync
-            document.getElementById('paramLFOSync').checked = value > 0.5;
-            toggleLFOSync();
-            break;
-          case 10: // LFO Depth
-            document.getElementById('paramLFODepth').value = value;
-            updateParamDisplay(10, value);
-            break;
-        }
-
-        // Reset flag after UI update
-        updatingFromProcessor = false;
-      };
-
-      function startWebAudio() {
-        var actx = new AudioContext();
-        safariUnlock(actx);
-
-        AWPF.polyfill(actx).then( function () {
-          var script1 = document.createElement("script");
-          script1.src = "scripts/wam-controller.js";
-          script1.onload = () => {
-            var script2 = document.createElement("script");
-            script2.src = "scripts/TemplateProject-awn.js";
-            script2.onload = () => {
-
-              if(AWPF.isAudioWorkletPolyfilled)
-                console.log("AudioWorklet NOT Supported");
-              else
-                console.log("AudioWorklet Supported");
-
-              let inputBuses = [2];
-              let outputBuses = [2];
-              let options = {numberOfInputs: inputBuses.length, inputChannelCount: inputBuses,
-                             numberOfOutputs: outputBuses.length, outputChannelCount: outputBuses,
-                             processorOptions: {inputChannelCount: inputBuses}};
-
-              TemplateProjectController.importScripts(actx).then(() => {
-                TemplateProject_WAM = new TemplateProjectController(actx, options);
-
-                if(TemplateProject_WAM !== undefined) {
-
-                  // Initialize WebView-to-WAM adapter
-                  if (typeof window.initWebViewWAMAdapter === 'function') {
-                    window.initWebViewWAMAdapter(TemplateProject_WAM);
-                    const statusEl = document.getElementById('adapterStatus');
-                    if (statusEl) {
-                      statusEl.textContent = '✓ Adapter initialized - AudioWorklet ready!';
-                      statusEl.style.color = '#00ff00';
-                    }
-                    console.log("WebView-to-WAM adapter initialized");
-
-                    // Initialize default parameter values
-                    // Gain: 100% (default = 1.0 normalized)
-                    updateParam(0, 1.0);
-                    // Note Glide Time: 0ms (default = 0.0)
-                    updateParam(1, 0.0);
-                    // Attack: 10ms (default ~0.01 normalized)
-                    updateParam(2, 0.01);
-                    // Decay: 10ms (default ~0.01 normalized)
-                    updateParam(3, 0.01);
-                    // Sustain: 50% (default = 0.5)
-                    updateParam(4, 0.5);
-                    // Release: 10ms (default ~0.01 normalized)
-                    updateParam(5, 0.01);
-                    // LFO Shape: Triangle (default = 0)
-                    updateParamEnum(6, 0);
-                    // LFO Rate Hz: 1Hz (default ~0.025 normalized)
-                    updateParam(7, 0.025);
-                    // LFO Rate Tempo: 1/1 (default = 11)
-                    updateParamEnum(8, 11);
-                    // LFO Sync: true (default = 1.0)
-                    updateParam(9, 1.0);
-                    // LFO Depth: 0% (default = 0.0)
-                    updateParam(10, 0.0);
-                  }
-
-                  let NInputs = AWPF.isAudioWorkletPolyfilled ? TemplateProject_WAM.input.numberOfInputs : TemplateProject_WAM.numberOfInputs;
-
-                  if(NInputs > 0) {
-                    var constraints = { audio: true, video:false }
-                    navigator.mediaDevices.getUserMedia(constraints)
-                    .then((stream) => {
-                      let audioSource = actx.createMediaStreamSource(stream);
-
-                      // connect audioSource to WAM inputs
-                      if(AWPF.isAudioWorkletPolyfilled)
-                        audioSource.connect(TemplateProject_WAM.input)
-                      else
-                        audioSource.connect(TemplateProject_WAM);
-
-                      TemplateProject_WAM.connect(actx.destination); // connect WAM output to speakers
-                      connectionsDone();
-                    })
-                    .catch((err) => {
-                      console.log('Error initializing user media stream: ' + err);
-                    });
-                  }
-                  else
-                  {
-                    TemplateProject_WAM.connect(actx.destination); // connect WAM output to speakers
-                    connectionsDone();
-                  }
-                }
-                else {
-                  console.log('TemplateProject_WAM is undefined');
-                }
-              });
-            }
-            document.head.appendChild(script2);
-          }
-          document.head.appendChild(script1);
-        });
-      }
-
-      // helper method for sending an "arbitary" message to the processor, which can be handled in OnMessage()
-      function SendMessageToWAM(msgTag, ctrlTag = -1, data = 0) {
-        let propArg = String(msgTag + ":" + ctrlTag);
-        TemplateProject_WAM.port.postMessage({ "type": "msg", "verb": "SAMFUI", "prop": propArg, "data": data });
-      }
-
-      var statusElement = document.getElementById('status');
-      var progressElement = document.getElementById('progress');
-
-      // Simplified Module object - no longer needed for WASM UI module
-      // Only used for status display
-      var Module = {
-        setStatus: function(text) {
-          if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
-          if (text === Module.setStatus.text) return;
-          var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
-          var now = Date.now();
-          if (m && now - Date.now() < 30) return;
-          if (m) {
-            text = m[1];
-            progressElement.value = parseInt(m[2])*100;
-            progressElement.max = parseInt(m[4])*100;
-            progressElement.hidden = false;
-          } else {
-            progressElement.value = null;
-            progressElement.max = null;
-            progressElement.hidden = true;
-          }
-          if (statusElement) {
-            statusElement.innerHTML = text;
-          }
-        }
-      };
-
-      // Enable the start button immediately since we're not loading WASM module
-      (function() {
-        const startButton = document.getElementById('startWebAudioButton');
-        if (startButton) {
-          startButton.removeAttribute('disabled');
-        }
-      })();
-
-      Module.setStatus('Ready');
-      window.onerror = function(event) {
-        Module.setStatus('Exception thrown, see JavaScript console');
-        console.error('Exception:', event);
-      };
-    </script>
+    </div>
   </body>
 </html>

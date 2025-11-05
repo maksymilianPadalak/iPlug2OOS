@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build outputs
+scripts/*.js
+scripts/*.js.map
+scripts/*.bundle.js
+!scripts/webview-wam-adapter.js
+!scripts/audioworklet.js
+
+# TypeScript
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+

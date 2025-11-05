@@ -163,9 +163,19 @@ fi
 
 cd $BUILD_WEB_DIR
 
+# Copy compiled TypeScript bundle if it exists (from resources/web build)
+if [ -f "$PROJECT_RESOURCES_WEB_DIR/scripts/index.bundle.js" ]; then
+  cp $PROJECT_RESOURCES_WEB_DIR/scripts/index.bundle.js scripts/ 2>/dev/null || true
+fi
+
 # copy in the template HTML - comment this out if you have customised the HTML
 cp $IPLUG2_ROOT/IPlug/WEB/Template/index.html index.html
 sed -i.bak s/NAME_PLACEHOLDER/$PROJECT_NAME/g index.html
+
+# If we have a custom index.html in resources/web, use that instead
+if [ -f "$PROJECT_RESOURCES_WEB_DIR/index.html" ]; then
+  cp $PROJECT_RESOURCES_WEB_DIR/index.html index.html
+fi
 
 if [ $FOUND_FONTS -eq "0" ]; then sed -i.bak s/'<script async src="fonts.js"><\/script>'/'<!--<script async src="fonts.js"><\/script>-->'/g index.html; fi
 if [ $FOUND_SVGS -eq "0" ]; then sed -i.bak s/'<script async src="svgs.js"><\/script>'/'<!--<script async src="svgs.js"><\/script>-->'/g index.html; fi
@@ -203,13 +213,33 @@ PROJECT_RESOURCES_WEB_DIR=$PROJECT_ROOT/resources/web
 mkdir -p $PROJECT_RESOURCES_WEB_DIR/scripts
 mkdir -p $PROJECT_RESOURCES_WEB_DIR/styles
 
-# Copy HTML, CSS, and adapter script
-cp index.html $PROJECT_RESOURCES_WEB_DIR/
-cp styles/style.css $PROJECT_RESOURCES_WEB_DIR/styles/
-cp favicon.ico $PROJECT_RESOURCES_WEB_DIR/
+# Build TypeScript if src directory exists
+if [ -d "$PROJECT_RESOURCES_WEB_DIR/src" ] && [ -f "$PROJECT_RESOURCES_WEB_DIR/package.json" ]; then
+  echo "Building TypeScript..."
+  cd $PROJECT_RESOURCES_WEB_DIR
+  npm install --silent 2>/dev/null || true
+  npm run build
+  cd $PROJECT_ROOT
+  echo "✅ TypeScript compiled"
+fi
 
-# Copy scripts needed for WebView
+# Copy HTML, CSS, and adapter script
+if [ -f "index.html" ]; then
+  cp index.html $PROJECT_RESOURCES_WEB_DIR/
+fi
+if [ -f "styles/style.css" ]; then
+  cp styles/style.css $PROJECT_RESOURCES_WEB_DIR/styles/
+fi
+if [ -f "favicon.ico" ]; then
+  cp favicon.ico $PROJECT_RESOURCES_WEB_DIR/
+fi
+
+# Copy scripts needed for WebView (including compiled TypeScript)
 cp scripts/webview-wam-adapter.js $PROJECT_RESOURCES_WEB_DIR/scripts/ 2>/dev/null || true
+# Copy compiled TypeScript bundle
+if [ -f "$PROJECT_RESOURCES_WEB_DIR/scripts/index.bundle.js" ]; then
+  cp $PROJECT_RESOURCES_WEB_DIR/scripts/index.bundle.js $PROJECT_RESOURCES_WEB_DIR/scripts/ 2>/dev/null || true
+fi
 
 echo "Files copied to $PROJECT_RESOURCES_WEB_DIR for plugin builds"
 echo "Note: Add the 'web' folder to Xcode project Resources if not already added"
