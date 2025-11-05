@@ -13,10 +13,16 @@ let _originalIPlugSendMsg = null;
  */
 function detectEnvironment() {
   // Check if IPlugSendMsg already exists (injected by platform WebView)
-  if (typeof window.IPlugSendMsg === 'function' &&
-      window.IPlugSendMsg.toString().includes('webkit.messageHandlers') ||
-      window.IPlugSendMsg.toString().includes('chrome.webview')) {
-    return 'webview';
+  if (typeof window.IPlugSendMsg === 'function') {
+    try {
+      const funcStr = window.IPlugSendMsg.toString();
+      if (funcStr.includes('webkit.messageHandlers') || funcStr.includes('chrome.webview')) {
+        return 'webview';
+      }
+    } catch (e) {
+      // If toString() fails, assume WAM mode
+      console.debug('Could not inspect IPlugSendMsg:', e);
+    }
   }
 
   // Check if we're in a browser environment (WAM)
@@ -24,8 +30,8 @@ function detectEnvironment() {
     return 'wam';
   }
 
-  // Default to webview if uncertain
-  return 'webview';
+  // Default to WAM if uncertain (since we're in a browser)
+  return 'wam';
 }
 
 /**
