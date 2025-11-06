@@ -11,6 +11,9 @@ scripts/**/*.bundle.js
 !scripts/webview-wam-adapter.js
 !scripts/audioworklet.js
 
+# Processed CSS files (generated from style.source.css via PostCSS/Tailwind)
+styles/*.processed.css
+
 # TypeScript
 *.tsbuildinfo
 
