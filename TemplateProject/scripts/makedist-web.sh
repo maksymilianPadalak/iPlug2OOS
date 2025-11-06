@@ -176,21 +176,72 @@ cd $BUILD_WEB_DIR
 # Build TypeScript FIRST before copying (if src directory exists)
 PROJECT_RESOURCES_WEB_DIR=$PROJECT_ROOT/resources/web
 if [ -d "$PROJECT_RESOURCES_WEB_DIR/src" ] && [ -f "$PROJECT_RESOURCES_WEB_DIR/package.json" ]; then
-  echo "Building TypeScript..."
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "Building TypeScript and Web UI..."
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   cd $PROJECT_RESOURCES_WEB_DIR
-  npm install --silent 2>/dev/null || true
+  
+  # Install dependencies (show output for debugging)
+  echo "📦 Installing npm dependencies..."
+  if npm install --silent 2>&1 | grep -q "error\|Error\|ERROR"; then
+    echo "⚠️  npm install had warnings/errors (check output above)"
+  else
+    echo "✅ Dependencies installed"
+  fi
+  
   # Clean old build artifacts to force fresh compilation
+  echo "🧹 Cleaning old build artifacts..."
   rm -rf scripts/*.js scripts/*.js.map 2>/dev/null || true
   rm -f styles/style.processed.css 2>/dev/null || true
-  npm run build
+  echo "✅ Cleaned build artifacts"
+  
+  # Run build (this includes parameter generation)
+  echo "🔨 Running build (includes parameter generation)..."
+  echo ""
+  BUILD_OUTPUT=$(npm run build 2>&1)
+  BUILD_EXIT_CODE=$?
+  
+  # Always show the build output
+  echo "$BUILD_OUTPUT"
+  echo ""
+  
+  if [ $BUILD_EXIT_CODE -eq 0 ]; then
+    echo "✅ Build completed successfully"
+  else
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "❌ Build failed with exit code: $BUILD_EXIT_CODE"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    # Extract and highlight errors
+    echo ""
+    echo "🔍 Error Summary:"
+    echo "$BUILD_OUTPUT" | grep -i "error\|failed\|❌" | head -20 || echo "   (No specific error patterns found)"
+    echo ""
+    
+    # Check if bundle was created despite errors
+    if [ -f "$PROJECT_RESOURCES_WEB_DIR/scripts/index.bundle.js" ]; then
+      echo "⚠️  Warning: Bundle file exists despite build failure"
+      echo "   This may indicate a partial build. Proceeding with caution..."
+    else
+      echo "❌ Bundle file missing - build definitely failed"
+      echo "   Expected: $PROJECT_RESOURCES_WEB_DIR/scripts/index.bundle.js"
+    fi
+    exit $BUILD_EXIT_CODE  # Propagate the error
+  fi
+  
   cd $BUILD_WEB_DIR
-  echo "✅ TypeScript compiled"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 fi
 
 # Copy compiled TypeScript bundle if it exists (from resources/web build)
 if [ -f "$PROJECT_RESOURCES_WEB_DIR/scripts/index.bundle.js" ]; then
   cp $PROJECT_RESOURCES_WEB_DIR/scripts/index.bundle.js scripts/ 2>/dev/null || true
-  echo "✅ React bundle copied to public/plugin/scripts/"
+  BUNDLE_SIZE=$(ls -lh "$PROJECT_RESOURCES_WEB_DIR/scripts/index.bundle.js" | awk '{print $5}')
+  echo "✅ React bundle copied to public/plugin/scripts/ (size: $BUNDLE_SIZE)"
+else
+  echo "❌ ERROR: Bundle file not found at $PROJECT_RESOURCES_WEB_DIR/scripts/index.bundle.js"
+  echo "   This usually means the TypeScript build failed."
+  echo "   Check the build output above for errors."
 fi
 
 # copy in the template HTML - comment this out if you have customised the HTML

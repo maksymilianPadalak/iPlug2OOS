@@ -1,5 +1,7 @@
 /**
  * Parameter indices matching C++ TemplateProject.h EParams enum
+ * AUTO-GENERATED - DO NOT EDIT MANUALLY
+ * Generated from C++ source files using AI extraction
  */
 export enum EParams {
   kParamGain = 0,
@@ -106,8 +108,8 @@ export const ParamNames: Record<EParams, string> = {
   [EParams.kParamSustain]: "Sustain",
   [EParams.kParamRelease]: "Release",
   [EParams.kParamLFOShape]: "LFO Shape",
-  [EParams.kParamLFORateHz]: "LFO Rate Hz",
-  [EParams.kParamLFORateTempo]: "LFO Rate Tempo",
+  [EParams.kParamLFORateHz]: "LFO Rate",
+  [EParams.kParamLFORateTempo]: "LFO Rate",
   [EParams.kParamLFORateMode]: "LFO Sync",
   [EParams.kParamLFODepth]: "LFO Depth",
   // Oscillators
@@ -133,8 +135,8 @@ export const ParamNames: Record<EParams, string> = {
   [EParams.kParamFilterSustain]: "Filter Sustain",
   [EParams.kParamFilterRelease]: "Filter Release",
   // LFO2
-  [EParams.kParamLFO2RateHz]: "LFO2 Rate Hz",
-  [EParams.kParamLFO2RateTempo]: "LFO2 Rate Tempo",
+  [EParams.kParamLFO2RateHz]: "LFO2 Rate",
+  [EParams.kParamLFO2RateTempo]: "LFO2 Rate",
   [EParams.kParamLFO2RateMode]: "LFO2 Sync",
   [EParams.kParamLFO2Shape]: "LFO2 Shape",
   [EParams.kParamLFO2Depth]: "LFO2 Depth",
@@ -152,6 +154,7 @@ export const ParamNames: Record<EParams, string> = {
   [EParams.kParamReverbWidth]: "Reverb Width",
   [EParams.kParamReverbDry]: "Reverb Dry",
   [EParams.kParamReverbWet]: "Reverb Wet",
+
   [EParams.kNumParams]: "",
 };
 
@@ -167,4 +170,3 @@ export const MidiStatus = {
   NoteOn: 0x90,
   NoteOff: 0x80,
 } as const;
-
