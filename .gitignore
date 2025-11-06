@@ -9,3 +9,6 @@ build-*
 */.vs
 *.pem
 mkcert*
+
+# user-generated project workspaces
+TemplateProject-*/
