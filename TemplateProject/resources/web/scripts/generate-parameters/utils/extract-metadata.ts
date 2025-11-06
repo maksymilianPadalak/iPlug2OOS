@@ -9,6 +9,7 @@ import {
   type ParameterMetadata,
 } from "./schemas.js";
 import { AI_CONFIG, getOpenAIApiKey } from "../config.js";
+import { getIPlug2VectorStore } from "./vector-store.js";
 
 const openai = new OpenAI({ apiKey: getOpenAIApiKey() });
 
@@ -76,11 +77,32 @@ Extract all parameter initialization calls and return structured metadata.`;
   console.log("🤖 Extracting parameter metadata using AI...");
   console.log(`Model: gpt-5-nano-2025-08-07`);
 
+  // Get vector store ID for semantic search (if available)
+  let vectorStoreId: string | null = null;
+  try {
+    vectorStoreId = await getIPlug2VectorStore();
+    if (vectorStoreId) {
+      console.log(`📦 Using vector store: ${vectorStoreId}`);
+    }
+  } catch {
+    console.warn("⚠️  Vector store not available, continuing without it");
+  }
+
   try {
     const response = await openai.responses.parse({
       model: "gpt-5-nano-2025-08-07",
       instructions,
       input,
+      ...(vectorStoreId
+        ? {
+            tools: [
+              {
+                type: "file_search",
+                vector_store_ids: [vectorStoreId],
+              },
+            ],
+          }
+        : {}),
       text: {
         format: zodTextFormat(
           ParameterMetadataResponseSchema,

@@ -32,19 +32,11 @@ export function normalizedToActual(paramIdx: EParams, normalizedValue: number): 
   switch (paramIdx) {
     case EParams.kParamGain:
     case EParams.kParamSustain:
-    case EParams.kParamLFODepth:
     case EParams.kParamOsc1Mix:
     case EParams.kParamOsc2Mix:
     case EParams.kParamOsc3Mix:
     case EParams.kParamFilterKeytrack:
     case EParams.kParamFilterSustain:
-    case EParams.kParamLFO2Depth:
-    case EParams.kParamDelayFeedback:
-    case EParams.kParamDelayDry:
-    case EParams.kParamDelayWet:
-    case EParams.kParamReverbDamp:
-    case EParams.kParamReverbDry:
-    case EParams.kParamReverbWet:
       return value * 100; // 0 to 100
     case EParams.kParamNoteGlideTime:
       return value * 30; // 0 to 30
@@ -60,7 +52,7 @@ export function normalizedToActual(paramIdx: EParams, normalizedValue: number): 
     case EParams.kParamLFORateTempo:
     case EParams.kParamLFO2RateTempo:
     case EParams.kParamLFO2Shape:
-      return value * 0; // 0 to 0
+      return Math.round(value * 0); // 0-0 enum (1 options)
     case EParams.kParamLFORateHz:
     case EParams.kParamLFO2RateHz:
       return (function() {
@@ -74,6 +66,15 @@ export function normalizedToActual(paramIdx: EParams, normalizedValue: number): 
     case EParams.kParamLFO2RateMode:
     case EParams.kParamOscSync:
       return value > 0.5 ? 1.0 : 0.0; // boolean
+    case EParams.kParamLFODepth:
+    case EParams.kParamLFO2Depth:
+    case EParams.kParamDelayFeedback:
+    case EParams.kParamDelayDry:
+    case EParams.kParamDelayWet:
+    case EParams.kParamReverbDamp:
+    case EParams.kParamReverbDry:
+    case EParams.kParamReverbWet:
+      return value * 0; // 0 to 0
     // Oscillator parameters
     case EParams.kParamOsc1Detune:
     case EParams.kParamOsc2Detune:
@@ -89,13 +90,7 @@ export function normalizedToActual(paramIdx: EParams, normalizedValue: number): 
       return Math.round(value * 3); // 0-3 enum (4 options)
     // Filter parameters
     case EParams.kParamFilterCutoff:
-      return (function() {
-      const minFreq = 20;
-      const maxFreq = 20000;
-      const mAdd = Math.log(minFreq);
-      const mMul = Math.log(maxFreq / minFreq);
-      return Math.exp(mAdd + value * mMul);
-    })(); // Exponential: 20-20000Hz
+      return 20 + value * 19980; // 20 to 20000
     case EParams.kParamFilterResonance:
       return 0.1 + value * 9.9; // 0.1 to 10
     case EParams.kParamFilterEnvAmount:
@@ -125,12 +120,10 @@ function getParamDisplayConfig(paramIdx: EParams): ParamDisplayConfig {
   switch (paramIdx) {
     case EParams.kParamGain:
     case EParams.kParamSustain:
-    case EParams.kParamLFODepth:
     case EParams.kParamOsc1Mix:
     case EParams.kParamOsc2Mix:
     case EParams.kParamOsc3Mix:
     case EParams.kParamFilterSustain:
-    case EParams.kParamLFO2Depth:
       return {
         unit: '%',
         format: (v) => v.toFixed(1)
@@ -148,15 +141,20 @@ function getParamDisplayConfig(paramIdx: EParams): ParamDisplayConfig {
         format: (v) => v.toFixed(1)
       };
     case EParams.kParamLFOShape:
+    case EParams.kParamLFORateHz:
     case EParams.kParamLFORateTempo:
     case EParams.kParamLFORateMode:
+    case EParams.kParamLFODepth:
     case EParams.kParamOsc1Wave:
     case EParams.kParamOsc2Wave:
     case EParams.kParamOsc3Wave:
+    case EParams.kParamFilterCutoff:
     case EParams.kParamFilterResonance:
+    case EParams.kParamLFO2RateHz:
     case EParams.kParamLFO2RateTempo:
     case EParams.kParamLFO2RateMode:
     case EParams.kParamLFO2Shape:
+    case EParams.kParamLFO2Depth:
     case EParams.kParamDelayFeedback:
     case EParams.kParamDelayDry:
     case EParams.kParamDelayWet:
@@ -171,14 +169,6 @@ function getParamDisplayConfig(paramIdx: EParams): ParamDisplayConfig {
         unit: '',
         format: (v) => v.toString()
       };
-    case EParams.kParamLFORateHz:
-    case EParams.kParamFilterCutoff:
-    case EParams.kParamFilterEnvAmount:
-    case EParams.kParamLFO2RateHz:
-      return {
-        unit: 'Hz',
-        format: (v) => v.toFixed(1)
-      };
     case EParams.kParamOsc1Detune:
     case EParams.kParamOsc2Detune:
     case EParams.kParamOsc3Detune:
@@ -192,6 +182,11 @@ function getParamDisplayConfig(paramIdx: EParams): ParamDisplayConfig {
       return {
         unit: '',
         format: (v) => v >= 0 ? `+${v.toFixed(0)}` : `${v.toFixed(0)}`
+      };
+    case EParams.kParamFilterEnvAmount:
+      return {
+        unit: 'Hz',
+        format: (v) => v.toFixed(1)
       };
     case EParams.kParamFilterKeytrack:
       return {
@@ -215,19 +210,11 @@ export function actualToNormalized(paramIdx: EParams, actualValue: number): numb
   switch (paramIdx) {
     case EParams.kParamGain:
     case EParams.kParamSustain:
-    case EParams.kParamLFODepth:
     case EParams.kParamOsc1Mix:
     case EParams.kParamOsc2Mix:
     case EParams.kParamOsc3Mix:
     case EParams.kParamFilterKeytrack:
     case EParams.kParamFilterSustain:
-    case EParams.kParamLFO2Depth:
-    case EParams.kParamDelayFeedback:
-    case EParams.kParamDelayDry:
-    case EParams.kParamDelayWet:
-    case EParams.kParamReverbDamp:
-    case EParams.kParamReverbDry:
-    case EParams.kParamReverbWet:
       return actualValue / 100.0; // 0 to 100 -> 0 to 1
     case EParams.kParamNoteGlideTime:
       return actualValue / 30.0; // 0 to 30 -> 0 to 1
@@ -243,7 +230,7 @@ export function actualToNormalized(paramIdx: EParams, actualValue: number): numb
     case EParams.kParamLFORateTempo:
     case EParams.kParamLFO2RateTempo:
     case EParams.kParamLFO2Shape:
-      return actualValue / 0.0; // 0 to 0 -> 0 to 1
+      return actualValue / 0.0; // 0-0 enum -> 0-1
     case EParams.kParamLFORateHz:
     case EParams.kParamLFO2RateHz:
       return (function() {
@@ -257,6 +244,15 @@ export function actualToNormalized(paramIdx: EParams, actualValue: number): numb
     case EParams.kParamLFO2RateMode:
     case EParams.kParamOscSync:
       return actualValue > 0.5 ? 1.0 : 0.0; // boolean
+    case EParams.kParamLFODepth:
+    case EParams.kParamLFO2Depth:
+    case EParams.kParamDelayFeedback:
+    case EParams.kParamDelayDry:
+    case EParams.kParamDelayWet:
+    case EParams.kParamReverbDamp:
+    case EParams.kParamReverbDry:
+    case EParams.kParamReverbWet:
+      return actualValue / 0.0; // 0 to 0 -> 0 to 1
     // Oscillator parameters
     case EParams.kParamOsc1Detune:
     case EParams.kParamOsc2Detune:
@@ -272,13 +268,7 @@ export function actualToNormalized(paramIdx: EParams, actualValue: number): numb
       return actualValue / 3.0; // 0-3 enum -> 0-1
     // Filter parameters
     case EParams.kParamFilterCutoff:
-      return (function() {
-      const minFreq = 20;
-      const maxFreq = 20000;
-      const mAdd = Math.log(minFreq);
-      const mMul = Math.log(maxFreq / minFreq);
-      return (Math.log(actualValue) - mAdd) / mMul;
-    })(); // Inverse exponential: 20-20000Hz
+      return (actualValue - 20) / 19980.0; // 20 to 20000 -> 0 to 1
     case EParams.kParamFilterResonance:
       return (actualValue - 0.1) / 9.9; // 0.1 to 10 -> 0 to 1
     case EParams.kParamFilterEnvAmount:
@@ -322,14 +312,14 @@ export function getDefaultNormalizedValues(): Map<EParams, number> {
   defaults.set(EParams.kParamRelease, (10 - 2) / 998);
   // LFO Shape: 0 (0-0)
   defaults.set(EParams.kParamLFOShape, actualToNormalized(EParams.kParamLFOShape, 0));
-  // LFO Rate: 1 (0.01-40 Hz)
+  // LFO Rate: 1 (0.01-40)
   defaults.set(EParams.kParamLFORateHz, (Math.log(1) - Math.log(0.01)) / Math.log(40 / 0.01));
   // LFO Rate: 0 (0-0)
   defaults.set(EParams.kParamLFORateTempo, actualToNormalized(EParams.kParamLFORateTempo, 0));
-  // LFO Sync: 1 (0-1)
-  defaults.set(EParams.kParamLFORateMode, 1 / 1);
-  // LFO Depth: 0 (0-100 %)
-  defaults.set(EParams.kParamLFODepth, 0 / 100);
+  // LFO Sync: 1 (0-0)
+  defaults.set(EParams.kParamLFORateMode, 1 / 0);
+  // LFO Depth: 0 (0-0)
+  defaults.set(EParams.kParamLFODepth, 0 / 0);
   // Osc1 Mix: 100 (0-100 %)
   defaults.set(EParams.kParamOsc1Mix, 100 / 100);
   // Osc2 Mix: 0 (0-100 %)
@@ -354,8 +344,8 @@ export function getDefaultNormalizedValues(): Map<EParams, number> {
   defaults.set(EParams.kParamOsc2Wave, actualToNormalized(EParams.kParamOsc2Wave, 0));
   // Osc3 Wave: 0 (0-0)
   defaults.set(EParams.kParamOsc3Wave, actualToNormalized(EParams.kParamOsc3Wave, 0));
-  // Filter Cutoff: 1000 (20-20000 Hz)
-  defaults.set(EParams.kParamFilterCutoff, (Math.log(1000) - Math.log(20)) / Math.log(20000 / 20));
+  // Filter Cutoff: 1000 (20-20000)
+  defaults.set(EParams.kParamFilterCutoff, (1000 - 20) / 19980);
   // Filter Resonance: 1 (0.1-10)
   defaults.set(EParams.kParamFilterResonance, (1 - 0.1) / 9.9);
   // Filter Env Amount: 0 (-5000-5000 Hz)
@@ -370,38 +360,38 @@ export function getDefaultNormalizedValues(): Map<EParams, number> {
   defaults.set(EParams.kParamFilterSustain, 50 / 100);
   // Filter Release: 10 (2-1000 ms)
   defaults.set(EParams.kParamFilterRelease, (10 - 2) / 998);
-  // LFO2 Rate: 1 (0.01-40 Hz)
+  // LFO2 Rate: 1 (0.01-40)
   defaults.set(EParams.kParamLFO2RateHz, (Math.log(1) - Math.log(0.01)) / Math.log(40 / 0.01));
   // LFO2 Rate: 0 (0-0)
   defaults.set(EParams.kParamLFO2RateTempo, actualToNormalized(EParams.kParamLFO2RateTempo, 0));
-  // LFO2 Sync: 1 (0-1)
-  defaults.set(EParams.kParamLFO2RateMode, 1 / 1);
+  // LFO2 Sync: 1 (0-0)
+  defaults.set(EParams.kParamLFO2RateMode, 1 / 0);
   // LFO2 Shape: 0 (0-0)
   defaults.set(EParams.kParamLFO2Shape, actualToNormalized(EParams.kParamLFO2Shape, 0));
-  // LFO2 Depth: 0 (0-100 %)
-  defaults.set(EParams.kParamLFO2Depth, 0 / 100);
+  // LFO2 Depth: 0 (0-0)
+  defaults.set(EParams.kParamLFO2Depth, 0 / 0);
   // Delay Time: 250 (1-2000 ms)
   defaults.set(EParams.kParamDelayTime, (250 - 1) / 1999);
-  // Delay Feedback: 0 (0-100)
-  defaults.set(EParams.kParamDelayFeedback, 0 / 100);
-  // Delay Dry: 100 (0-100)
-  defaults.set(EParams.kParamDelayDry, 100 / 100);
-  // Delay Wet: 0 (0-100)
-  defaults.set(EParams.kParamDelayWet, 0 / 100);
-  // Osc Sync: 0 (0-1)
-  defaults.set(EParams.kParamOscSync, 0 / 1);
+  // Delay Feedback: 0 (0-0)
+  defaults.set(EParams.kParamDelayFeedback, 0 / 0);
+  // Delay Dry: 100 (0-0)
+  defaults.set(EParams.kParamDelayDry, 100 / 0);
+  // Delay Wet: 0 (0-0)
+  defaults.set(EParams.kParamDelayWet, 0 / 0);
+  // Osc Sync: 0 (0-0)
+  defaults.set(EParams.kParamOscSync, 0 / 0);
   // Sync Ratio: 1 (0.125-8)
   defaults.set(EParams.kParamOscSyncRatio, (1 - 0.125) / 7.875);
   // Reverb Room Size: 0.5 (0.3-0.99)
   defaults.set(EParams.kParamReverbRoomSize, (0.5 - 0.3) / 0.69);
-  // Reverb Damp: 50 (0-100)
-  defaults.set(EParams.kParamReverbDamp, 50 / 100);
+  // Reverb Damp: 50 (0-0)
+  defaults.set(EParams.kParamReverbDamp, 50 / 0);
   // Reverb Width: 0.5 (0-1)
   defaults.set(EParams.kParamReverbWidth, 0.5 / 1);
-  // Reverb Dry: 100 (0-100)
-  defaults.set(EParams.kParamReverbDry, 100 / 100);
-  // Reverb Wet: 0 (0-100)
-  defaults.set(EParams.kParamReverbWet, 0 / 100);
+  // Reverb Dry: 100 (0-0)
+  defaults.set(EParams.kParamReverbDry, 100 / 0);
+  // Reverb Wet: 0 (0-0)
+  defaults.set(EParams.kParamReverbWet, 0 / 0);
 
   
   return defaults;
