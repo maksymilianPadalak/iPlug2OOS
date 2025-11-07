@@ -38,7 +38,7 @@ export function generateParameterFile(
   return `/**
  * Parameter value conversion and display utilities
  * AUTO-GENERATED - DO NOT EDIT MANUALLY
- * Generated from C++ source files using AI extraction
+ * Generated from C++ source files using deterministic parsing
  */
 
 import { EParams } from '../config/constants';

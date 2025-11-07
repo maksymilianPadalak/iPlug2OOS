@@ -1,132 +1,273 @@
 /**
- * Extract parameter metadata from C++ code using AI
+ * Extract parameter metadata from C++ code using deterministic parsing
+ * No AI required - parses Init* calls directly
  */
 
-import OpenAI from "openai";
-import { zodTextFormat } from "openai/helpers/zod";
-import {
-  ParameterMetadataResponseSchema,
-  type ParameterMetadata,
-} from "./schemas.js";
-import { AI_CONFIG, getOpenAIApiKey } from "../config.js";
-import { getIPlug2VectorStore } from "./vector-store.js";
-
-const openai = new OpenAI({ apiKey: getOpenAIApiKey() });
+import type { ParameterMetadata } from "./schemas.js";
 
 /**
- * Extract parameter metadata from C++ initialization code
+ * Parse a C++ InitDouble call
+ * Format: InitDouble("Name", default, min, max, step, "unit", flags, group, shape)
+ * Example: InitDouble("Attack", 10., 1., 1000., 0.1, "ms", IParam::kFlagsNone, "ADSR", IParam::ShapePowCurve(3.))
  */
-export async function extractParameterMetadata(
-  cppHeaderContent: string,
-  cppSourceContent: string,
-): Promise<ParameterMetadata[]> {
-  const instructions = `You are an expert C++ code analyzer specializing in iPlug2 audio plugin parameter definitions.
+function parseInitDouble(line: string): ParameterMetadata | null {
+  // Match: InitDouble("Name", default, min, max, step, "unit", flags, group, shape)
+  // Example: InitDouble("Attack", 10., 1., 1000., 0.1, "ms", IParam::kFlagsNone, "ADSR", IParam::ShapePowCurve(3.))
+  
+  // First, check for ShapePowCurve in the entire line
+  const powCurveMatch = line.match(/ShapePowCurve\s*\(\s*([\d.]+)\s*\)/);
+  const hasExp = line.includes("ShapeExp");
+  
+  // Match the basic InitDouble pattern
+  const match = line.match(
+    /InitDouble\s*\(\s*"([^"]+)"\s*,\s*([\d.]+)\s*,\s*([\d.-]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+))?\s*(?:,\s*"([^"]*)")?\s*(?:,\s*[^,)]+)?\s*(?:,\s*"([^"]*)")?\s*(?:,\s*[^)]+)?\s*\)/,
+  );
 
-Your task is to extract parameter metadata from C++ code that initializes iPlug2 parameters.
+  if (!match) return null;
 
-ANALYZE THE FOLLOWING:
-1. Parameter initialization calls (GetParam(...)->InitDouble, InitPercentage, InitFrequency, InitInt, InitBool, InitEnum, InitMilliseconds)
-2. Parameter shapes (ShapePowCurve(n), ShapeExp(), ShapeLinear(), etc.)
-3. Parameter ranges (min, max values)
-4. Default values
-5. Units and labels
-6. Parameter types (double, int, bool, enum)
-7. Enum values (for InitEnum calls)
-8. Parameter groups (from the group parameter)
+  const [, name, defaultValue, min, max, step, unit, group] = match;
 
-DETECT SHAPE TYPES:
-- InitDouble with ShapePowCurve(n) → shape: "ShapePowCurve", shapeParam: n
-- InitFrequency → shape: "ShapeExp" (exponential frequency mapping)
-- InitPercentage → shape: "ShapeLinear", type: "percentage"
-- InitMilliseconds → shape: "ShapeLinear", type: "milliseconds"
-- InitDouble with ShapeExp() → shape: "ShapeExp"
-- InitDouble with ShapeLinear() or no shape → shape: "ShapeLinear"
-- InitInt → type: "int", shape: "ShapeLinear"
-- InitBool → type: "bool", shape: "ShapeLinear"
-- InitEnum → type: "enum", shape: "ShapeLinear"
+  // Determine shape
+  let shape: ParameterMetadata["shape"] = "ShapeLinear";
+  let shapeParam: number | null = null;
 
-EXTRACT ACCURATELY:
-- paramIdx: The parameter index name (e.g., kParamAttack)
-- name: The display name from Init call (e.g., "Attack")
-- default: The default value (first numeric argument after name)
-- min: Minimum value (second numeric argument)
-- max: Maximum value (third numeric argument)
-- step: Step size (if provided, usually 4th numeric argument)
-- unit: Unit label (e.g., "ms", "%", "Hz", "cents", "")
-- shape: Shape type (see above)
-- shapeParam: Shape parameter value (for ShapePowCurve)
-- type: Parameter type (see above)
-- enumValues: Array of enum option strings (for InitEnum)
-- group: Parameter group name (if provided)
-
-RETURN:
-An object with a "parameters" field containing an array of parameter metadata objects, one for each GetParam(...)->Init* call found in the code.
-
-Be precise and extract all parameters. Do not miss any.`;
-
-  const input = `Extract parameter metadata from this C++ code:
-
-HEADER FILE (TemplateProject.h):
-${cppHeaderContent}
-
-SOURCE FILE (TemplateProject.cpp):
-${cppSourceContent}
-
-Extract all parameter initialization calls and return structured metadata.`;
-
-  console.log("🤖 Extracting parameter metadata using AI...");
-  console.log(`Model: gpt-5-nano-2025-08-07`);
-
-  // Get vector store ID for semantic search (if available)
-  let vectorStoreId: string | null = null;
-  try {
-    vectorStoreId = await getIPlug2VectorStore();
-    if (vectorStoreId) {
-      console.log(`📦 Using vector store: ${vectorStoreId}`);
-    }
-  } catch {
-    console.warn("⚠️  Vector store not available, continuing without it");
+  if (powCurveMatch) {
+    shape = "ShapePowCurve";
+    shapeParam = parseFloat(powCurveMatch[1]);
+  } else if (hasExp) {
+    shape = "ShapeExp";
   }
 
-  try {
-    const response = await openai.responses.parse({
-      model: "gpt-5-nano-2025-08-07",
-      instructions,
-      input,
-      ...(vectorStoreId
-        ? {
-            tools: [
-              {
-                type: "file_search",
-                vector_store_ids: [vectorStoreId],
-              },
-            ],
-          }
-        : {}),
-      text: {
-        format: zodTextFormat(
-          ParameterMetadataResponseSchema,
-          "ParameterMetadataResponse",
-        ),
-        verbosity: "low",
-      },
-      store: false,
-      max_output_tokens: AI_CONFIG.maxTokens,
-      reasoning: { effort: "low" },
-    });
-
-    const responseData = response.output_parsed;
-    const metadata = responseData?.parameters || [];
-
-    if (!metadata || metadata.length === 0) {
-      throw new Error("No parameter metadata extracted from C++ code");
-    }
-
-    console.log(`✅ Extracted ${metadata.length} parameters`);
-    return metadata;
-  } catch (error) {
-    console.error("❌ Failed to extract parameter metadata:", error);
-    throw error;
-  }
+  return {
+    paramIdx: "", // Will be filled later
+    name: name.trim(),
+    default: parseFloat(defaultValue),
+    min: parseFloat(min),
+    max: parseFloat(max),
+    step: step ? parseFloat(step) : null,
+    unit: unit || "",
+    shape,
+    shapeParam,
+    type: "double",
+    enumValues: null,
+    group: group || null,
+  };
 }
 
+/**
+ * Parse a C++ InitPercentage call
+ * Format: InitPercentage("Name", default)
+ */
+function parseInitPercentage(line: string): ParameterMetadata | null {
+  const match = line.match(/InitPercentage\s*\(\s*"([^"]+)"\s*(?:,\s*([\d.]+))?\s*\)/);
+  if (!match) return null;
+
+  const [, name, defaultValue] = match;
+
+  return {
+    paramIdx: "",
+    name: name.trim(),
+    default: defaultValue ? parseFloat(defaultValue) : 0,
+    min: 0,
+    max: 100,
+    step: null,
+    unit: "%",
+    shape: "ShapeLinear",
+    shapeParam: null,
+    type: "percentage",
+    enumValues: null,
+    group: null,
+  };
+}
+
+/**
+ * Parse a C++ InitFrequency call
+ * Format: InitFrequency("Name", default, min, max)
+ */
+function parseInitFrequency(line: string): ParameterMetadata | null {
+  const match = line.match(
+    /InitFrequency\s*\(\s*"([^"]+)"\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*\)/,
+  );
+  if (!match) return null;
+
+  const [, name, defaultValue, min, max] = match;
+
+  return {
+    paramIdx: "",
+    name: name.trim(),
+    default: parseFloat(defaultValue),
+    min: parseFloat(min),
+    max: parseFloat(max),
+    step: null,
+    unit: "Hz",
+    shape: "ShapeExp", // Frequency uses exponential mapping
+    shapeParam: null,
+    type: "frequency",
+    enumValues: null,
+    group: null,
+  };
+}
+
+/**
+ * Parse a C++ InitMilliseconds call
+ * Format: InitMilliseconds("Name", default, min, max)
+ */
+function parseInitMilliseconds(line: string): ParameterMetadata | null {
+  const match = line.match(
+    /InitMilliseconds\s*\(\s*"([^"]+)"\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*\)/,
+  );
+  if (!match) return null;
+
+  const [, name, defaultValue, min, max] = match;
+
+  return {
+    paramIdx: "",
+    name: name.trim(),
+    default: parseFloat(defaultValue),
+    min: parseFloat(min),
+    max: parseFloat(max),
+    step: null,
+    unit: "ms",
+    shape: "ShapeLinear",
+    shapeParam: null,
+    type: "milliseconds",
+    enumValues: null,
+    group: null,
+  };
+}
+
+/**
+ * Parse a C++ InitInt call
+ * Format: InitInt("Name", default, min, max, "unit")
+ */
+function parseInitInt(line: string): ParameterMetadata | null {
+  const match = line.match(
+    /InitInt\s*\(\s*"([^"]+)"\s*,\s*(\d+)\s*,\s*([\d-]+)\s*,\s*(\d+)\s*(?:,\s*"([^"]*)")?\s*\)/,
+  );
+  if (!match) return null;
+
+  const [, name, defaultValue, min, max, unit] = match;
+
+  return {
+    paramIdx: "",
+    name: name.trim(),
+    default: parseInt(defaultValue, 10),
+    min: parseInt(min, 10),
+    max: parseInt(max, 10),
+    step: 1,
+    unit: unit || "",
+    shape: "ShapeLinear",
+    shapeParam: null,
+    type: "int",
+    enumValues: null,
+    group: null,
+  };
+}
+
+/**
+ * Parse a C++ InitBool call
+ * Format: InitBool("Name", default, "label", flags, group, "offText", "onText")
+ */
+function parseInitBool(line: string): ParameterMetadata | null {
+  const match = line.match(/InitBool\s*\(\s*"([^"]+)"\s*,\s*(true|false)\s*/);
+  if (!match) return null;
+
+  const [, name, defaultValue] = match;
+
+  return {
+    paramIdx: "",
+    name: name.trim(),
+    default: defaultValue === "true" ? 1 : 0,
+    min: 0,
+    max: 1,
+    step: null,
+    unit: "",
+    shape: "ShapeLinear",
+    shapeParam: null,
+    type: "bool",
+    enumValues: null,
+    group: null,
+  };
+}
+
+/**
+ * Parse a C++ InitEnum call
+ * Format: InitEnum("Name", default, {enumValues})
+ */
+function parseInitEnum(line: string): ParameterMetadata | null {
+  // Match InitEnum with array of strings
+  const match = line.match(
+    /InitEnum\s*\(\s*"([^"]+)"\s*,\s*(\d+)\s*,\s*\{([^}]+)\}\s*\)/,
+  );
+  if (!match) return null;
+
+  const [, name, defaultValue, enumValuesStr] = match;
+
+  // Parse enum values: {"Sine", "Saw", "Square", "Triangle"}
+  const enumValues = enumValuesStr
+    .split(",")
+    .map((s) => s.trim().replace(/^"|"$/g, ""))
+    .filter((s) => s.length > 0);
+
+  return {
+    paramIdx: "",
+    name: name.trim(),
+    default: parseInt(defaultValue, 10),
+    min: 0,
+    max: enumValues.length - 1,
+    step: 1,
+    unit: "",
+    shape: "ShapeLinear",
+    shapeParam: null,
+    type: "enum",
+    enumValues,
+    group: null,
+  };
+}
+
+/**
+ * Extract parameter metadata from C++ source code
+ */
+export function extractParameterMetadata(
+  cppHeaderContent: string,
+  cppSourceContent: string,
+): ParameterMetadata[] {
+  const parameters: ParameterMetadata[] = [];
+  
+  // Join lines to handle multi-line calls, then split by GetParam
+  const fullText = cppSourceContent.replace(/\n\s*/g, " ");
+  const getParamMatches = fullText.matchAll(/GetParam\s*\(\s*(\w+)\s*\)\s*->\s*([^;]+);/g);
+
+  for (const match of getParamMatches) {
+    const [, paramIdx, initCall] = match;
+
+    // Skip kNumParams
+    if (paramIdx === "kNumParams") continue;
+
+    // Try each Init* parser
+    let metadata: ParameterMetadata | null = null;
+
+    if (initCall.includes("InitDouble")) {
+      metadata = parseInitDouble(initCall);
+    } else if (initCall.includes("InitPercentage")) {
+      metadata = parseInitPercentage(initCall);
+    } else if (initCall.includes("InitFrequency")) {
+      metadata = parseInitFrequency(initCall);
+    } else if (initCall.includes("InitMilliseconds")) {
+      metadata = parseInitMilliseconds(initCall);
+    } else if (initCall.includes("InitInt")) {
+      metadata = parseInitInt(initCall);
+    } else if (initCall.includes("InitBool")) {
+      metadata = parseInitBool(initCall);
+    } else if (initCall.includes("InitEnum")) {
+      metadata = parseInitEnum(initCall);
+    }
+
+    if (metadata) {
+      metadata.paramIdx = paramIdx;
+      parameters.push(metadata);
+    }
+  }
+
+  return parameters;
+}

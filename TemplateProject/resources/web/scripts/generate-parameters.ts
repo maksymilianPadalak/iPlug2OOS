@@ -3,7 +3,7 @@
  * Parameter Generation Pipeline
  * 
  * Generates TypeScript parameter files (constants.ts and parameter.ts)
- * from C++ iPlug2 source code using AI extraction.
+ * from C++ iPlug2 source code using deterministic parsing.
  * 
  * Usage: npm run generate-parameters
  */
@@ -11,38 +11,6 @@
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
-
-// Check if dependencies are available before importing
-async function checkDependencies(): Promise<{ available: boolean; error?: string }> {
-  try {
-    await import("openai");
-    await import("zod");
-    return { available: true };
-  } catch (error) {
-    return {
-      available: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
-}
-
-// Check if API key is available
-function checkApiKey(): { available: boolean; error?: string } {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) {
-    return {
-      available: false,
-      error: "OPENAI_API_KEY environment variable is not set",
-    };
-  }
-  if (key.length < 20) {
-    return {
-      available: false,
-      error: "OPENAI_API_KEY appears to be invalid (too short)",
-    };
-  }
-  return { available: true };
-}
 
 // Check if required files exist
 async function checkRequiredFiles(): Promise<{ available: boolean; errors: string[] }> {
@@ -67,29 +35,6 @@ async function checkRequiredFiles(): Promise<{ available: boolean; errors: strin
 
 async function main() {
   console.log("🔍 Checking prerequisites for parameter generation...\n");
-
-  // Check dependencies first
-  const depsCheck = await checkDependencies();
-  if (!depsCheck.available) {
-    console.error("❌ Missing dependencies:");
-    console.error(`   Error: ${depsCheck.error}`);
-    console.error("   Solution: Run 'npm install' in resources/web directory");
-    console.error("\n❌ Build failed: Parameter generation requires dependencies.\n");
-    process.exit(1); // Fail build
-  }
-  console.log("✅ Dependencies available (openai, zod)");
-
-  // Check API key
-  const apiKeyCheck = checkApiKey();
-  if (!apiKeyCheck.available) {
-    console.error("❌ Missing OpenAI API key:");
-    console.error(`   Error: ${apiKeyCheck.error}`);
-    console.error("   Solution: Set OPENAI_API_KEY environment variable");
-    console.error("   Example: export OPENAI_API_KEY='sk-...'");
-    console.error("\n❌ Build failed: Parameter generation requires OpenAI API key.\n");
-    process.exit(1); // Fail build
-  }
-  console.log("✅ OpenAI API key configured");
 
   // Check required files
   const filesCheck = await checkRequiredFiles();
@@ -130,9 +75,9 @@ async function main() {
     console.log(`✅ Read ${CPP_PATHS.header}`);
     console.log(`✅ Read ${CPP_PATHS.cpp}\n`);
 
-    // Step 2: Extract parameter metadata using AI
-    console.log("🤖 Extracting parameter metadata...");
-    const metadata = await extractParameterMetadata(
+    // Step 2: Extract parameter metadata using deterministic parsing
+    console.log("🔍 Extracting parameter metadata from C++ code...");
+    const metadata = extractParameterMetadata(
       cppHeaderContent,
       cppSourceContent,
     );
