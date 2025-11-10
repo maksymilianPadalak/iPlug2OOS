@@ -303,13 +303,16 @@ function generateParamInputIds(
 ): string {
   let result = "";
 
-  for (const param of metadata) {
-    if (param.paramIdx === "kNumParams") {
-      continue;
-    }
+  // Use paramIndices to include ALL enum values, not just those in metadata
+  // This ensures enum parameters (like kParamLFOShape) are included even if
+  // they're not in the metadata array
+  const sortedParams = Array.from(paramIndices.entries())
+    .filter(([key]) => key !== "kNumParams")
+    .sort(([, idxA], [, idxB]) => idxA - idxB);
 
-    const inputId = paramIdxToInputId(param.paramIdx);
-    result += `    [EParams.${param.paramIdx}]: '${inputId}',\n`;
+  for (const [paramIdx] of sortedParams) {
+    const inputId = paramIdxToInputId(paramIdx);
+    result += `    [EParams.${paramIdx}]: '${inputId}',\n`;
   }
 
   return result;

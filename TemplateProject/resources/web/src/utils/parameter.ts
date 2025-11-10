@@ -36,7 +36,6 @@ export function normalizedToActual(paramIdx: EParams, normalizedValue: number): 
     case EParams.kParamOsc1Mix:
     case EParams.kParamOsc2Mix:
     case EParams.kParamOsc3Mix:
-    case EParams.kParamOsc4Mix:
     case EParams.kParamFilterKeytrack:
     case EParams.kParamFilterSustain:
     case EParams.kParamLFO2Depth:
@@ -74,17 +73,14 @@ export function normalizedToActual(paramIdx: EParams, normalizedValue: number): 
     case EParams.kParamOsc1Detune:
     case EParams.kParamOsc2Detune:
     case EParams.kParamOsc3Detune:
-    case EParams.kParamOsc4Detune:
       return (value - 0.5) * 100; // -50 to 50
     case EParams.kParamOsc1Octave:
     case EParams.kParamOsc2Octave:
     case EParams.kParamOsc3Octave:
-    case EParams.kParamOsc4Octave:
       return Math.round(value * 4 + -2); // -2 to 2
     case EParams.kParamOsc1Wave:
     case EParams.kParamOsc2Wave:
     case EParams.kParamOsc3Wave:
-    case EParams.kParamOsc4Wave:
       return Math.round(value * 3); // 0-3 enum (4 options)
     // Filter parameters
     case EParams.kParamFilterCutoff:
@@ -128,7 +124,6 @@ function getParamDisplayConfig(paramIdx: EParams): ParamDisplayConfig {
     case EParams.kParamOsc1Mix:
     case EParams.kParamOsc2Mix:
     case EParams.kParamOsc3Mix:
-    case EParams.kParamOsc4Mix:
     case EParams.kParamFilterSustain:
     case EParams.kParamLFO2Depth:
     case EParams.kParamDelayFeedback:
@@ -165,7 +160,6 @@ function getParamDisplayConfig(paramIdx: EParams): ParamDisplayConfig {
     case EParams.kParamOsc1Wave:
     case EParams.kParamOsc2Wave:
     case EParams.kParamOsc3Wave:
-    case EParams.kParamOsc4Wave:
     case EParams.kParamFilterResonance:
     case EParams.kParamLFO2RateMode:
     case EParams.kParamOscSync:
@@ -179,7 +173,6 @@ function getParamDisplayConfig(paramIdx: EParams): ParamDisplayConfig {
     case EParams.kParamOsc1Detune:
     case EParams.kParamOsc2Detune:
     case EParams.kParamOsc3Detune:
-    case EParams.kParamOsc4Detune:
       return {
         unit: 'ct',
         format: (v) => v >= 0 ? `+${v.toFixed(0)}` : `${v.toFixed(0)}`
@@ -187,7 +180,6 @@ function getParamDisplayConfig(paramIdx: EParams): ParamDisplayConfig {
     case EParams.kParamOsc1Octave:
     case EParams.kParamOsc2Octave:
     case EParams.kParamOsc3Octave:
-    case EParams.kParamOsc4Octave:
       return {
         unit: '',
         format: (v) => v >= 0 ? `+${v.toFixed(0)}` : `${v.toFixed(0)}`
@@ -218,7 +210,6 @@ export function actualToNormalized(paramIdx: EParams, actualValue: number): numb
     case EParams.kParamOsc1Mix:
     case EParams.kParamOsc2Mix:
     case EParams.kParamOsc3Mix:
-    case EParams.kParamOsc4Mix:
     case EParams.kParamFilterKeytrack:
     case EParams.kParamFilterSustain:
     case EParams.kParamLFO2Depth:
@@ -256,17 +247,14 @@ export function actualToNormalized(paramIdx: EParams, actualValue: number): numb
     case EParams.kParamOsc1Detune:
     case EParams.kParamOsc2Detune:
     case EParams.kParamOsc3Detune:
-    case EParams.kParamOsc4Detune:
       return (actualValue / 100.0) + 0.5; // -50 to 50 -> 0 to 1
     case EParams.kParamOsc1Octave:
     case EParams.kParamOsc2Octave:
     case EParams.kParamOsc3Octave:
-    case EParams.kParamOsc4Octave:
       return (actualValue - -2) / 4.0; // -2 to 2 -> 0 to 1
     case EParams.kParamOsc1Wave:
     case EParams.kParamOsc2Wave:
     case EParams.kParamOsc3Wave:
-    case EParams.kParamOsc4Wave:
       return actualValue / 3.0; // 0-3 enum -> 0-1
     // Filter parameters
     case EParams.kParamFilterCutoff:
@@ -330,32 +318,24 @@ export function getDefaultNormalizedValues(): Map<EParams, number> {
   defaults.set(EParams.kParamOsc2Mix, 0 / 100);
   // Osc3 Mix: 0 (0-100 %)
   defaults.set(EParams.kParamOsc3Mix, 0 / 100);
-  // Osc4 Mix: 0 (0-100 %)
-  defaults.set(EParams.kParamOsc4Mix, 0 / 100);
   // Osc1 Detune: 0 (-50-50 cents)
   defaults.set(EParams.kParamOsc1Detune, (0 / 100) + 0.5);
   // Osc2 Detune: 0 (-50-50 cents)
   defaults.set(EParams.kParamOsc2Detune, (0 / 100) + 0.5);
   // Osc3 Detune: 0 (-50-50 cents)
   defaults.set(EParams.kParamOsc3Detune, (0 / 100) + 0.5);
-  // Osc4 Detune: 0 (-50-50 cents)
-  defaults.set(EParams.kParamOsc4Detune, (0 / 100) + 0.5);
   // Osc1 Octave: 0 (-2-2)
   defaults.set(EParams.kParamOsc1Octave, actualToNormalized(EParams.kParamOsc1Octave, 0));
   // Osc2 Octave: 0 (-2-2)
   defaults.set(EParams.kParamOsc2Octave, actualToNormalized(EParams.kParamOsc2Octave, 0));
   // Osc3 Octave: 0 (-2-2)
   defaults.set(EParams.kParamOsc3Octave, actualToNormalized(EParams.kParamOsc3Octave, 0));
-  // Osc4 Octave: 0 (-2-2)
-  defaults.set(EParams.kParamOsc4Octave, actualToNormalized(EParams.kParamOsc4Octave, 0));
   // Osc1 Wave: 0 (0-3)
   defaults.set(EParams.kParamOsc1Wave, actualToNormalized(EParams.kParamOsc1Wave, 0));
   // Osc2 Wave: 0 (0-3)
   defaults.set(EParams.kParamOsc2Wave, actualToNormalized(EParams.kParamOsc2Wave, 0));
   // Osc3 Wave: 0 (0-3)
   defaults.set(EParams.kParamOsc3Wave, actualToNormalized(EParams.kParamOsc3Wave, 0));
-  // Osc4 Wave: 0 (0-3)
-  defaults.set(EParams.kParamOsc4Wave, actualToNormalized(EParams.kParamOsc4Wave, 0));
   // Filter Cutoff: 1000 (20-20000 Hz)
   defaults.set(EParams.kParamFilterCutoff, (Math.log(1000) - Math.log(20)) / Math.log(20000 / 20));
   // Filter Resonance: 1 (0.1-10)
@@ -413,25 +393,23 @@ export function getParamInputId(paramIdx: EParams): string {
     [EParams.kParamDecay]: 'paramDecay',
     [EParams.kParamSustain]: 'paramSustain',
     [EParams.kParamRelease]: 'paramRelease',
+    [EParams.kParamLFOShape]: 'paramLFOShape',
     [EParams.kParamLFORateHz]: 'paramLFORateHz',
+    [EParams.kParamLFORateTempo]: 'paramLFORateTempo',
     [EParams.kParamLFORateMode]: 'paramLFORateMode',
     [EParams.kParamLFODepth]: 'paramLFODepth',
     [EParams.kParamOsc1Mix]: 'paramOsc1Mix',
     [EParams.kParamOsc2Mix]: 'paramOsc2Mix',
     [EParams.kParamOsc3Mix]: 'paramOsc3Mix',
-    [EParams.kParamOsc4Mix]: 'paramOsc4Mix',
     [EParams.kParamOsc1Detune]: 'paramOsc1Detune',
     [EParams.kParamOsc2Detune]: 'paramOsc2Detune',
     [EParams.kParamOsc3Detune]: 'paramOsc3Detune',
-    [EParams.kParamOsc4Detune]: 'paramOsc4Detune',
     [EParams.kParamOsc1Octave]: 'paramOsc1Octave',
     [EParams.kParamOsc2Octave]: 'paramOsc2Octave',
     [EParams.kParamOsc3Octave]: 'paramOsc3Octave',
-    [EParams.kParamOsc4Octave]: 'paramOsc4Octave',
     [EParams.kParamOsc1Wave]: 'paramOsc1Wave',
     [EParams.kParamOsc2Wave]: 'paramOsc2Wave',
     [EParams.kParamOsc3Wave]: 'paramOsc3Wave',
-    [EParams.kParamOsc4Wave]: 'paramOsc4Wave',
     [EParams.kParamFilterCutoff]: 'paramFilterCutoff',
     [EParams.kParamFilterResonance]: 'paramFilterResonance',
     [EParams.kParamFilterEnvAmount]: 'paramFilterEnvAmount',
@@ -441,7 +419,9 @@ export function getParamInputId(paramIdx: EParams): string {
     [EParams.kParamFilterSustain]: 'paramFilterSustain',
     [EParams.kParamFilterRelease]: 'paramFilterRelease',
     [EParams.kParamLFO2RateHz]: 'paramLFO2RateHz',
+    [EParams.kParamLFO2RateTempo]: 'paramLFO2RateTempo',
     [EParams.kParamLFO2RateMode]: 'paramLFO2RateMode',
+    [EParams.kParamLFO2Shape]: 'paramLFO2Shape',
     [EParams.kParamLFO2Depth]: 'paramLFO2Depth',
     [EParams.kParamDelayTime]: 'paramDelayTime',
     [EParams.kParamDelayFeedback]: 'paramDelayFeedback',
