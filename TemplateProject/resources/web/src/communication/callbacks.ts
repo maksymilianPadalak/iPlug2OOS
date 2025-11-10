@@ -94,9 +94,8 @@ function updateParameterFromProcessor(paramIdx: number, normalizedValue: number)
  */
 function updateControlValue(ctrlTag: number, normalizedValue: number): void {
   switch (ctrlTag) {
-    case EControlTags.kCtrlTagLFOVis:
-      // Handle LFO visualization update
-      // This will be handled by SCMFD for waveform data
+    case EControlTags.kCtrlTagMeter:
+      // Meter updates are handled by SCMFD
       break;
     default:
       console.log('Unknown control tag:', ctrlTag);
@@ -107,26 +106,7 @@ function updateControlValue(ctrlTag: number, normalizedValue: number): void {
  * Handle control message from processor (SCMFD)
  */
 function handleControlMessage(ctrlTag: number, msgTag: number, dataSize: number, base64Data: string): void {
-  if (ctrlTag === EControlTags.kCtrlTagLFOVis) {
-    // Decode LFO waveform data
-    try {
-      const binaryString = atob(base64Data);
-      const buffer = new ArrayBuffer(binaryString.length);
-      const view = new Uint8Array(buffer);
-      for (let i = 0; i < binaryString.length; i++) {
-        view[i] = binaryString.charCodeAt(i);
-      }
-      const dataView = new DataView(buffer);
-      const lfoValue = dataView.getFloat32(12, true); // vals[0] is at offset 12
-      
-      // Update LFO waveform - this will be handled by the LFO visualizer module
-      if (window.updateLFOWaveform) {
-        window.updateLFOWaveform(lfoValue);
-      }
-    } catch (e) {
-      console.error('Error decoding LFO data:', e);
-    }
-  } else if (ctrlTag === EControlTags.kCtrlTagMeter) {
+  if (ctrlTag === EControlTags.kCtrlTagMeter) {
     // Decode meter data (peak/rms values)
     try {
       const binaryString = atob(base64Data);

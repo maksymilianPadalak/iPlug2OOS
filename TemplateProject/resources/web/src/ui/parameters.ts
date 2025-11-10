@@ -37,28 +37,4 @@ export function updateParamDisplay(paramIdx: EParams, normalizedValue: number): 
   }
 }
 
-/**
- * Toggle LFO sync mode
- */
-export function toggleLFOSync(): void {
-  const syncCheckbox = document.getElementById('paramLFOSync') as HTMLInputElement;
-  if (!syncCheckbox) return;
-
-  const syncValue = syncCheckbox.checked ? 1.0 : 0.0;
-  updateParam(EParams.kParamLFORateMode, syncValue);
-
-  // Toggle visibility of Hz vs Tempo controls
-  const hzContainer = document.getElementById('lfoRateHzContainer');
-  const tempoContainer = document.getElementById('lfoRateTempoContainer');
-  
-  if (hzContainer && tempoContainer) {
-    if (syncCheckbox.checked) {
-      hzContainer.style.display = 'none';
-      tempoContainer.style.display = 'block';
-    } else {
-      hzContainer.style.display = 'block';
-      tempoContainer.style.display = 'none';
-    }
-  }
-}
 

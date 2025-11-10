@@ -73,22 +73,7 @@ export function registerCallbacksWithReact(): void {
 
   // SCMFD: Send Control Message From Delegate
   window.SCMFD = (ctrlTag: number, msgTag: number, dataSize: number, base64Data: string) => {
-    if (ctrlTag === EControlTags.kCtrlTagLFOVis && globalStateSetters) {
-      // Decode LFO waveform data
-      try {
-        const binaryString = atob(base64Data);
-        const buffer = new ArrayBuffer(binaryString.length);
-        const view = new Uint8Array(buffer);
-        for (let i = 0; i < binaryString.length; i++) {
-          view[i] = binaryString.charCodeAt(i);
-        }
-        const dataView = new DataView(buffer);
-        const lfoValue = dataView.getFloat32(12, true);
-        globalStateSetters.updateLFOWaveform(lfoValue);
-      } catch (e) {
-        console.error('Error decoding LFO data:', e);
-      }
-    } else if (ctrlTag === EControlTags.kCtrlTagMeter && globalStateSetters) {
+    if (ctrlTag === EControlTags.kCtrlTagMeter && globalStateSetters) {
       // Decode meter data
       try {
         const binaryString = atob(base64Data);

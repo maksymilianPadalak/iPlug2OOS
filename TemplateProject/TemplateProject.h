@@ -11,52 +11,19 @@ const int kNumPresets = 1;
 enum EParams
 {
   kParamGain = 0,
-  kParamNoteGlideTime,
   kParamAttack,
   kParamDecay,
   kParamSustain,
   kParamRelease,
-  kParamLFOShape,
-  kParamLFORateHz,
-  kParamLFORateTempo,
-  kParamLFORateMode,
-  kParamLFODepth,
   // Oscillators
   kParamOsc1Mix,
   kParamOsc2Mix,
-  kParamOsc3Mix,
   kParamOsc1Detune,
   kParamOsc2Detune,
-  kParamOsc3Detune,
   kParamOsc1Octave,
   kParamOsc2Octave,
-  kParamOsc3Octave,
   kParamOsc1Wave,
   kParamOsc2Wave,
-  kParamOsc3Wave,
-  // Filter
-  kParamFilterCutoff,
-  kParamFilterResonance,
-  kParamFilterEnvAmount,
-  kParamFilterKeytrack,
-  kParamFilterAttack,
-  kParamFilterDecay,
-  kParamFilterSustain,
-  kParamFilterRelease,
-  // LFO2
-  kParamLFO2RateHz,
-  kParamLFO2RateTempo,
-  kParamLFO2RateMode,
-  kParamLFO2Shape,
-  kParamLFO2Depth,
-  // Delay
-  kParamDelayTime,
-  kParamDelayFeedback,
-  kParamDelayDry,
-  kParamDelayWet,
-  // Sync
-  kParamOscSync,
-  kParamOscSyncRatio,
   // Reverb
   kParamReverbRoomSize,
   kParamReverbDamp,
@@ -74,11 +41,7 @@ enum EParams
 enum EControlTags
 {
   kCtrlTagMeter = 0,
-  kCtrlTagLFOVis,
-  kCtrlTagScope,
-  kCtrlTagRTText,
   kCtrlTagKeyboard,
-  kCtrlTagBender,
   kNumCtrlTags
 };
 
@@ -104,7 +67,6 @@ public:
 
 private:
   TemplateProjectDSP<sample> mDSP {16};
-  ISender<1> mLFOVisSender;
   IPeakAvgSender<2> mMeterSender;
 #endif
 };

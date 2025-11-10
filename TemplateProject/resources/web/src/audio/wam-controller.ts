@@ -199,16 +199,16 @@ function loadScript(src: string): Promise<void> {
  */
 function initializeDefaultParameters(): void {
   sendParameterValue(EParams.kParamGain, 1.0); // 100%
-  sendParameterValue(EParams.kParamNoteGlideTime, 0.0); // 0ms
   sendParameterValue(EParams.kParamAttack, 0.01); // ~10ms
   sendParameterValue(EParams.kParamDecay, 0.01); // ~10ms
   sendParameterValue(EParams.kParamSustain, 0.5); // 50%
   sendParameterValue(EParams.kParamRelease, 0.01); // ~10ms
-  sendParameterEnum(EParams.kParamLFOShape, 0); // Triangle
-  sendParameterValue(EParams.kParamLFORateHz, 0.025); // ~1Hz
-  sendParameterEnum(EParams.kParamLFORateTempo, 11); // 1/1
-  sendParameterValue(EParams.kParamLFORateMode, 1.0); // Sync enabled
-  sendParameterValue(EParams.kParamLFODepth, 0.0); // 0%
+  sendParameterValue(EParams.kParamOsc1Mix, 1.0); // 100%
+  sendParameterValue(EParams.kParamOsc2Mix, 0.0); // 0%
+  sendParameterEnum(EParams.kParamOsc1Wave, 0); // Sine
+  sendParameterEnum(EParams.kParamOsc2Wave, 0); // Sine
+  sendParameterValue(EParams.kParamReverbDry, 1.0); // 100%
+  sendParameterValue(EParams.kParamReverbWet, 0.0); // 0%
 }
 
 /**

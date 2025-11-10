@@ -1,15 +1,13 @@
 /**
- * Main App component - Berlin Brutalism Style with Tabs
+ * Main App component - Simple 2 Oscillator Synth with Reverb (Tabbed Interface)
  */
 
 import React, { useState } from 'react';
-import { ParameterProvider, useParameters } from './ParameterContext';
+import { ParameterProvider } from './ParameterContext';
 import { WAMControls } from './WAMControls';
 import { Knob } from './Knob';
 import { Dropdown } from './Dropdown';
-import { Checkbox } from './Checkbox';
 import { Meter } from './Meter';
-import { LFOWaveform } from './LFOWaveform';
 import { PianoKeyboard } from './PianoKeyboard';
 import { TabContainer } from './Tabs';
 import { EParams } from '../config/constants';
@@ -23,15 +21,15 @@ export function App() {
     initializeEnvironment();
   }, []);
 
-  const tabs = ['OSC', 'FILTER', 'ENV', 'LFO', 'FX', 'MAIN'];
+  const tabs = ['OSC', 'ENV', 'REVERB', 'MAIN'];
 
   return (
     <ParameterProvider>
       <div className="w-full h-full p-3 mx-auto max-w-6xl">
-        {/* Compact Header */}
+        {/* Header */}
         <div className="flex items-center justify-center mb-2">
           <h1 className="text-white font-brutal text-xl font-bold uppercase tracking-wider text-center">
-            TEMPLATE SYNTH
+            SIMPLE SYNTH
           </h1>
         </div>
         <div className="flex items-center justify-center mb-2">
@@ -42,7 +40,7 @@ export function App() {
 
         <WAMControls />
 
-        {/* Output Meters - Top */}
+        {/* Output Meters */}
         <div className="flex items-center justify-center gap-4 mb-2">
           <Meter channel={0} compact={true} />
           <Meter channel={1} compact={true} />
@@ -51,11 +49,9 @@ export function App() {
         {/* Tabbed Interface */}
         <TabContainer tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
           {activeTab === 0 && <OscillatorsPage />}
-          {activeTab === 1 && <FilterPage />}
-          {activeTab === 2 && <EnvelopePage />}
-          {activeTab === 3 && <LFOPage />}
-          {activeTab === 4 && <EffectsPage />}
-          {activeTab === 5 && <MainPage />}
+          {activeTab === 1 && <EnvelopePage />}
+          {activeTab === 2 && <ReverbPage />}
+          {activeTab === 3 && <MainPage />}
         </TabContainer>
 
         {/* Keyboard Section - Always visible */}
@@ -74,34 +70,6 @@ function OscillatorsPage() {
       <div className="flex gap-4 justify-center flex-wrap">
         <OscillatorControls oscNum={1} />
         <OscillatorControls oscNum={2} />
-        <OscillatorControls oscNum={3} />
-      </div>
-    </div>
-  );
-}
-
-function FilterPage() {
-  return (
-    <div className="flex flex-col gap-4">
-      <h2 className="text-white text-sm font-mono uppercase tracking-wider mb-2 text-center">FILTER</h2>
-      <div className="flex flex-col items-center gap-3">
-        <div className="flex gap-2">
-          <Knob paramIdx={EParams.kParamFilterCutoff} label="CUTOFF" />
-          <Knob paramIdx={EParams.kParamFilterResonance} label="RES" />
-        </div>
-        <div className="flex gap-2">
-          <Knob paramIdx={EParams.kParamFilterEnvAmount} label="ENV" />
-          <Knob paramIdx={EParams.kParamFilterKeytrack} label="KEY" />
-        </div>
-        <div className="mt-2">
-          <h3 className="text-white text-xs font-mono uppercase tracking-wider mb-2">FILTER ADSR</h3>
-          <div className="flex gap-2">
-            <Knob paramIdx={EParams.kParamFilterAttack} label="FA" />
-            <Knob paramIdx={EParams.kParamFilterDecay} label="FD" />
-            <Knob paramIdx={EParams.kParamFilterSustain} label="FS" step={0.01} />
-            <Knob paramIdx={EParams.kParamFilterRelease} label="FR" />
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -123,88 +91,19 @@ function EnvelopePage() {
   );
 }
 
-function LFOPage() {
+function ReverbPage() {
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-white text-sm font-mono uppercase tracking-wider mb-2 text-center">LOW FREQUENCY OSCILLATORS</h2>
-      <div className="flex flex-col gap-6">
-        {/* LFO1 */}
-        <div className="flex flex-col items-center gap-2">
-          <h3 className="text-white text-xs font-mono uppercase tracking-wider">LFO 1</h3>
-          <div className="flex flex-col items-center gap-2">
-            <div className="flex gap-2 items-center">
-              <Dropdown
-                paramIdx={EParams.kParamLFOShape}
-                label="SHAPE"
-                options={['Triangle', 'Square', 'Ramp Up', 'Ramp Down', 'Sine']}
-              />
-              <div className="flex items-center mt-4">
-                <LFOSyncCheckbox />
-              </div>
-            </div>
-            <div className="flex gap-2 items-center">
-              <LFORateControls />
-              <Knob paramIdx={EParams.kParamLFODepth} label="DEPTH" />
-            </div>
-          </div>
+      <h2 className="text-white text-sm font-mono uppercase tracking-wider mb-2 text-center">REVERB</h2>
+      <div className="flex flex-col items-center gap-3">
+        <div className="flex gap-2 justify-center flex-wrap">
+          <Knob paramIdx={EParams.kParamReverbRoomSize} label="ROOM" />
+          <Knob paramIdx={EParams.kParamReverbDamp} label="DAMP" />
+          <Knob paramIdx={EParams.kParamReverbWidth} label="WIDTH" />
         </div>
-
-        {/* LFO2 */}
-        <div className="flex flex-col items-center gap-2">
-          <h3 className="text-white text-xs font-mono uppercase tracking-wider">LFO 2</h3>
-          <div className="flex flex-col items-center gap-2">
-            <div className="flex gap-2 items-center">
-              <Dropdown
-                paramIdx={EParams.kParamLFO2Shape}
-                label="SHAPE"
-                options={['Triangle', 'Square', 'Ramp Up', 'Ramp Down', 'Sine']}
-              />
-              <div className="flex items-center mt-4">
-                <LFO2SyncCheckbox />
-              </div>
-            </div>
-            <div className="flex gap-2 items-center">
-              <LFO2RateControls />
-              <Knob paramIdx={EParams.kParamLFO2Depth} label="DEPTH" />
-            </div>
-          </div>
-        </div>
-
-        {/* LFO Waveform Visualization */}
-        <div className="mt-2">
-          <LFOWaveform />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EffectsPage() {
-  return (
-    <div className="flex flex-col gap-4">
-      <h2 className="text-white text-sm font-mono uppercase tracking-wider mb-2 text-center">EFFECTS</h2>
-      <div className="flex flex-col gap-6">
-        {/* Delay */}
-        <div className="flex flex-col items-center gap-2">
-          <h3 className="text-white text-xs font-mono uppercase tracking-wider">DELAY</h3>
-          <div className="flex gap-2">
-            <Knob paramIdx={EParams.kParamDelayTime} label="TIME" />
-            <Knob paramIdx={EParams.kParamDelayFeedback} label="FEEDBACK" step={0.01} />
-            <Knob paramIdx={EParams.kParamDelayDry} label="DRY" step={0.01} />
-            <Knob paramIdx={EParams.kParamDelayWet} label="WET" step={0.01} />
-          </div>
-        </div>
-
-        {/* Reverb */}
-        <div className="flex flex-col items-center gap-2">
-          <h3 className="text-white text-xs font-mono uppercase tracking-wider">REVERB</h3>
-          <div className="flex gap-2">
-            <Knob paramIdx={EParams.kParamReverbRoomSize} label="ROOM" />
-            <Knob paramIdx={EParams.kParamReverbDamp} label="DAMP" />
-            <Knob paramIdx={EParams.kParamReverbWidth} label="WIDTH" />
-            <Knob paramIdx={EParams.kParamReverbDry} label="DRY" step={0.01} />
-            <Knob paramIdx={EParams.kParamReverbWet} label="WET" step={0.01} />
-          </div>
+        <div className="flex gap-2 justify-center">
+          <Knob paramIdx={EParams.kParamReverbDry} label="DRY" step={0.01} />
+          <Knob paramIdx={EParams.kParamReverbWet} label="WET" step={0.01} />
         </div>
       </div>
     </div>
@@ -218,26 +117,17 @@ function MainPage() {
       <div className="flex flex-col items-center gap-4">
         <div className="flex gap-2">
           <Knob paramIdx={EParams.kParamGain} label="GAIN" />
-          <Knob paramIdx={EParams.kParamNoteGlideTime} label="GLIDE" />
-        </div>
-        
-        <div className="flex flex-col items-center gap-2">
-          <h3 className="text-white text-xs font-mono uppercase tracking-wider">OSCILLATOR SYNC</h3>
-          <div className="flex flex-col items-center gap-2">
-            <Checkbox paramIdx={EParams.kParamOscSync} label="ENABLE" />
-            <Knob paramIdx={EParams.kParamOscSyncRatio} label="RATIO" />
-          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function OscillatorControls({ oscNum }: { oscNum: 1 | 2 | 3 }) {
-  const mixParam = oscNum === 1 ? EParams.kParamOsc1Mix : oscNum === 2 ? EParams.kParamOsc2Mix : EParams.kParamOsc3Mix;
-  const detuneParam = oscNum === 1 ? EParams.kParamOsc1Detune : oscNum === 2 ? EParams.kParamOsc2Detune : EParams.kParamOsc3Detune;
-  const octaveParam = oscNum === 1 ? EParams.kParamOsc1Octave : oscNum === 2 ? EParams.kParamOsc2Octave : EParams.kParamOsc3Octave;
-  const waveParam = oscNum === 1 ? EParams.kParamOsc1Wave : oscNum === 2 ? EParams.kParamOsc2Wave : EParams.kParamOsc3Wave;
+function OscillatorControls({ oscNum }: { oscNum: 1 | 2 }) {
+  const mixParam = oscNum === 1 ? EParams.kParamOsc1Mix : EParams.kParamOsc2Mix;
+  const detuneParam = oscNum === 1 ? EParams.kParamOsc1Detune : EParams.kParamOsc2Detune;
+  const octaveParam = oscNum === 1 ? EParams.kParamOsc1Octave : EParams.kParamOsc2Octave;
+  const waveParam = oscNum === 1 ? EParams.kParamOsc1Wave : EParams.kParamOsc2Wave;
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -252,62 +142,4 @@ function OscillatorControls({ oscNum }: { oscNum: 1 | 2 | 3 }) {
       <Knob paramIdx={octaveParam} label="OCTAVE" />
     </div>
   );
-}
-
-function LFOSyncCheckbox() {
-  return (
-    <Checkbox
-      paramIdx={EParams.kParamLFORateMode}
-      label="SYNC"
-    />
-  );
-}
-
-function LFO2SyncCheckbox() {
-  return (
-    <Checkbox
-      paramIdx={EParams.kParamLFO2RateMode}
-      label="SYNC"
-    />
-  );
-}
-
-function LFORateControls() {
-  const { paramValues } = useParameters();
-  const syncValue = paramValues.get(EParams.kParamLFORateMode) ?? 1.0;
-  const syncEnabled = syncValue > 0.5;
-
-  if (syncEnabled) {
-    return (
-      <Dropdown
-        paramIdx={EParams.kParamLFORateTempo}
-        label="RATE"
-        options={['1/64', '1/32', '1/16T', '1/16', '1/16D', '1/8T', '1/8', '1/8D', '1/4', '1/4D', '1/2', '1/1', '2/1', '4/1', '8/1']}
-      />
-    );
-  } else {
-    return (
-      <Knob paramIdx={EParams.kParamLFORateHz} label="RATE HZ" />
-    );
-  }
-}
-
-function LFO2RateControls() {
-  const { paramValues } = useParameters();
-  const syncValue = paramValues.get(EParams.kParamLFO2RateMode) ?? 1.0;
-  const syncEnabled = syncValue > 0.5;
-
-  if (syncEnabled) {
-    return (
-      <Dropdown
-        paramIdx={EParams.kParamLFO2RateTempo}
-        label="RATE"
-        options={['1/64', '1/32', '1/16T', '1/16', '1/16D', '1/8T', '1/8', '1/8D', '1/4', '1/4D', '1/2', '1/1', '2/1', '4/1', '8/1']}
-      />
-    );
-  } else {
-    return (
-      <Knob paramIdx={EParams.kParamLFO2RateHz} label="RATE HZ" />
-    );
-  }
 }
