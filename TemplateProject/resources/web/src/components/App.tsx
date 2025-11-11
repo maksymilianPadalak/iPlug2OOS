@@ -1,7 +1,3 @@
-/**
- * Main App component - Simple 2 Oscillator Synth with Reverb (Tabbed Interface)
- */
-
 import React, { useState } from 'react';
 import { ParameterProvider } from './ParameterContext';
 import { WAMControls } from './WAMControls';
@@ -70,6 +66,8 @@ function OscillatorsPage() {
       <div className="flex gap-4 justify-center flex-wrap">
         <OscillatorControls oscNum={1} />
         <OscillatorControls oscNum={2} />
+        <OscillatorControls oscNum={3} />
+        <OscillatorControls oscNum={4} />
       </div>
     </div>
   );
@@ -123,19 +121,47 @@ function MainPage() {
   );
 }
 
-function OscillatorControls({ oscNum }: { oscNum: 1 | 2 }) {
-  const mixParam = oscNum === 1 ? EParams.kParamOsc1Mix : EParams.kParamOsc2Mix;
-  const detuneParam = oscNum === 1 ? EParams.kParamOsc1Detune : EParams.kParamOsc2Detune;
-  const octaveParam = oscNum === 1 ? EParams.kParamOsc1Octave : EParams.kParamOsc2Octave;
-  const waveParam = oscNum === 1 ? EParams.kParamOsc1Wave : EParams.kParamOsc2Wave;
+function OscillatorControls({ oscNum }: { oscNum: 1 | 2 | 3 | 4 }) {
+  // Map oscillator number to parameter indices
+  let mixParam = EParams.kParamOsc1Mix;
+  let detuneParam = EParams.kParamOsc1Detune;
+  let octaveParam = EParams.kParamOsc1Octave;
+  let waveParam = EParams.kParamOsc1Wave;
+
+  switch (oscNum) {
+    case 1:
+      mixParam = EParams.kParamOsc1Mix;
+      detuneParam = EParams.kParamOsc1Detune;
+      octaveParam = EParams.kParamOsc1Octave;
+      waveParam = EParams.kParamOsc1Wave;
+      break;
+    case 2:
+      mixParam = EParams.kParamOsc2Mix;
+      detuneParam = EParams.kParamOsc2Detune;
+      octaveParam = EParams.kParamOsc2Octave;
+      waveParam = EParams.kParamOsc2Wave;
+      break;
+    case 3:
+      mixParam = EParams.kParamOsc3Mix;
+      detuneParam = EParams.kParamOsc3Detune;
+      octaveParam = EParams.kParamOsc3Octave;
+      waveParam = EParams.kParamOsc3Wave;
+      break;
+    case 4:
+      mixParam = EParams.kParamOsc4Mix;
+      detuneParam = EParams.kParamOsc4Detune;
+      octaveParam = EParams.kParamOsc4Octave;
+      waveParam = EParams.kParamOsc4Wave;
+      break;
+  }
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex flex-col items-center gap-2 border-4 border-white p-3 bg-black">
       <div className="text-white text-sm font-mono uppercase font-bold">OSC {oscNum}</div>
       <Dropdown
         paramIdx={waveParam}
         label="WAVEFORM"
-        options={['Sine', 'Saw', 'Square', 'Triangle']}
+        options={["Sine", "Saw", "Square", "Triangle"]}
       />
       <Knob paramIdx={mixParam} label="MIX" step={0.01} />
       <Knob paramIdx={detuneParam} label="DETUNE" />

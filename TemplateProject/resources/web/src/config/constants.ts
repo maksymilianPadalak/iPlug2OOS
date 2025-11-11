@@ -5,26 +5,63 @@
  */
 export enum EParams {
   kParamGain = 0,
-  kParamAttack = 1,
-  kParamDecay = 2,
-  kParamSustain = 3,
-  kParamRelease = 4,
+  kParamNoteGlideTime = 1,
+  kParamAttack = 2,
+  kParamDecay = 3,
+  kParamSustain = 4,
+  kParamRelease = 5,
+  kParamLFOShape = 6,
+  kParamLFORateHz = 7,
+  kParamLFORateTempo = 8,
+  kParamLFORateMode = 9,
+  kParamLFODepth = 10,
   // Oscillators
-  kParamOsc1Mix = 5,
-  kParamOsc2Mix = 6,
-  kParamOsc1Detune = 7,
-  kParamOsc2Detune = 8,
-  kParamOsc1Octave = 9,
-  kParamOsc2Octave = 10,
-  kParamOsc1Wave = 11,
-  kParamOsc2Wave = 12,
+  kParamOsc1Mix = 11,
+  kParamOsc2Mix = 12,
+  kParamOsc3Mix = 13,
+  kParamOsc4Mix = 14,
+  kParamOsc1Detune = 15,
+  kParamOsc2Detune = 16,
+  kParamOsc3Detune = 17,
+  kParamOsc4Detune = 18,
+  kParamOsc1Octave = 19,
+  kParamOsc2Octave = 20,
+  kParamOsc3Octave = 21,
+  kParamOsc4Octave = 22,
+  kParamOsc1Wave = 23,
+  kParamOsc2Wave = 24,
+  kParamOsc3Wave = 25,
+  kParamOsc4Wave = 26,
+  // Filter
+  kParamFilterCutoff = 27,
+  kParamFilterResonance = 28,
+  kParamFilterEnvAmount = 29,
+  kParamFilterKeytrack = 30,
+  kParamFilterAttack = 31,
+  kParamFilterDecay = 32,
+  kParamFilterSustain = 33,
+  kParamFilterRelease = 34,
+  // LFO2
+  kParamLFO2RateHz = 35,
+  kParamLFO2RateTempo = 36,
+  kParamLFO2RateMode = 37,
+  kParamLFO2Shape = 38,
+  kParamLFO2Depth = 39,
+  // Delay
+  kParamDelayTime = 40,
+  kParamDelayFeedback = 41,
+  kParamDelayDry = 42,
+  kParamDelayWet = 43,
+  // Sync
+  kParamOscSync = 44,
+  kParamOscSyncRatio = 45,
   // Reverb
-  kParamReverbRoomSize = 13,
-  kParamReverbDamp = 14,
-  kParamReverbWidth = 15,
-  kParamReverbDry = 16,
-  kParamReverbWet = 17,
-  kNumParams = 18
+  kParamReverbRoomSize = 46,
+  kParamReverbDamp = 47,
+  kParamReverbWidth = 48,
+  kParamReverbDry = 49,
+  kParamReverbWet = 50,
+  kNumParams = 51
 }
 
 /**
@@ -32,8 +69,12 @@ export enum EParams {
  */
 export enum EControlTags {
   kCtrlTagMeter = 0,
-  kCtrlTagKeyboard = 1,
-  kNumCtrlTags = 2
+  kCtrlTagLFOVis = 1,
+  kCtrlTagScope = 2,
+  kCtrlTagRTText = 3,
+  kCtrlTagKeyboard = 4,
+  kCtrlTagBender = 5,
+  kNumCtrlTags = 6
 }
 
 /**
@@ -65,19 +106,56 @@ export const CallbackTypes = {
  */
 export const ParamNames: Record<EParams, string> = {
   [EParams.kParamGain]: "Gain",
+  [EParams.kParamNoteGlideTime]: "kParamNoteGlideTime",
   [EParams.kParamAttack]: "Attack",
   [EParams.kParamDecay]: "Decay",
   [EParams.kParamSustain]: "Sustain",
   [EParams.kParamRelease]: "Release",
+  [EParams.kParamLFOShape]: "kParamLFOShape",
+  [EParams.kParamLFORateHz]: "kParamLFORateHz",
+  [EParams.kParamLFORateTempo]: "kParamLFORateTempo",
+  [EParams.kParamLFORateMode]: "kParamLFORateMode",
+  [EParams.kParamLFODepth]: "kParamLFODepth",
   // Oscillators
   [EParams.kParamOsc1Mix]: "Osc1 Mix",
   [EParams.kParamOsc2Mix]: "Osc2 Mix",
+  [EParams.kParamOsc3Mix]: "Osc3 Mix",
+  [EParams.kParamOsc4Mix]: "Osc4 Mix",
   [EParams.kParamOsc1Detune]: "Osc1 Detune",
   [EParams.kParamOsc2Detune]: "Osc2 Detune",
+  [EParams.kParamOsc3Detune]: "Osc3 Detune",
+  [EParams.kParamOsc4Detune]: "Osc4 Detune",
   [EParams.kParamOsc1Octave]: "Osc1 Octave",
   [EParams.kParamOsc2Octave]: "Osc2 Octave",
+  [EParams.kParamOsc3Octave]: "Osc3 Octave",
+  [EParams.kParamOsc4Octave]: "Osc4 Octave",
   [EParams.kParamOsc1Wave]: "Osc1 Wave",
   [EParams.kParamOsc2Wave]: "Osc2 Wave",
+  [EParams.kParamOsc3Wave]: "Osc3 Wave",
+  [EParams.kParamOsc4Wave]: "Osc4 Wave",
+  // Filter
+  [EParams.kParamFilterCutoff]: "kParamFilterCutoff",
+  [EParams.kParamFilterResonance]: "kParamFilterResonance",
+  [EParams.kParamFilterEnvAmount]: "kParamFilterEnvAmount",
+  [EParams.kParamFilterKeytrack]: "kParamFilterKeytrack",
+  [EParams.kParamFilterAttack]: "kParamFilterAttack",
+  [EParams.kParamFilterDecay]: "kParamFilterDecay",
+  [EParams.kParamFilterSustain]: "kParamFilterSustain",
+  [EParams.kParamFilterRelease]: "kParamFilterRelease",
+  // LFO2
+  [EParams.kParamLFO2RateHz]: "kParamLFO2RateHz",
+  [EParams.kParamLFO2RateTempo]: "kParamLFO2RateTempo",
+  [EParams.kParamLFO2RateMode]: "kParamLFO2RateMode",
+  [EParams.kParamLFO2Shape]: "kParamLFO2Shape",
+  [EParams.kParamLFO2Depth]: "kParamLFO2Depth",
+  // Delay
+  [EParams.kParamDelayTime]: "kParamDelayTime",
+  [EParams.kParamDelayFeedback]: "kParamDelayFeedback",
+  [EParams.kParamDelayDry]: "kParamDelayDry",
+  [EParams.kParamDelayWet]: "kParamDelayWet",
+  // Sync
+  [EParams.kParamOscSync]: "kParamOscSync",
+  [EParams.kParamOscSyncRatio]: "kParamOscSyncRatio",
   // Reverb
   [EParams.kParamReverbRoomSize]: "Reverb Room Size",
   [EParams.kParamReverbDamp]: "Reverb Damp",

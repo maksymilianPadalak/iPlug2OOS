@@ -7,7 +7,6 @@ import { EParams } from '../config/constants';
 import { useParameters } from './ParameterContext';
 import { sendParameterValue } from '../communication/iplug-bridge';
 import { isUpdatingFromProcessor } from './ParameterContext';
-import { actualToNormalized } from '../utils/parameter';
 
 interface DropdownProps {
   paramIdx: EParams;

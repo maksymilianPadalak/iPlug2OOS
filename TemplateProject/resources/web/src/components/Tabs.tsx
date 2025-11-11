@@ -54,4 +54,3 @@ export function TabContainer({ children, tabs, activeTab, onTabChange }: TabCont
     </div>
   );
 }
-

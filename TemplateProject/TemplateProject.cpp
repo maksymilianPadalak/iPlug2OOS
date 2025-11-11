@@ -13,12 +13,20 @@ TemplateProject::TemplateProject(const InstanceInfo& info)
   // Oscillator parameters
   GetParam(kParamOsc1Mix)->InitPercentage("Osc1 Mix", 100.);
   GetParam(kParamOsc2Mix)->InitPercentage("Osc2 Mix", 0.);
+  GetParam(kParamOsc3Mix)->InitPercentage("Osc3 Mix", 0.);
+  GetParam(kParamOsc4Mix)->InitPercentage("Osc4 Mix", 0.);
   GetParam(kParamOsc1Detune)->InitDouble("Osc1 Detune", 0., -50., 50., 0.1, "cents");
   GetParam(kParamOsc2Detune)->InitDouble("Osc2 Detune", 0., -50., 50., 0.1, "cents");
+  GetParam(kParamOsc3Detune)->InitDouble("Osc3 Detune", 0., -50., 50., 0.1, "cents");
+  GetParam(kParamOsc4Detune)->InitDouble("Osc4 Detune", 0., -50., 50., 0.1, "cents");
   GetParam(kParamOsc1Octave)->InitInt("Osc1 Octave", 0, -2, 2, "");
   GetParam(kParamOsc2Octave)->InitInt("Osc2 Octave", 0, -2, 2, "");
+  GetParam(kParamOsc3Octave)->InitInt("Osc3 Octave", 0, -2, 2, "");
+  GetParam(kParamOsc4Octave)->InitInt("Osc4 Octave", 0, -2, 2, "");
   GetParam(kParamOsc1Wave)->InitEnum("Osc1 Wave", 0, {"Sine", "Saw", "Square", "Triangle"});
   GetParam(kParamOsc2Wave)->InitEnum("Osc2 Wave", 0, {"Sine", "Saw", "Square", "Triangle"});
+  GetParam(kParamOsc3Wave)->InitEnum("Osc3 Wave", 0, {"Sine", "Saw", "Square", "Triangle"});
+  GetParam(kParamOsc4Wave)->InitEnum("Osc4 Wave", 0, {"Sine", "Saw", "Square", "Triangle"});
   
   // Reverb parameters
   GetParam(kParamReverbRoomSize)->InitDouble("Reverb Room Size", 0.5, 0.3, 0.99, 0.01, "");
