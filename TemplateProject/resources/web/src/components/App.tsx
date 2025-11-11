@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { ParameterProvider } from './ParameterContext';
-import { WAMControls } from './WAMControls';
 import { Knob } from './Knob';
 import { Dropdown } from './Dropdown';
 import { Meter } from './Meter';
@@ -8,51 +7,114 @@ import { PianoKeyboard } from './PianoKeyboard';
 import { TabContainer } from './Tabs';
 import { EParams } from '../config/constants';
 import { initializeEnvironment } from '../utils/environment';
+import { initializeWAM, setupMIDIDevices } from '../audio/wam-controller';
 
 export function App() {
   const [activeTab, setActiveTab] = useState(0);
+  const [audioStatus, setAudioStatus] = React.useState<'working' | 'not-working' | null>(null);
   
-  // Initialize environment detection
+  // Initialize environment detection and auto-start WAM
   React.useEffect(() => {
-    initializeEnvironment();
+    const env = initializeEnvironment();
+    
+    if (env === 'wam') {
+      // Auto-start web audio in WAM mode
+      initializeWAM().then((wamController) => {
+        if (wamController) {
+          window.TemplateProject_WAM = wamController;
+          setAudioStatus('working');
+          // Setup MIDI devices immediately (no delay needed)
+          setupMIDIDevices();
+        } else {
+          setAudioStatus('not-working');
+        }
+      }).catch((error) => {
+        console.error('Error auto-initializing web audio:', error);
+        setAudioStatus('not-working');
+      });
+    }
   }, []);
 
   const tabs = ['OSC', 'ENV', 'REVERB', 'MAIN'];
 
   return (
     <ParameterProvider>
-      <div className="w-full h-full p-3 mx-auto max-w-6xl">
-        {/* Header */}
-        <div className="flex items-center justify-center mb-2">
-          <h1 className="text-white font-brutal text-xl font-bold uppercase tracking-wider text-center">
-            SIMPLE SYNTH
-          </h1>
+      <div className="w-full p-3 mx-auto max-w-6xl">
+        {/* Web Controls - Only visible in WAM mode */}
+        <div className="wam-only mb-4">
+          {/* Audio Status */}
+          {audioStatus && (
+            <div className="flex items-center justify-center mb-2">
+              <p className={`text-xs font-mono uppercase tracking-wider ${
+                audioStatus === 'working' ? 'text-green-500' : 'text-red-500'
+              }`}>
+                {audioStatus === 'working' ? '✓ AUDIO WORKING' : '✗ AUDIO NOT WORKING'}
+              </p>
+            </div>
+          )}
+
+          {/* MIDI Controls */}
+          <div className="flex flex-col items-center mb-4">
+            <h2 className="text-white text-xs font-mono uppercase tracking-wider mb-2">MIDI</h2>
+            <div className="flex gap-3 justify-center">
+              <div className="flex flex-col items-center gap-1">
+                <label htmlFor="midiInSelect" className="text-white text-xs font-mono uppercase tracking-wider">
+                  INPUT
+                </label>
+                <select 
+                  id="midiInSelect" 
+                  disabled={true}
+                  className="bg-black border-4 border-white text-white px-4 py-2 font-mono text-xs uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-900 focus:outline-none focus:bg-gray-900 cursor-pointer"
+                >
+                  <option value="default">MIDI INPUT</option>
+                </select>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <label htmlFor="midiOutSelect" className="text-white text-xs font-mono uppercase tracking-wider">
+                  OUTPUT
+                </label>
+                <select 
+                  id="midiOutSelect" 
+                  disabled={true}
+                  className="bg-black border-4 border-white text-white px-4 py-2 font-mono text-xs uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-900 focus:outline-none focus:bg-gray-900 cursor-pointer"
+                >
+                  <option value="default">MIDI OUTPUT</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center justify-center mb-2">
-          <p id="adapterStatus" className="wam-only text-yellow-400 text-xs font-mono uppercase tracking-wider text-center">
-            Waiting for AudioWorklet initialization...
-          </p>
-        </div>
 
-        <WAMControls />
+        {/* Horizontal Separator - Only visible in WAM mode */}
+        <div className="wam-only border-t-2 border-white mb-4"></div>
 
-        {/* Output Meters */}
-        <div className="flex items-center justify-center gap-4 mb-2">
-          <Meter channel={0} compact={true} />
-          <Meter channel={1} compact={true} />
-        </div>
+        {/* Plugin Content - Wrapped in border */}
+        <div className="border-4 border-white p-3 bg-gray-600">
+          {/* Plugin Title */}
+          <div className="flex items-center justify-center mb-2">
+            <h1 className="text-white font-brutal text-xl font-bold uppercase tracking-wider text-center">
+              SIMPLE SYNTH
+            </h1>
+          </div>
 
-        {/* Tabbed Interface */}
-        <TabContainer tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
-          {activeTab === 0 && <OscillatorsPage />}
-          {activeTab === 1 && <EnvelopePage />}
-          {activeTab === 2 && <ReverbPage />}
-          {activeTab === 3 && <MainPage />}
-        </TabContainer>
+          {/* Output Meters */}
+          <div className="flex items-center justify-center gap-4 mb-2">
+            <Meter channel={0} compact={true} />
+            <Meter channel={1} compact={true} />
+          </div>
 
-        {/* Keyboard Section - Always visible */}
-        <div className="bg-black border-4 border-white p-3 mt-2">
-          <PianoKeyboard />
+          {/* Tabbed Interface */}
+          <TabContainer tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
+            {activeTab === 0 && <OscillatorsPage />}
+            {activeTab === 1 && <EnvelopePage />}
+            {activeTab === 2 && <ReverbPage />}
+            {activeTab === 3 && <MainPage />}
+          </TabContainer>
+
+          {/* Keyboard Section - Always visible */}
+          <div className="bg-black border-4 border-white p-3 mt-2">
+            <PianoKeyboard />
+          </div>
         </div>
       </div>
     </ParameterProvider>
