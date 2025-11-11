@@ -30,8 +30,8 @@ export function PianoKeyboard() {
   const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   const isBlack = [false, true, false, true, false, false, true, false, true, false, true, false];
 
-  // Show 3 octaves starting from baseOctave
-  const octavesToShow = [baseOctave, baseOctave + 1, baseOctave + 2];
+  // Always display octaves 3, 4, 5 (fixed display)
+  const displayOctaves = [3, 4, 5];
 
   const playNote = useCallback((octave: number, noteOffset: number) => {
     const noteNum = octave * 12 + noteOffset;
@@ -79,8 +79,8 @@ export function PianoKeyboard() {
       const noteOffset = QWERTY_TO_NOTE[e.code];
       if (noteOffset !== undefined) {
         e.preventDefault();
-        // Play in middle octave (baseOctave + 1)
-        playNote(baseOctave + 1, noteOffset);
+        // Play in the current baseOctave
+        playNote(baseOctave, noteOffset);
       }
     };
 
@@ -90,8 +90,8 @@ export function PianoKeyboard() {
       const noteOffset = QWERTY_TO_NOTE[e.code];
       if (noteOffset !== undefined) {
         e.preventDefault();
-        // Release from middle octave (baseOctave + 1)
-        releaseNote(baseOctave + 1, noteOffset);
+        // Release from the current baseOctave
+        releaseNote(baseOctave, noteOffset);
       }
     };
 
@@ -109,94 +109,74 @@ export function PianoKeyboard() {
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-white text-xs font-mono uppercase tracking-wider">KEYBOARD</h3>
         <div className="text-gray-400 text-[10px] font-mono uppercase tracking-wider">
-          Octaves {baseOctave}-{baseOctave + 2} (Z/X = shift)
+          OCTAVES 3-5 (Z/X = SHIFT)
         </div>
       </div>
       
-      {/* Render 3 octaves */}
-      {octavesToShow.map((octave, octaveIdx) => (
-        <div key={octave} className="mb-2">
-          <div className="text-gray-400 text-[9px] font-mono uppercase mb-1">
-            Octave {octave}
-          </div>
-          <OctaveKeyboard
-            octave={octave}
-            notes={notes}
-            isBlack={isBlack}
-            pressedKeys={pressedKeys}
-            onNoteDown={(noteOffset) => playNote(octave, noteOffset)}
-            onNoteUp={(noteOffset) => releaseNote(octave, noteOffset)}
-          />
+      {/* Render all 3 octaves in one continuous line */}
+      <div className="relative h-16">
+        {/* Render all white keys first */}
+        <div className="flex">
+          {displayOctaves.map((octave) => (
+            notes.map((note, index) => {
+              if (!isBlack[index]) {
+                const noteOffset = index;
+                const noteNum = octave * 12 + noteOffset;
+                const isPressed = pressedKeys.has(noteNum);
+                return (
+                  <div
+                    key={`white-${octave}-${index}`}
+                    onMouseDown={() => playNote(octave, noteOffset)}
+                    onMouseUp={() => releaseNote(octave, noteOffset)}
+                    onMouseLeave={() => releaseNote(octave, noteOffset)}
+                    onTouchStart={(e) => { e.preventDefault(); playNote(octave, noteOffset); }}
+                    onTouchEnd={(e) => { e.preventDefault(); releaseNote(octave, noteOffset); }}
+                    className={`w-10 h-16 border-2 border-black cursor-pointer select-none ${
+                      isPressed ? 'bg-gray-300' : 'bg-white'
+                    }`}
+                  />
+                );
+              }
+              return null;
+            })
+          ))}
         </div>
-      ))}
+        
+        {/* Render all black keys absolutely positioned */}
+        {displayOctaves.map((octave) => {
+          let whiteKeyIndex = 0;
+          return notes.map((note, index) => {
+            if (isBlack[index]) {
+              const noteOffset = index;
+              const noteNum = octave * 12 + noteOffset;
+              const isPressed = pressedKeys.has(noteNum);
+              // Calculate position: octave offset (octave - 3) * 7 white keys * 40px + white key index * 40px - 10px
+              const octaveOffset = (octave - 3) * 7 * 40;
+              const keyOffset = whiteKeyIndex * 40 - 10;
+              const totalOffset = octaveOffset + keyOffset;
+              
+              return (
+                <div
+                  key={`black-${octave}-${index}`}
+                  onMouseDown={() => playNote(octave, noteOffset)}
+                  onMouseUp={() => releaseNote(octave, noteOffset)}
+                  onMouseLeave={() => releaseNote(octave, noteOffset)}
+                  onTouchStart={(e) => { e.preventDefault(); playNote(octave, noteOffset); }}
+                  onTouchEnd={(e) => { e.preventDefault(); releaseNote(octave, noteOffset); }}
+                  className={`absolute top-0 w-5 h-12 border-2 border-white cursor-pointer z-10 select-none ${
+                    isPressed ? 'bg-gray-600' : 'bg-black'
+                  }`}
+                  style={{ left: `${totalOffset}px` }}
+                />
+              );
+            } else {
+              whiteKeyIndex++;
+              return null;
+            }
+          });
+        })}
+      </div>
     </div>
   );
 }
 
-function OctaveKeyboard({
-  octave,
-  notes,
-  isBlack,
-  pressedKeys,
-  onNoteDown,
-  onNoteUp,
-}: {
-  octave: number;
-  notes: string[];
-  isBlack: boolean[];
-  pressedKeys: Set<number>;
-  onNoteDown: (noteOffset: number) => void;
-  onNoteUp: (noteOffset: number) => void;
-}) {
-  let whiteKeyIndex = 0;
-
-  return (
-    <div className="flex relative h-16 mx-auto max-w-2xl">
-      {notes.map((note, index) => {
-        const noteOffset = index;
-        const noteNum = octave * 12 + noteOffset;
-        const isPressed = pressedKeys.has(noteNum);
-        const isBlackKey = isBlack[index];
-
-        if (isBlackKey) {
-          const leftPos = whiteKeyIndex * 40 - 10;
-          return (
-            <div
-              key={index}
-              onMouseDown={() => onNoteDown(noteOffset)}
-              onMouseUp={() => onNoteUp(noteOffset)}
-              onMouseLeave={() => onNoteUp(noteOffset)}
-              onTouchStart={(e) => { e.preventDefault(); onNoteDown(noteOffset); }}
-              onTouchEnd={(e) => { e.preventDefault(); onNoteUp(noteOffset); }}
-              className={`absolute w-5 h-12 border-2 border-white cursor-pointer z-10 ${
-                isPressed ? 'bg-gray-600' : 'bg-black'
-              }`}
-              style={{
-                left: `${leftPos}px`,
-                userSelect: 'none',
-              }}
-            />
-          );
-        } else {
-          whiteKeyIndex++;
-          return (
-            <div
-              key={index}
-              onMouseDown={() => onNoteDown(noteOffset)}
-              onMouseUp={() => onNoteUp(noteOffset)}
-              onMouseLeave={() => onNoteUp(noteOffset)}
-              onTouchStart={(e) => { e.preventDefault(); onNoteDown(noteOffset); }}
-              onTouchEnd={(e) => { e.preventDefault(); onNoteUp(noteOffset); }}
-              className={`relative inline-block w-10 h-16 border-2 border-black cursor-pointer ${
-                isPressed ? 'bg-gray-300' : 'bg-white'
-              }`}
-              style={{
-                userSelect: 'none',
-              }}
-            />
-          );
-        }
-      })}
-    </div>
-  );
-}

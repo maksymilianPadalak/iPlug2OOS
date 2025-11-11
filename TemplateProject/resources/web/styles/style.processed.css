@@ -538,6 +538,9 @@ video {
 .visible {
   visibility: visible;
 }
+.fixed {
+  position: fixed;
+}
 .absolute {
   position: absolute;
 }
@@ -647,11 +650,11 @@ video {
 .min-w-\[60px\] {
   min-width: 60px;
 }
-.max-w-2xl {
-  max-width: 42rem;
-}
 .max-w-6xl {
   max-width: 72rem;
+}
+.flex-shrink-0 {
+  flex-shrink: 0;
 }
 .transform {
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
@@ -824,9 +827,6 @@ video {
 .text-\[10px\] {
   font-size: 10px;
 }
-.text-\[9px\] {
-  font-size: 9px;
-}
 .text-lg {
   font-size: 1.125rem;
   line-height: 1.75rem;
@@ -950,15 +950,6 @@ body.webview-mode #pluginUI {
 
 body.wam-mode .wam-only {
   display: block;
-}
-
-/* Show border around plugin content only in WAM mode */
-body.wam-mode .plugin-content-border {
-  border: 4px solid white;
-}
-
-body.webview-mode .plugin-content-border {
-  border: none;
 }
 
 .hover\:bg-gray-900:hover {
