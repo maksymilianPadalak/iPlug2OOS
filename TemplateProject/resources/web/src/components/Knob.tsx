@@ -109,20 +109,20 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
     const ringCount = 5;
     const baseRadius = 44;
     const ringSpacing = 8;
-    const colors = ['#ff4d6d', '#ffb86b', '#ffd56b', '#6be3ff', '#9b6bff'];
+    const colors = ['#fb923c', '#f97316', '#ea580c', '#dc2626', '#b91c1c']; // Warm orange-to-red gradient
 
     return (
-      <div className="flex flex-col items-center gap-2">
-        <label className="text-white text-xs font-mono uppercase tracking-wider">
+      <div className="flex flex-col items-center gap-3">
+        <label className="text-orange-200 text-xs font-bold uppercase tracking-widest">
           {label}
         </label>
         <div
           ref={knobRef}
           onMouseDown={handleMouseDown}
           onTouchStart={handleTouchStart}
-          className={`relative rounded-full bg-black border-4 border-white cursor-pointer select-none knob-outer`
+          className={`relative rounded-full bg-gradient-to-br from-stone-900 to-black border-2 border-orange-600/50 cursor-pointer select-none knob-outer shadow-xl`
           }
-          style={{ width: `${size / 1.2}px`, height: `${size / 1.2}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: isDragging ? 'inset 0 6px 18px rgba(0,0,0,0.6)' : undefined, animation: isDragging ? 'knob-pulse 0.9s infinite' : undefined }}
+          style={{ width: `${size / 1.2}px`, height: `${size / 1.2}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: isDragging ? 'inset 0 8px 20px rgba(0,0,0,0.8), 0 0 20px rgba(251,146,60,0.3)' : '0 4px 16px rgba(0,0,0,0.6)', animation: isDragging ? 'knob-pulse 0.9s infinite' : undefined }}
         >
           <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
             {/* Multicolored rings showing the value */}
@@ -144,7 +144,7 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
                   strokeLinecap="round"
                   strokeDasharray={`${dash} ${circumference - dash}`}
                   transform={`rotate(-90 ${center} ${center})`}
-                  opacity={0.95 - i * 0.08}
+                  opacity={0.92 - i * 0.08}
                 />
               );
             })}
@@ -152,56 +152,32 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
             {/* Center plate */}
             <defs>
               <radialGradient id="kg" cx="50%" cy="40%" r="70%">
-                <stop offset="0%" stopColor="#1b1b1b" />
-                <stop offset="100%" stopColor="#000000" />
+                <stop offset="0%" stopColor="#292524" />
+                <stop offset="100%" stopColor="#0c0a09" />
               </radialGradient>
             </defs>
 
-            <circle cx={center} cy={center} r={28} fill="url(#kg)" stroke="#ffffff" strokeWidth={4} />
-
-            {/* Pointer line - use CSS transform (translate to center then rotate) to avoid SVG attribute/CSS transform conflicts */}
-            <g
-              className="knob-pointer"
-              style={{ transform: `translate(${center}px, ${center}px) rotate(${rotation}deg)` }}
-            >
-              {/* rect positioned relative to translated origin (center) */}
-              <rect x={-3} y={-44} width={6} height={18} rx={3} fill="#ffffff" />
-            </g>
-
-            {/* Decorative inner small rotating gear (responds to value) */}
-            <g className="knob-inner-gear" transform={`rotate(${rotation * 0.6} ${center} ${center})`}>
-              <circle cx={center} cy={center} r={12} fill="#111" />
-              {Array.from({ length: 6 }).map((_, i) => {
-                const a = (i / 6) * Math.PI * 2;
-                const x = center + Math.cos(a) * 18;
-                const y = center + Math.sin(a) * 18;
-                return <rect key={i} x={x - 2} y={y - 2} width={4} height={4} rx={1} fill="#222" transform={`rotate(${(i * 60)} ${x} ${y})`} />;
-              })}
-            </g>
-
-            {/* Decorative inner small rings */}
-            <circle cx={center} cy={center} r={18} fill="none" stroke="#333" strokeWidth={2} />
-            <circle cx={center} cy={center} r={12} fill="#111" />
+            <circle cx={center} cy={center} r={28} fill="url(#kg)" stroke="#fb923c" strokeWidth={3} />
           </svg>
         </div>
-        <div className="text-gray-400 text-[10px] font-mono text-center min-w-[60px]">
+        <div className="text-orange-300 text-xs font-bold text-center min-w-[60px]">
           {normalizedToDisplay(paramIdx, value)}
         </div>
       </div>
     );
   }
 
-  // Default small brutalist knob - upgraded visuals but NO size changes on interaction
-  const smallSize = 56;
+  // Default small knob with modern gradient styling
+  const smallSize = 62;
   const center = smallSize / 2;
-  const ringRadius = 20;
+  const ringRadius = 22;
   const circumference = 2 * Math.PI * ringRadius;
   const progress = normalizedValue;
   const dash = circumference * progress;
 
   return (
-    <div className="flex flex-col items-center gap-1">
-      <label className="text-white text-xs font-mono uppercase tracking-wider">
+    <div className="flex flex-col items-center gap-2">
+      <label className="text-orange-200 text-xs font-bold uppercase tracking-wider">
         {label}
       </label>
 
@@ -209,8 +185,8 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
         ref={knobRef}
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
-        className="relative bg-black border-4 border-blue-500 cursor-pointer select-none"
-        style={{ width: `${smallSize}px`, height: `${smallSize}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: isDragging ? 'inset 0 6px 14px rgba(0,0,0,0.6)' : '0 2px 8px rgba(0,0,0,0.35)', borderRadius: 999 }}
+        className="relative bg-gradient-to-br from-stone-900 to-black border-2 border-orange-600/50 cursor-pointer select-none transition-all"
+        style={{ width: `${smallSize}px`, height: `${smallSize}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: isDragging ? 'inset 0 6px 14px rgba(0,0,0,0.8), 0 0 12px rgba(251,146,60,0.3)' : '0 3px 10px rgba(0,0,0,0.5)', borderRadius: 999 }}
       >
         <svg width={smallSize} height={smallSize} viewBox={`0 0 ${smallSize} ${smallSize}`}>
           {/* Outer progress ring */}
@@ -219,8 +195,8 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
             cy={center}
             r={ringRadius}
             fill="none"
-            stroke="#ffffff22"
-            strokeWidth={6}
+            stroke="#ffffff15"
+            strokeWidth={5}
           />
 
           <circle
@@ -228,44 +204,26 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
             cy={center}
             r={ringRadius}
             fill="none"
-            stroke="#9be7ff"
-            strokeWidth={6}
+            stroke="#fb923c"
+            strokeWidth={5}
             strokeLinecap="round"
             strokeDasharray={`${dash} ${circumference - dash}`}
             transform={`rotate(-90 ${center} ${center})`}
-            opacity={0.95}
+            opacity={0.9}
           />
 
           {/* Center disc with subtle sheen */}
           <defs>
             <radialGradient id={`g-${paramIdx}`} cx="50%" cy="40%" r="70%">
-              <stop offset="0%" stopColor="#111" />
-              <stop offset="100%" stopColor="#000" />
+              <stop offset="0%" stopColor="#292524" />
+              <stop offset="100%" stopColor="#0c0a09" />
             </radialGradient>
           </defs>
-          <circle cx={center} cy={center} r={12} fill={`url(#g-${paramIdx})`} stroke="#ffffff" strokeWidth={2} />
-
-          {/* Pointer - use CSS transform for stable rotation */}
-          <g
-            className="knob-pointer"
-            style={{ transform: `translate(${center}px, ${center}px) rotate(${rotation}deg)` }}
-          >
-            <rect x={-2} y={-14} width={4} height={10} rx={2} fill="#ffffff" />
-          </g>
-
-          {/* Tiny decorative ticks */}
-          {Array.from({ length: 8 }).map((_, i) => {
-            const a = ((i / 8) * 270 - 135) * (Math.PI / 180);
-            const x1 = center + Math.cos(a) * (ringRadius + 6);
-            const y1 = center + Math.sin(a) * (ringRadius + 6);
-            const x2 = center + Math.cos(a) * (ringRadius + 10);
-            const y2 = center + Math.sin(a) * (ringRadius + 10);
-            return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#ffffff33" strokeWidth={2} strokeLinecap="round" />;
-          })}
+          <circle cx={center} cy={center} r={13} fill={`url(#g-${paramIdx})`} stroke="#fb923c" strokeWidth={2} />
         </svg>
       </div>
 
-      <div className="text-gray-400 text-[10px] font-mono text-center min-w-[50px]">
+      <div className="text-orange-300 text-[11px] font-bold text-center min-w-[50px]">
         {normalizedToDisplay(paramIdx, value)}
       </div>
     </div>

@@ -108,7 +108,7 @@ export function PianoKeyboard() {
     <div>
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-white text-xs font-mono uppercase tracking-wider">KEYBOARD</h3>
-        <div className="text-gray-400 text-[10px] font-mono uppercase tracking-wider">
+        <div className="text-amber-300 text-[10px] font-mono uppercase tracking-wider">
           OCTAVES 3-5 (Z/X = SHIFT)
         </div>
       </div>
@@ -131,8 +131,8 @@ export function PianoKeyboard() {
                     onMouseLeave={() => releaseNote(octave, noteOffset)}
                     onTouchStart={(e) => { e.preventDefault(); playNote(octave, noteOffset); }}
                     onTouchEnd={(e) => { e.preventDefault(); releaseNote(octave, noteOffset); }}
-                    className={`w-10 h-16 border-2 border-black cursor-pointer select-none ${
-                      isPressed ? 'bg-gray-300' : 'bg-white'
+                    className={`w-10 h-16 border-2 border-amber-800 cursor-pointer select-none ${
+                      isPressed ? 'bg-amber-200' : 'bg-amber-50'
                     }`}
                   />
                 );
@@ -163,8 +163,8 @@ export function PianoKeyboard() {
                   onMouseLeave={() => releaseNote(octave, noteOffset)}
                   onTouchStart={(e) => { e.preventDefault(); playNote(octave, noteOffset); }}
                   onTouchEnd={(e) => { e.preventDefault(); releaseNote(octave, noteOffset); }}
-                  className={`absolute top-0 w-5 h-12 border-2 border-white cursor-pointer z-10 select-none ${
-                    isPressed ? 'bg-gray-600' : 'bg-black'
+                  className={`absolute top-0 w-5 h-12 border-2 border-amber-600 cursor-pointer z-10 select-none ${
+                    isPressed ? 'bg-amber-800' : 'bg-amber-950'
                   }`}
                   style={{ left: `${totalOffset}px` }}
                 />

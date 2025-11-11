@@ -14,10 +14,10 @@ export function Tab({ label, active, onClick }: TabProps) {
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-2 font-mono text-xs uppercase tracking-wider border-4 transition-all ${
+      className={`px-4 py-2 font-mono text-xs uppercase tracking-wider border-2 transition-all ${
         active
-          ? 'bg-white text-black border-white'
-          : 'bg-black text-white border-white hover:bg-gray-900'
+          ? 'bg-amber-600 text-white border-amber-600'
+          : 'bg-amber-950 text-white border-amber-600 hover:bg-amber-900'
       }`}
     >
       {label}
@@ -48,7 +48,7 @@ export function TabContainer({ children, tabs, activeTab, onTabChange }: TabCont
       </div>
       
       {/* Tab content */}
-      <div className="bg-black border-4 border-white p-3">
+      <div className="bg-amber-950 border-2 border-amber-700 p-3">
         {children}
       </div>
     </div>

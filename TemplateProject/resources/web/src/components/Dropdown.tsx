@@ -41,17 +41,17 @@ export function Dropdown({ paramIdx, label, options }: DropdownProps) {
   };
 
   return (
-    <div className="flex flex-col items-center gap-1">
-      <label className="text-white text-xs font-mono uppercase tracking-wider">
+    <div className="flex flex-col items-center gap-2">
+      <label className="text-orange-200 text-xs font-bold uppercase tracking-wider">
         {label}
       </label>
       <select
         value={selectedIndex}
         onChange={handleChange}
-        className="bg-black border-4 border-white text-white px-2 py-1 font-mono text-xs uppercase tracking-wider focus:outline-none focus:bg-white focus:text-black cursor-pointer"
+        className="bg-gradient-to-b from-stone-800 to-stone-900 border border-orange-600/50 text-orange-100 px-3 py-2 rounded font-bold text-xs uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 hover:from-stone-700 hover:to-stone-800 cursor-pointer transition-all shadow-md"
       >
         {options.map((option, index) => (
-          <option key={index} value={index} className="bg-black text-white">
+          <option key={index} value={index} className="bg-stone-900 text-orange-100">
             {option}
           </option>
         ))}

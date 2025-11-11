@@ -25,16 +25,17 @@ export function Meter({ channel, compact = false }: MeterProps) {
     return db >= 0 ? `+${db.toFixed(1)}` : `${db.toFixed(1)}`;
   };
 
-  return (
-    <div className="flex flex-col items-center gap-1">
-      {/* Channel label */}
-      <div className="text-white text-xs font-mono uppercase tracking-wider">
-        {channel === 0 ? 'L' : 'R'}
-      </div>
+  const dbValue = peakDb;
+  const isClipping = dbValue >= -0.5;
+  const isHot = dbValue >= -6 && dbValue < -0.5;
 
+  return (
+    <div className="flex items-center gap-2 bg-gradient-to-br from-stone-900/60 to-black/60 border border-orange-700/30 rounded-lg px-4 py-2 shadow-md">
       {/* Numeric display */}
-      <div className="text-white text-lg font-mono font-bold">
-        {formatDb(peakDb)} dB
+      <div className={`text-lg font-black font-mono transition-colors ${
+        isClipping ? 'text-red-400' : isHot ? 'text-orange-400' : 'text-orange-300/70'
+      }`}>
+        {formatDb(peakDb)} <span className="text-xs">dB</span>
       </div>
     </div>
   );
