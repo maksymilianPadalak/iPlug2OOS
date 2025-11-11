@@ -2290,7 +2290,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Copy dist/ contents to web/ folder in bundle\nDIST_SOURCE=\"${PROJECT_DIR}/../resources/web/dist\"\nWEB_DEST=\"${BUILT_PRODUCTS_DIR}/${WRAPPER_NAME}/Contents/Resources/web\"\n\nif [ -d \"${DIST_SOURCE}\" ]; then\n  mkdir -p \"${WEB_DEST}\"\n  cp -R \"${DIST_SOURCE}/\"* \"${WEB_DEST}/\" 2>/dev/null || true\n  echo \"✅ Copied dist/ contents to web/ folder in bundle\"\nelse\n  echo \"⚠️  dist/ folder not found, skipping copy\"\nfi\n";
+			shellScript = "# Copy dist/ contents to web/ folder in bundle\nDIST_SOURCE=\"${PROJECT_DIR}/../resources/web/dist\"\nWEB_DEST=\"${BUILT_PRODUCTS_DIR}/${WRAPPER_NAME}/Contents/Resources/web\"\n\nif [ -d \"${DIST_SOURCE}\" ]; then\n  mkdir -p \"${WEB_DEST}\"\n  # Copy contents of dist/ to web/, not dist/ folder itself\n  cp -R \"${DIST_SOURCE}\"/. \"${WEB_DEST}/\" 2>/dev/null || cp -R \"${DIST_SOURCE}\"/* \"${WEB_DEST}/\" 2>/dev/null || true\n  echo \"✅ Copied dist/ contents to web/ folder in bundle\"\nelse\n  echo \"⚠️  dist/ folder not found, skipping copy\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
