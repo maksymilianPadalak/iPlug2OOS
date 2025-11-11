@@ -168,16 +168,16 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
   }
 
   // Default small knob with modern gradient styling
-  const smallSize = 62;
+  const smallSize = 52;
   const center = smallSize / 2;
-  const ringRadius = 22;
+  const ringRadius = 18;
   const circumference = 2 * Math.PI * ringRadius;
   const progress = normalizedValue;
   const dash = circumference * progress;
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      <label className="text-orange-200 text-xs font-bold uppercase tracking-wider">
+    <div className="flex flex-col items-center gap-1">
+      <label className="text-orange-200 text-[10px] font-bold uppercase tracking-wider">
         {label}
       </label>
 
@@ -223,7 +223,7 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
         </svg>
       </div>
 
-      <div className="text-orange-300 text-[11px] font-bold text-center min-w-[50px]">
+      <div className="text-orange-300 text-[10px] font-bold text-center min-w-[50px]">
         {normalizedToDisplay(paramIdx, value)}
       </div>
     </div>

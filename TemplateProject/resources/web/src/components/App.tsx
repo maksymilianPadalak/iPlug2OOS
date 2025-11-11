@@ -35,12 +35,12 @@ export function App() {
 
   return (
     <ParameterProvider>
-      <div className="w-full min-h-screen bg-black p-6">
+      <div className="w-full bg-black">
         {/* Web Controls - Only visible in WAM mode */}
-        <div className="wam-only mb-6 max-w-7xl mx-auto">
+        <div className="wam-only mb-2 max-w-7xl mx-auto">
           {/* Audio Status */}
           {audioStatus && (
-            <div className="flex items-center justify-center mb-3">
+            <div className="flex items-center justify-center mb-2">
               <p className={`text-xs font-bold uppercase tracking-widest ${
                 audioStatus === 'working' ? 'text-emerald-400' : 'text-rose-400'
               }`}>
@@ -50,10 +50,10 @@ export function App() {
           )}
 
           {/* MIDI Controls */}
-          <div className="flex flex-col items-center mb-4">
-            <h2 className="text-orange-300 text-xs font-bold uppercase tracking-widest mb-3">MIDI</h2>
+          <div className="flex flex-col items-center mb-2">
+            <h2 className="text-orange-300 text-xs font-bold uppercase tracking-widest mb-2">MIDI</h2>
             <div className="flex gap-4 justify-center">
-              <div className="flex flex-col items-center gap-2">
+              <div className="flex flex-col items-center gap-1">
                 <label htmlFor="midiInSelect" className="text-orange-200 text-xs font-bold uppercase tracking-wider">
                   INPUT
                 </label>
@@ -65,7 +65,7 @@ export function App() {
                   <option value="default">MIDI INPUT</option>
                 </select>
               </div>
-              <div className="flex flex-col items-center gap-2">
+              <div className="flex flex-col items-center gap-1">
                 <label htmlFor="midiOutSelect" className="text-orange-200 text-xs font-bold uppercase tracking-wider">
                   OUTPUT
                 </label>
@@ -82,13 +82,13 @@ export function App() {
         </div>
 
         {/* Horizontal Separator - Only visible in WAM mode */}
-        <div className="wam-only border-t border-orange-900/50 mb-6 max-w-7xl mx-auto"></div>
+        <div className="wam-only border-t border-orange-900/50 mb-2 max-w-7xl mx-auto"></div>
 
         {/* Plugin Content - Main Container */}
-        <div id="plugin-body" className="max-w-7xl mx-auto bg-gradient-to-br from-neutral-900 via-stone-900 to-neutral-950 border border-orange-800/30 rounded-lg shadow-2xl p-8">
+        <div id="plugin-body" className="max-w-7xl mx-auto bg-gradient-to-br from-neutral-900 via-stone-900 to-neutral-950 border border-orange-800/30 rounded-lg shadow-2xl p-3">
           {/* Plugin Title */}
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-5xl font-black uppercase tracking-tight">
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-2xl font-black uppercase tracking-tight">
               <span className="bg-gradient-to-r from-orange-400 via-orange-500 to-red-500 text-transparent bg-clip-text">
                 Simple
               </span>
@@ -102,7 +102,7 @@ export function App() {
           </div>
 
           {/* Output Meters */}
-          <div className="flex items-center justify-center gap-6 mb-8">
+          <div className="flex items-center justify-center gap-6 mb-3">
             <div className="flex items-center gap-2">
               <span className="text-orange-300 text-xs font-bold uppercase tracking-wider">L</span>
               <Meter channel={0} compact={true} />
@@ -113,23 +113,60 @@ export function App() {
             </div>
           </div>
 
-          {/* All Parameters - Modern grid layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
-            {/* Left Column - Oscillators (spans 2 columns) */}
-            <div className="lg:col-span-2">
-              <OscillatorsPage />
+          {/* All Parameters - New layout: waveforms top, knobs bottom, master right */}
+          <div className="flex gap-4 mb-3">
+            {/* Left side - Waveforms and knobs */}
+            <div className="flex-1">
+              {/* Waveforms on top */}
+              <div className="flex gap-4 justify-center mb-4">
+                <OscillatorWaveform oscNum={1} />
+                <OscillatorWaveform oscNum={2} />
+                <OscillatorWaveform oscNum={3} />
+                <OscillatorWaveform oscNum={4} />
+              </div>
+
+              {/* All knobs horizontal on bottom */}
+              <div className="flex flex-wrap gap-8 justify-center items-start">
+                {/* Oscillator knobs */}
+                <OscillatorKnobs oscNum={1} />
+                <OscillatorKnobs oscNum={2} />
+                <OscillatorKnobs oscNum={3} />
+                <OscillatorKnobs oscNum={4} />
+
+                {/* Envelope */}
+                <div className="flex flex-col items-center gap-2">
+                  <div className="text-orange-300 text-xs font-black uppercase tracking-widest">ENVELOPE</div>
+                  <div className="flex gap-2">
+                    <Knob paramIdx={EParams.kParamAttack} label="ATTACK" />
+                    <Knob paramIdx={EParams.kParamDecay} label="DECAY" />
+                    <Knob paramIdx={EParams.kParamSustain} label="SUSTAIN" step={0.01} />
+                    <Knob paramIdx={EParams.kParamRelease} label="RELEASE" />
+                  </div>
+                </div>
+
+                {/* Reverb */}
+                <div className="flex flex-col items-center gap-2">
+                  <div className="text-orange-300 text-xs font-black uppercase tracking-widest">REVERB</div>
+                  <div className="flex gap-2">
+                    <Knob paramIdx={EParams.kParamReverbRoomSize} label="ROOM" />
+                    <Knob paramIdx={EParams.kParamReverbDamp} label="DAMP" />
+                    <Knob paramIdx={EParams.kParamReverbWidth} label="WIDTH" />
+                    <Knob paramIdx={EParams.kParamReverbDry} label="DRY" step={0.01} />
+                    <Knob paramIdx={EParams.kParamReverbWet} label="WET" step={0.01} />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Right Column - Envelope, Reverb, and Main Output stacked */}
-            <div className="flex flex-col gap-5">
-              <EnvelopePage />
-              <ReverbPage />
-              <MainPage />
+            {/* Right side - Big main gain */}
+            <div className="flex flex-col items-center justify-center">
+              <h2 className="text-orange-300 text-xs font-black uppercase tracking-widest mb-2">MAIN</h2>
+              <Knob paramIdx={EParams.kParamGain} label="GAIN" />
             </div>
           </div>
 
           {/* Keyboard Section - Always visible */}
-          <div className="bg-gradient-to-b from-stone-800 to-stone-900 border border-orange-700/30 rounded-lg p-4 shadow-lg">
+          <div className="bg-gradient-to-b from-stone-800 to-stone-900 border border-orange-700/30 rounded-lg p-2 shadow-lg">
             <PianoKeyboard />
           </div>
         </div>
@@ -138,127 +175,82 @@ export function App() {
   );
 }
 
-function OscillatorsPage() {
+
+
+// Component for just the waveform visualization with title and dropdown
+function OscillatorWaveform({ oscNum }: { oscNum: 1 | 2 | 3 | 4 }) {
+  let waveParam = EParams.kParamOsc1Wave;
+
+  switch (oscNum) {
+    case 1: waveParam = EParams.kParamOsc1Wave; break;
+    case 2: waveParam = EParams.kParamOsc2Wave; break;
+    case 3: waveParam = EParams.kParamOsc3Wave; break;
+    case 4: waveParam = EParams.kParamOsc4Wave; break;
+  }
+
+  const { paramValues } = useParameters();
+  const waveValue = paramValues.get(waveParam) ?? 0;
+  const waveIndex = Math.round(waveValue * 3);
+
   return (
-    <div className="bg-gradient-to-br from-orange-950/40 to-red-950/30 border border-orange-700/40 rounded-lg p-5 shadow-lg backdrop-blur-sm">
-      <h2 className="text-orange-300 text-sm font-black uppercase tracking-widest mb-5 text-center">OSCILLATORS</h2>
-      <div className="grid grid-cols-2 gap-4">
-        <OscillatorControls oscNum={1} />
-        <OscillatorControls oscNum={2} />
-        <OscillatorControls oscNum={3} />
-        <OscillatorControls oscNum={4} />
-      </div>
+    <div className="flex flex-col items-center gap-2">
+      <div className="text-orange-300 text-xs font-black uppercase tracking-wider">OSC {oscNum}</div>
+      <Dropdown
+        paramIdx={waveParam}
+        label="WAVEFORM"
+        options={["Sine", "Saw", "Square", "Triangle"]}
+      />
+      <WaveformDisplay waveIndex={waveIndex} />
     </div>
   );
 }
 
-function EnvelopePage() {
-  return (
-    <div className="bg-gradient-to-br from-orange-950/40 to-amber-950/30 border border-orange-700/40 rounded-lg p-5 shadow-lg backdrop-blur-sm">
-      <h2 className="text-orange-300 text-sm font-black uppercase tracking-widest mb-5 text-center">ENVELOPE</h2>
-      <div className="grid grid-cols-2 gap-3">
-        <Knob paramIdx={EParams.kParamAttack} label="ATTACK" />
-        <Knob paramIdx={EParams.kParamDecay} label="DECAY" />
-        <Knob paramIdx={EParams.kParamSustain} label="SUSTAIN" step={0.01} />
-        <Knob paramIdx={EParams.kParamRelease} label="RELEASE" />
-      </div>
-    </div>
-  );
-}
-
-function ReverbPage() {
-  return (
-    <div className="bg-gradient-to-br from-red-950/40 to-orange-950/30 border border-orange-700/40 rounded-lg p-5 shadow-lg backdrop-blur-sm">
-      <h2 className="text-orange-300 text-sm font-black uppercase tracking-widest mb-5 text-center">REVERB</h2>
-      <div className="grid grid-cols-2 gap-3">
-        <Knob paramIdx={EParams.kParamReverbRoomSize} label="ROOM" />
-        <Knob paramIdx={EParams.kParamReverbDamp} label="DAMP" />
-        <Knob paramIdx={EParams.kParamReverbWidth} label="WIDTH" />
-        <Knob paramIdx={EParams.kParamReverbDry} label="DRY" step={0.01} />
-        <Knob paramIdx={EParams.kParamReverbWet} label="WET" step={0.01} />
-      </div>
-    </div>
-  );
-}
-
-function MainPage() {
-  return (
-    <div className="bg-gradient-to-br from-orange-950/40 to-stone-950/30 border border-orange-700/40 rounded-lg p-5 shadow-lg backdrop-blur-sm">
-      <h2 className="text-orange-300 text-sm font-black uppercase tracking-widest mb-5 text-center">MAIN OUTPUT</h2>
-      <div className="flex justify-center">
-        <Knob paramIdx={EParams.kParamGain} label="GAIN" />
-      </div>
-    </div>
-  );
-}
-
-function OscillatorControls({ oscNum }: { oscNum: 1 | 2 | 3 | 4 }) {
-  // Map oscillator number to parameter indices
+// Component for just the oscillator knobs
+function OscillatorKnobs({ oscNum }: { oscNum: 1 | 2 | 3 | 4 }) {
   let mixParam = EParams.kParamOsc1Mix;
   let detuneParam = EParams.kParamOsc1Detune;
   let octaveParam = EParams.kParamOsc1Octave;
-  let waveParam = EParams.kParamOsc1Wave;
 
   switch (oscNum) {
     case 1:
       mixParam = EParams.kParamOsc1Mix;
       detuneParam = EParams.kParamOsc1Detune;
       octaveParam = EParams.kParamOsc1Octave;
-      waveParam = EParams.kParamOsc1Wave;
       break;
     case 2:
       mixParam = EParams.kParamOsc2Mix;
       detuneParam = EParams.kParamOsc2Detune;
       octaveParam = EParams.kParamOsc2Octave;
-      waveParam = EParams.kParamOsc2Wave;
       break;
     case 3:
       mixParam = EParams.kParamOsc3Mix;
       detuneParam = EParams.kParamOsc3Detune;
       octaveParam = EParams.kParamOsc3Octave;
-      waveParam = EParams.kParamOsc3Wave;
       break;
     case 4:
       mixParam = EParams.kParamOsc4Mix;
       detuneParam = EParams.kParamOsc4Detune;
       octaveParam = EParams.kParamOsc4Octave;
-      waveParam = EParams.kParamOsc4Wave;
       break;
   }
 
-  const { paramValues } = useParameters();
-  const waveValue = paramValues.get(waveParam) ?? 0;
-  const waveIndex = Math.round(waveValue * 3); // 0=Sine, 1=Saw, 2=Square, 3=Triangle
-
   return (
-    <div className="flex flex-col items-center gap-4 bg-gradient-to-b from-stone-900/50 to-neutral-900/50 border border-orange-600/20 rounded-lg p-4">
-      <div className="text-orange-400 text-sm font-black uppercase tracking-wider">OSC {oscNum}</div>
-
-      {/* Dropdown on top */}
-      <Dropdown
-        paramIdx={waveParam}
-        label="WAVEFORM"
-        options={["Sine", "Saw", "Square", "Triangle"]}
-      />
-
-      {/* Knobs arranged horizontally */}
-      <div className="flex gap-4 justify-center">
+    <div className="flex flex-col items-center gap-2">
+      <div className="text-orange-300 text-xs font-black uppercase tracking-widest">OSC {oscNum}</div>
+      <div className="flex gap-2">
         <Knob paramIdx={mixParam} label="MIX" step={0.01} />
         <Knob paramIdx={detuneParam} label="DETUNE" />
         <Knob paramIdx={octaveParam} label="OCTAVE" />
       </div>
-
-      {/* Waveform visualization */}
-      <WaveformDisplay waveIndex={waveIndex} />
     </div>
   );
 }
 
 function WaveformDisplay({ waveIndex }: { waveIndex: number }) {
   const [offset, setOffset] = React.useState(0);
-  const width = 200;
-  const height = 60;
-  const padding = 10;
+  const width = 180;
+  const height = 40;
+  const padding = 8;
   const centerY = height / 2;
 
   // Animate the waveform scrolling
@@ -314,7 +306,7 @@ function WaveformDisplay({ waveIndex }: { waveIndex: number }) {
   };
 
   return (
-    <div className="w-full bg-black/40 border border-orange-700/30 rounded p-2 overflow-hidden">
+    <div className="w-full bg-black/40 border border-orange-700/30 rounded p-1 overflow-hidden">
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="w-full">
         {/* Grid lines */}
         <line x1={padding} y1={centerY} x2={width - padding} y2={centerY} stroke="#ffffff10" strokeWidth={1} />
