@@ -19,12 +19,3 @@ body.wam-mode .wam-only {
   display: block;
 }
 
-/* Show border around plugin content only in WAM mode */
-body.wam-mode .plugin-content-border {
-  border: 4px solid white;
-}
-
-body.webview-mode .plugin-content-border {
-  border: none;
-}
-
