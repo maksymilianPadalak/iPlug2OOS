@@ -27,6 +27,33 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
   const normalizedValue = Math.max(0, Math.min(1, (value - min) / (max - min)));
   const rotation = normalizedValue * 270 - 135; // -135° to +135°
 
+  // Format display value to prevent overflow
+  const formatDisplayValue = (displayStr: string): string => {
+    // Extract number and unit from display string
+    const match = displayStr.match(/^([\d.+-]+)\s*(.*)$/);
+    if (!match) return displayStr;
+
+    const numStr = match[1];
+    const unit = match[2];
+    const num = parseFloat(numStr);
+
+    if (isNaN(num)) return displayStr;
+
+    // Format based on value range
+    let formatted: string;
+    if (Math.abs(num) >= 100 || num === 0) {
+      formatted = num.toFixed(1);
+    } else if (Math.abs(num) >= 10) {
+      formatted = num.toFixed(1);
+    } else if (Math.abs(num) >= 1) {
+      formatted = num.toFixed(2);
+    } else {
+      formatted = num.toFixed(2);
+    }
+
+    return unit ? `${formatted} ${unit}` : formatted;
+  };
+
   // Helper to clamp
   const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 
@@ -161,7 +188,7 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
           </svg>
         </div>
         <div className="text-orange-300 text-xs font-bold text-center min-w-[60px]">
-          {normalizedToDisplay(paramIdx, value)}
+          {formatDisplayValue(normalizedToDisplay(paramIdx, value))}
         </div>
       </div>
     );
@@ -224,7 +251,7 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
       </div>
 
       <div className="text-orange-300 text-[10px] font-bold text-center min-w-[50px]">
-        {normalizedToDisplay(paramIdx, value)}
+        {formatDisplayValue(normalizedToDisplay(paramIdx, value))}
       </div>
     </div>
   );

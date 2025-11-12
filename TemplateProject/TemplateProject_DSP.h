@@ -176,8 +176,8 @@ public:
           osc4Sample = WaveformFromPhase(mOsc4Phase, mOsc4Wave);
         }
         
-        // Mix oscillators
-        T oscMix = (osc1Sample * mOsc1Mix + osc2Sample * mOsc2Mix + osc3Sample * mOsc3Mix + osc4Sample * mOsc4Mix) / 4.0;
+        // Mix oscillators (mix values are already normalized 0-1, no division needed)
+        T oscMix = osc1Sample * mOsc1Mix + osc2Sample * mOsc2Mix + osc3Sample * mOsc3Mix + osc4Sample * mOsc4Mix;
         
         // Calculate filter cutoff with envelope and keytracking
         T filterEnvValue = mFilterEnv.Process(inputs[kModSustainSmoother][i]);
@@ -274,6 +274,9 @@ public:
     double mOsc3Phase = 0.0;
     double mOsc4Phase = 0.0;
     double mSampleRate = 44100.0;
+    
+    // Per-voice gain multiplier
+    T mGain = 1.0;
 
   private:
     WDL_TypedBuf<float> mTimbreBuffer;
