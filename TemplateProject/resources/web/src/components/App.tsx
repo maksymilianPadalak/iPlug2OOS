@@ -166,7 +166,7 @@ export function App() {
             </div>
 
             {/* Right side - Big main gain */}
-            <div className="flex flex-col items-center justify-center pl-6">
+            <div className="flex flex-col items-center justify-center pl-2">
               <h2 className="text-orange-300 text-xs font-black uppercase tracking-widest mb-3">MAIN</h2>
               <Knob paramIdx={EParams.kParamGain} label="GAIN" />
             </div>
@@ -181,7 +181,6 @@ export function App() {
     </ParameterProvider>
   );
 }
-
 
 
 // Component for just the waveform visualization with title and dropdown

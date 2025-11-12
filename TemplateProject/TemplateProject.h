@@ -11,16 +11,10 @@ const int kNumPresets = 1;
 enum EParams
 {
   kParamGain = 0,
-  kParamNoteGlideTime,
   kParamAttack,
   kParamDecay,
   kParamSustain,
   kParamRelease,
-  kParamLFOShape,
-  kParamLFORateHz,
-  kParamLFORateTempo,
-  kParamLFORateMode,
-  kParamLFODepth,
   // Oscillators
   kParamOsc1Mix,
   kParamOsc2Mix,
@@ -38,29 +32,6 @@ enum EParams
   kParamOsc2Wave,
   kParamOsc3Wave,
   kParamOsc4Wave,
-  // Filter
-  kParamFilterCutoff,
-  kParamFilterResonance,
-  kParamFilterEnvAmount,
-  kParamFilterKeytrack,
-  kParamFilterAttack,
-  kParamFilterDecay,
-  kParamFilterSustain,
-  kParamFilterRelease,
-  // LFO2
-  kParamLFO2RateHz,
-  kParamLFO2RateTempo,
-  kParamLFO2RateMode,
-  kParamLFO2Shape,
-  kParamLFO2Depth,
-  // Delay
-  kParamDelayTime,
-  kParamDelayFeedback,
-  kParamDelayDry,
-  kParamDelayWet,
-  // Sync
-  kParamOscSync,
-  kParamOscSyncRatio,
   // Reverb
   kParamReverbRoomSize,
   kParamReverbDamp,
