@@ -199,6 +199,17 @@ function OscillatorWaveform({ oscNum }: { oscNum: 1 | 2 | 3 | 4 }) {
   const waveValue = paramValues.get(waveParam) ?? 0;
   const waveIndex = Math.round(waveValue * 3);
 
+  // Map oscillator to its knob primary color so the waveform matches the knob
+  const primaryColor = React.useMemo(() => {
+    switch (oscNum) {
+      case 1: return '#06b6d4'; // Cyan/teal for oscillator 1 (changed from orange)
+      case 2: return '#34d399'; // green
+      case 3: return '#a78bfa'; // purple
+      case 4: return '#f472b6'; // pink
+      default: return '#fb923c';
+    }
+  }, [oscNum]);
+
   return (
     <div className="flex flex-col items-center gap-2 w-[180px]">
       <div className="text-orange-300 text-xs font-black uppercase tracking-wider">OSC {oscNum}</div>
@@ -207,7 +218,7 @@ function OscillatorWaveform({ oscNum }: { oscNum: 1 | 2 | 3 | 4 }) {
         label="WAVEFORM"
         options={["Sine", "Saw", "Square", "Triangle"]}
       />
-      <WaveformDisplay waveIndex={waveIndex} />
+      <WaveformDisplay waveIndex={waveIndex} color={primaryColor} />
     </div>
   );
 }
@@ -250,12 +261,16 @@ function OscillatorKnobs({ oscNum }: { oscNum: 1 | 2 | 3 | 4 }) {
   );
 }
 
-function WaveformDisplay({ waveIndex }: { waveIndex: number }) {
+function WaveformDisplay({ waveIndex, color }: { waveIndex: number; color: string }) {
   const [offset, setOffset] = React.useState(0);
   const width = 180;
   const height = 40;
   const padding = 8;
   const centerY = height / 2;
+
+  // unique filter id to avoid collisions
+  const filterIdRef = React.useRef(`glow-${Math.random().toString(36).slice(2, 9)}`);
+  const filterId = filterIdRef.current;
 
   // Animate the waveform scrolling
   React.useEffect(() => {
@@ -309,6 +324,8 @@ function WaveformDisplay({ waveIndex }: { waveIndex: number }) {
     return points.join(' ');
   };
 
+  const pathD = React.useMemo(() => generatePath(offset), [offset, waveIndex]);
+
   return (
     <div className="w-full bg-black/40 border border-orange-700/30 rounded p-1 overflow-hidden">
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="w-full">
@@ -317,23 +334,34 @@ function WaveformDisplay({ waveIndex }: { waveIndex: number }) {
 
         {/* Waveform with glow effect */}
         <defs>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+          <filter id={filterId} x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur" />
             <feMerge>
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
         </defs>
 
+        {/* blurred thicker stroke for glow */}
         <path
-          d={generatePath(offset)}
+          d={pathD}
           fill="none"
-          stroke="#fb923c"
+          stroke={color}
+          strokeWidth={4.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={0.35}
+          filter={`url(#${filterId})`}
+        />
+
+        <path
+          d={pathD}
+          fill="none"
+          stroke={color}
           strokeWidth={2.5}
           strokeLinecap="round"
           strokeLinejoin="round"
-          filter="url(#glow)"
         />
       </svg>
     </div>

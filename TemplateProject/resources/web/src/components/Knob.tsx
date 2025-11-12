@@ -17,6 +17,68 @@ interface KnobProps {
   step?: number;
 }
 
+// Helper: convert hex to rgba string
+function hexToRgba(hex: string, alpha = 1) {
+  const h = hex.replace('#', '');
+  const bigint = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// Determine color palette based on oscillator param index
+function getColorsForParam(paramIdx: EParams) {
+  // Oscillator 1
+  const osc1 = new Set([
+    EParams.kParamOsc1Mix,
+    EParams.kParamOsc1Detune,
+    EParams.kParamOsc1Octave,
+    EParams.kParamOsc1Wave,
+  ]);
+
+  const osc2 = new Set([
+    EParams.kParamOsc2Mix,
+    EParams.kParamOsc2Detune,
+    EParams.kParamOsc2Octave,
+    EParams.kParamOsc2Wave,
+  ]);
+
+  const osc3 = new Set([
+    EParams.kParamOsc3Mix,
+    EParams.kParamOsc3Detune,
+    EParams.kParamOsc3Octave,
+    EParams.kParamOsc3Wave,
+  ]);
+
+  const osc4 = new Set([
+    EParams.kParamOsc4Mix,
+    EParams.kParamOsc4Detune,
+    EParams.kParamOsc4Octave,
+    EParams.kParamOsc4Wave,
+  ]);
+
+  // Default (master/envelope/reverb) - warm orange
+  const defaultPrimary = '#fb923c';
+  const defaultRings = ['#fb923c', '#f97316', '#ea580c', '#dc2626', '#b91c1c'];
+
+  if (osc1.has(paramIdx)) {
+    // Changed oscillator 1 color to cyan/teal to differentiate from orange and other oscillators
+    return { primary: '#06b6d4', rings: ['#06b6d4', '#0891b2', '#0e7490', '#155e75'] };
+  }
+  if (osc2.has(paramIdx)) {
+    return { primary: '#34d399', rings: ['#34d399', '#10b981', '#059669', '#047857'] };
+  }
+  if (osc3.has(paramIdx)) {
+    return { primary: '#a78bfa', rings: ['#a78bfa', '#8b5cf6', '#7c3aed', '#6d28d9'] };
+  }
+  if (osc4.has(paramIdx)) {
+    return { primary: '#f472b6', rings: ['#f472b6', '#f43f5e', '#ec4899', '#db2777'] };
+  }
+
+  return { primary: defaultPrimary, rings: defaultRings };
+}
+
 export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobProps) {
   const { paramValues, setParamValue } = useParameters();
   const value = paramValues.get(paramIdx) ?? 0;
@@ -149,7 +211,7 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
           onTouchStart={handleTouchStart}
           className={`relative rounded-full bg-gradient-to-br from-stone-900 to-black border-2 border-orange-600/50 cursor-pointer select-none knob-outer shadow-xl`
           }
-          style={{ width: `${size / 1.2}px`, height: `${size / 1.2}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: isDragging ? 'inset 0 8px 20px rgba(0,0,0,0.8), 0 0 20px rgba(251,146,60,0.3)' : '0 4px 16px rgba(0,0,0,0.6)', animation: isDragging ? 'knob-pulse 0.9s infinite' : undefined }}
+          style={{ width: `${size / 1.2}px`, height: `${size / 1.2}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: isDragging ? `inset 0 8px 20px rgba(0,0,0,0.8), 0 0 20px ${hexToRgba('#fb923c', 0.28)}` : '0 4px 16px rgba(0,0,0,0.6)', animation: isDragging ? 'knob-pulse 0.9s infinite' : undefined }}
         >
           <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
             {/* Multicolored rings showing the value */}
@@ -202,6 +264,8 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
   const progress = normalizedValue;
   const dash = circumference * progress;
 
+  const { primary } = getColorsForParam(paramIdx);
+
   return (
     <div className="flex flex-col items-center gap-1">
       <label className="text-orange-200 text-[10px] font-bold uppercase tracking-wider">
@@ -213,7 +277,7 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
         className="relative bg-gradient-to-br from-stone-900 to-black border-2 border-orange-600/50 cursor-pointer select-none transition-all"
-        style={{ width: `${smallSize}px`, height: `${smallSize}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: isDragging ? 'inset 0 6px 14px rgba(0,0,0,0.8), 0 0 12px rgba(251,146,60,0.3)' : '0 3px 10px rgba(0,0,0,0.5)', borderRadius: 999 }}
+        style={{ width: `${smallSize}px`, height: `${smallSize}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: isDragging ? `inset 0 6px 14px rgba(0,0,0,0.8), 0 0 12px ${hexToRgba(primary, 0.28)}` : '0 3px 10px rgba(0,0,0,0.5)', borderRadius: 999 }}
       >
         <svg width={smallSize} height={smallSize} viewBox={`0 0 ${smallSize} ${smallSize}`}>
           {/* Outer progress ring */}
@@ -231,7 +295,7 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
             cy={center}
             r={ringRadius}
             fill="none"
-            stroke="#fb923c"
+            stroke={primary}
             strokeWidth={5}
             strokeLinecap="round"
             strokeDasharray={`${dash} ${circumference - dash}`}
@@ -246,7 +310,7 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
               <stop offset="100%" stopColor="#0c0a09" />
             </radialGradient>
           </defs>
-          <circle cx={center} cy={center} r={13} fill={`url(#g-${paramIdx})`} stroke="#fb923c" strokeWidth={2} />
+          <circle cx={center} cy={center} r={13} fill={`url(#g-${paramIdx})`} stroke={primary} strokeWidth={2} />
         </svg>
       </div>
 
