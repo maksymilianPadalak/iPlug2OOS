@@ -1143,6 +1143,10 @@ body.webview-mode #pluginUI {
   padding-top: 0;
 }
 
+body.webview-mode {
+  overflow: hidden !important;
+}
+
 body.wam-mode .wam-only {
   display: block;
 }
