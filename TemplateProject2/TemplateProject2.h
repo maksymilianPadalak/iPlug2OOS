@@ -11,39 +11,12 @@ const int kNumPresets = 1;
 enum EParams
 {
   kParamGain = 0,
-  kParamAttack,
-  kParamDecay,
-  kParamSustain,
-  kParamRelease,
-  // Oscillators
-  kParamOsc1Mix,
-  kParamOsc2Mix,
-  kParamOsc3Mix,
-  kParamOsc4Mix,
-  kParamOsc1Detune,
-  kParamOsc2Detune,
-  kParamOsc3Detune,
-  kParamOsc4Detune,
-  kParamOsc1Octave,
-  kParamOsc2Octave,
-  kParamOsc3Octave,
-  kParamOsc4Octave,
-  kParamOsc1Wave,
-  kParamOsc2Wave,
-  kParamOsc3Wave,
-  kParamOsc4Wave,
-  // Reverb
-  kParamReverbRoomSize,
-  kParamReverbDamp,
-  kParamReverbWidth,
-  kParamReverbDry,
-  kParamReverbWet,
   kNumParams
 };
 
 #if IPLUG_DSP
-// will use EParams in TemplateProject_DSP.h
-#include "TemplateProject_DSP.h"
+// will use EParams in TemplateProject2_DSP.h
+#include "TemplateProject2_DSP.h"
 #endif
 
 enum EControlTags
@@ -78,8 +51,7 @@ public:
   bool OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData) override;
 
 private:
-  TemplateProjectDSP<sample> mDSP {16};
-  ISender<1> mLFOVisSender;
+  TemplateProject2DSP<sample> mDSP;
   IPeakAvgSender<2> mMeterSender;
 #endif
 };

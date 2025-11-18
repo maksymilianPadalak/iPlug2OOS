@@ -27,55 +27,13 @@ function hexToRgba(hex: string, alpha = 1) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// Determine color palette based on oscillator param index
+// Determine color palette based on parameter index
 function getColorsForParam(paramIdx: EParams) {
-  // Oscillator 1
-  const osc1 = new Set([
-    EParams.kParamOsc1Mix,
-    EParams.kParamOsc1Detune,
-    EParams.kParamOsc1Octave,
-    EParams.kParamOsc1Wave,
-  ]);
-
-  const osc2 = new Set([
-    EParams.kParamOsc2Mix,
-    EParams.kParamOsc2Detune,
-    EParams.kParamOsc2Octave,
-    EParams.kParamOsc2Wave,
-  ]);
-
-  const osc3 = new Set([
-    EParams.kParamOsc3Mix,
-    EParams.kParamOsc3Detune,
-    EParams.kParamOsc3Octave,
-    EParams.kParamOsc3Wave,
-  ]);
-
-  const osc4 = new Set([
-    EParams.kParamOsc4Mix,
-    EParams.kParamOsc4Detune,
-    EParams.kParamOsc4Octave,
-    EParams.kParamOsc4Wave,
-  ]);
-
-  // Default (master/envelope/reverb) - cool blue/cyan
+  // Gain effect - cool blue/cyan gradient
   const defaultPrimary = '#06b6d4';
   const defaultRings = ['#06b6d4', '#0891b2', '#0e7490', '#155e75', '#164e63'];
 
-  if (osc1.has(paramIdx)) {
-    // Oscillator 1 color is cyan/teal
-    return { primary: '#06b6d4', rings: ['#06b6d4', '#0891b2', '#0e7490', '#155e75'] };
-  }
-  if (osc2.has(paramIdx)) {
-    return { primary: '#34d399', rings: ['#34d399', '#10b981', '#059669', '#047857'] };
-  }
-  if (osc3.has(paramIdx)) {
-    return { primary: '#a78bfa', rings: ['#a78bfa', '#8b5cf6', '#7c3aed', '#6d28d9'] };
-  }
-  if (osc4.has(paramIdx)) {
-    return { primary: '#f472b6', rings: ['#f472b6', '#f43f5e', '#ec4899', '#db2777'] };
-  }
-
+  // All parameters use the same cyan/blue color scheme for effect plugin
   return { primary: defaultPrimary, rings: defaultRings };
 }
 
@@ -193,16 +151,16 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
 
   // Special main GAIN knob styled like a Valhalla-style multicircle main knob
   if (paramIdx === EParams.kParamGain) {
-    const size = 120; // SVG size
+    const size = 180; // SVG size - increased for better visibility
     const center = size / 2;
     const ringCount = 5;
-    const baseRadius = 44;
-    const ringSpacing = 8;
+    const baseRadius = 66; // Increased proportionally
+    const ringSpacing = 12; // Increased spacing
     const colors = ['#06b6d4', '#0891b2', '#0e7490', '#155e75', '#164e63']; // Cool cyan-to-blue gradient
 
     return (
-      <div className="flex flex-col items-center gap-3">
-        <label className="text-cyan-200 text-xs font-bold uppercase tracking-widest">
+      <div className="flex flex-col items-center gap-4">
+        <label className="text-cyan-200 text-base font-bold uppercase tracking-widest">
           {label}
         </label>
         <div
@@ -229,7 +187,7 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
                   r={radius}
                   fill="none"
                   stroke={colors[i % colors.length]}
-                  strokeWidth={6}
+                  strokeWidth={8}
                   strokeLinecap="round"
                   strokeDasharray={`${dash} ${circumference - dash}`}
                   transform={`rotate(-90 ${center} ${center})`}
@@ -246,10 +204,10 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
               </radialGradient>
             </defs>
 
-            <circle cx={center} cy={center} r={28} fill="url(#kg)" stroke="#06b6d4" strokeWidth={3} />
+            <circle cx={center} cy={center} r={42} fill="url(#kg)" stroke="#06b6d4" strokeWidth={4} />
           </svg>
         </div>
-        <div className="text-cyan-300 text-xs font-bold text-center min-w-[60px]">
+        <div className="text-cyan-300 text-lg font-bold text-center min-w-[80px]">
           {formatDisplayValue(normalizedToDisplay(paramIdx, value))}
         </div>
       </div>

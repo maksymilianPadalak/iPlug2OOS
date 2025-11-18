@@ -6,9 +6,7 @@ include ../../common-web.mk
 
 SRC += $(PROJECT_ROOT)/TemplateProject2.cpp
 
-WAM_SRC += $(IPLUG_EXTRAS_PATH)/Synth/*.cpp
-
-WAM_CFLAGS += -I$(IPLUG_SYNTH_PATH)
+# Effect plugin - no synth code needed
 
 WEB_CFLAGS += -DIGRAPHICS_NANOVG -DIGRAPHICS_GLES2
 

@@ -21,11 +21,19 @@ export function sendIPlugMessage(message: IPlugUIMessage): void {
  * Send parameter value update
  */
 export function sendParameterValue(paramIdx: EParams, normalizedValue: number): void {
+  console.log('📤 Sending parameter value:', {
+    paramIdx,
+    normalizedValue,
+    IPlugSendMsg: typeof window.IPlugSendMsg
+  });
+
   sendIPlugMessage({
     msg: MessageTypes.SPVFUI,
     paramIdx,
     value: normalizedValue
   });
+
+  console.log('✅ Parameter value sent');
 }
 
 /**
