@@ -5,6 +5,10 @@ TemplateProject::TemplateProject(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
 {
   GetParam(kParamGain)->InitDouble("Gain", 100., 0., 200.0, 0.01, "%");
+  GetParam(kParamDelayTime)->InitDouble("Delay Time", 250., 1., 2000., 1., "ms");
+  GetParam(kParamDelayFeedback)->InitDouble("Delay Feedback", 30., 0., 95., 0.1, "%");
+  GetParam(kParamDelayDry)->InitDouble("Delay Dry", 50., 0., 100., 0.1, "%");
+  GetParam(kParamDelayWet)->InitDouble("Delay Wet", 50., 0., 100., 0.1, "%");
     
 #if IPLUG_EDITOR
 #if defined(WEBVIEW_EDITOR_DELEGATE)

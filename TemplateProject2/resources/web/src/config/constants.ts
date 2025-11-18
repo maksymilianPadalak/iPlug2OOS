@@ -5,7 +5,12 @@
  */
 export enum EParams {
   kParamGain = 0,
-  kNumParams = 1
+  // Delay
+  kParamDelayTime = 1,
+  kParamDelayFeedback = 2,
+  kParamDelayDry = 3,
+  kParamDelayWet = 4,
+  kNumParams = 5
 }
 
 /**
@@ -50,6 +55,11 @@ export const CallbackTypes = {
  */
 export const ParamNames: Record<EParams, string> = {
   [EParams.kParamGain]: "Gain",
+  // Delay
+  [EParams.kParamDelayTime]: "Delay Time",
+  [EParams.kParamDelayFeedback]: "Delay Feedback",
+  [EParams.kParamDelayDry]: "Delay Dry",
+  [EParams.kParamDelayWet]: "Delay Wet",
 
   [EParams.kNumParams]: "",
 };

@@ -59,6 +59,13 @@ then
       # if [ "$BUILD_EDITOR" -eq "1" ]; then
       #   rm $BUILD_WEB_DIR/scripts/*-web.*
       # fi
+      
+      # Clean up intermediate build artifacts (folders and source maps)
+      # Keep only essential files: bundle, WAM files, and adapter scripts
+      find $BUILD_WEB_DIR/scripts -type d -mindepth 1 -maxdepth 1 \( -name "audio" -o -name "communication" -o -name "components" -o -name "config" -o -name "utils" -o -name "types" \) -exec rm -r {} + 2>/dev/null || true
+      find $BUILD_WEB_DIR/scripts -type f -name "*.map" -delete 2>/dev/null || true
+      # Remove intermediate compiled JS files (keep only bundle and WAM files)
+      find $BUILD_WEB_DIR/scripts -type f -name "*.js" ! -name "index.bundle.js" ! -name "*-awn.js" ! -name "*-awp.js" ! -name "*-wam.js" ! -name "wam-controller.js" ! -name "wam-processor.js" ! -name "audioworklet.js" ! -name "audioworker.js" ! -name "webview-wam-adapter.js" -delete 2>/dev/null || true
     fi
 else
   # otherwise trash the whole build-web folder

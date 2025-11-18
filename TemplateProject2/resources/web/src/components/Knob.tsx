@@ -151,16 +151,16 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
 
   // Special main GAIN knob styled like a Valhalla-style multicircle main knob
   if (paramIdx === EParams.kParamGain) {
-    const size = 180; // SVG size - increased for better visibility
+    const size = 140; // SVG size - matched to overall UI scale
     const center = size / 2;
     const ringCount = 5;
-    const baseRadius = 66; // Increased proportionally
-    const ringSpacing = 12; // Increased spacing
+    const baseRadius = 52; // Proportional to new size
+    const ringSpacing = 9; // Proportional spacing
     const colors = ['#06b6d4', '#0891b2', '#0e7490', '#155e75', '#164e63']; // Cool cyan-to-blue gradient
 
     return (
-      <div className="flex flex-col items-center gap-4">
-        <label className="text-cyan-200 text-base font-bold uppercase tracking-widest">
+      <div className="flex flex-col items-center gap-2">
+        <label className="text-cyan-200 text-xs font-bold uppercase tracking-wider">
           {label}
         </label>
         <div
@@ -187,7 +187,7 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
                   r={radius}
                   fill="none"
                   stroke={colors[i % colors.length]}
-                  strokeWidth={8}
+                  strokeWidth={6}
                   strokeLinecap="round"
                   strokeDasharray={`${dash} ${circumference - dash}`}
                   transform={`rotate(-90 ${center} ${center})`}
@@ -204,10 +204,10 @@ export function Knob({ paramIdx, label, min = 0, max = 1, step = 0.001 }: KnobPr
               </radialGradient>
             </defs>
 
-            <circle cx={center} cy={center} r={42} fill="url(#kg)" stroke="#06b6d4" strokeWidth={4} />
+            <circle cx={center} cy={center} r={32} fill="url(#kg)" stroke="#06b6d4" strokeWidth={3} />
           </svg>
         </div>
-        <div className="text-cyan-300 text-lg font-bold text-center min-w-[80px]">
+        <div className="text-cyan-300 text-sm font-bold text-center min-w-[80px]">
           {formatDisplayValue(normalizedToDisplay(paramIdx, value))}
         </div>
       </div>

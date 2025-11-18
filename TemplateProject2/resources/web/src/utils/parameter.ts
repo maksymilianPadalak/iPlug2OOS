@@ -32,6 +32,14 @@ export function normalizedToActual(paramIdx: EParams, normalizedValue: number): 
   switch (paramIdx) {
     case EParams.kParamGain:
       return value * 200; // 0 to 200
+    // Delay
+    case EParams.kParamDelayTime:
+      return 1 + value * 1999; // 1 to 2000
+    case EParams.kParamDelayFeedback:
+      return value * 95; // 0 to 95
+    case EParams.kParamDelayDry:
+    case EParams.kParamDelayWet:
+      return value * 100; // 0 to 100
 
     default:
       return value;
@@ -44,8 +52,16 @@ export function normalizedToActual(paramIdx: EParams, normalizedValue: number): 
 function getParamDisplayConfig(paramIdx: EParams): ParamDisplayConfig {
   switch (paramIdx) {
     case EParams.kParamGain:
+    case EParams.kParamDelayFeedback:
+    case EParams.kParamDelayDry:
+    case EParams.kParamDelayWet:
       return {
         unit: '%',
+        format: (v) => v.toFixed(1)
+      };
+    case EParams.kParamDelayTime:
+      return {
+        unit: 'ms',
         format: (v) => v.toFixed(1)
       };
 
@@ -65,6 +81,14 @@ export function actualToNormalized(paramIdx: EParams, actualValue: number): numb
   switch (paramIdx) {
     case EParams.kParamGain:
       return actualValue / 200.0; // 0 to 200 -> 0 to 1
+    // Delay
+    case EParams.kParamDelayTime:
+      return (actualValue - 1) / 1999.0; // 1 to 2000 -> 0 to 1
+    case EParams.kParamDelayFeedback:
+      return actualValue / 95.0; // 0 to 95 -> 0 to 1
+    case EParams.kParamDelayDry:
+    case EParams.kParamDelayWet:
+      return actualValue / 100.0; // 0 to 100 -> 0 to 1
 
     default:
       return actualValue;
@@ -80,6 +104,14 @@ export function getDefaultNormalizedValues(): Map<EParams, number> {
   
   // Gain: 100 (0-200 %)
   defaults.set(EParams.kParamGain, 100 / 200);
+  // Delay Time: 250 (1-2000 ms)
+  defaults.set(EParams.kParamDelayTime, (250 - 1) / 1999);
+  // Delay Feedback: 30 (0-95 %)
+  defaults.set(EParams.kParamDelayFeedback, 30 / 95);
+  // Delay Dry: 50 (0-100 %)
+  defaults.set(EParams.kParamDelayDry, 50 / 100);
+  // Delay Wet: 50 (0-100 %)
+  defaults.set(EParams.kParamDelayWet, 50 / 100);
 
   
   return defaults;
@@ -88,6 +120,10 @@ export function getDefaultNormalizedValues(): Map<EParams, number> {
 export function getParamInputId(paramIdx: EParams): string {
   const paramNames: Record<EParams, string> = {
     [EParams.kParamGain]: 'paramGain',
+    [EParams.kParamDelayTime]: 'paramDelayTime',
+    [EParams.kParamDelayFeedback]: 'paramDelayFeedback',
+    [EParams.kParamDelayDry]: 'paramDelayDry',
+    [EParams.kParamDelayWet]: 'paramDelayWet',
 
     [EParams.kNumParams]: '',
   };
