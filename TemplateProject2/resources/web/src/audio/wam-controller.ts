@@ -123,67 +123,12 @@ export async function initializeWAM(): Promise<(WAMController & { audioContext: 
 
   console.log('   WAM controller inputs:', nInputs);
 
-  // Store references for test tone management
-  let mediaStream: MediaStream | null = null;
-  let audioSource: MediaStreamAudioSourceNode | null = null;
+  // Don't request microphone access automatically - wait for user to click button
+  console.log('   Microphone will be requested when user clicks MIC ON button');
 
-  if (nInputs > 0) {
-    try {
-      console.log('🎤 Requesting microphone access...');
-      console.log('   nInputs:', nInputs);
-      console.log('   navigator.mediaDevices exists:', !!navigator.mediaDevices);
-      console.log('   getUserMedia exists:', !!navigator.mediaDevices?.getUserMedia);
-      console.log('   window.isSecureContext:', window.isSecureContext);
-      console.log('   window.location.protocol:', window.location.protocol);
-
-      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      console.log('✅ Microphone access granted:', !!mediaStream);
-      audioSource = actx.createMediaStreamSource(mediaStream);
-
-      if (window.AWPF.isAudioWorkletPolyfilled && wamController.input) {
-        console.log('   Connecting microphone to WAM input (polyfilled mode)');
-        audioSource.connect(wamController.input);
-      } else {
-        console.log('   Connecting microphone to WAM directly (native mode)');
-        audioSource.connect(wamController as unknown as AudioNode);
-      }
-
-      // Store references on controller for test tone management
-      (wamController as any).mediaStream = mediaStream;
-      (wamController as any).audioSource = audioSource;
-
-      console.log('   Connecting WAM controller to destination...');
-      console.log('   actx.destination:', actx.destination);
-      console.log('   actx.destination type:', actx.destination.constructor.name);
-
-      // Verify WAM controller is an AudioNode
-      console.log('   WAM is AudioNode:', wamController instanceof AudioNode);
-      console.log('   WAM context:', (wamController as any).context);
-
-      wamController.connect(actx.destination);
-      console.log('✅ WAM controller connected to audio destination successfully');
-      console.log('   Full audio path: Microphone → WAM Controller Input → WAM DSP Processor → AudioContext.destination → Speakers');
-
-      // Verify connection state
-      console.log('   Verifying audio graph connections:');
-      console.log('   - Microphone source exists:', !!audioSource);
-      console.log('   - Microphone connected to:', window.AWPF?.isAudioWorkletPolyfilled ? 'WAM.input' : 'WAM controller');
-      console.log('   - WAM connected to: actx.destination');
-      console.log('   - AudioContext state:', actx.state);
-    } catch (err) {
-      console.error('❌ Error initializing user media stream:', err);
-      console.error('   Error name:', (err as Error).name);
-      console.error('   Error message:', (err as Error).message);
-      console.error('   This likely means getUserMedia failed or was denied');
-      console.log('   Connecting WAM to destination without microphone input...');
-      wamController.connect(actx.destination);
-      console.log('✅ WAM controller connected (no microphone)');
-    }
-  } else {
-    console.log('   No inputs needed, connecting WAM directly to destination...');
-    wamController.connect(actx.destination);
-    console.log('✅ WAM controller connected to audio destination');
-  }
+  // Connect WAM to destination (microphone will be connected later via toggleTestTone)
+  wamController.connect(actx.destination);
+  console.log('✅ WAM controller connected to audio destination');
 
   // Initialize default parameter values
   initializeDefaultParameters();
@@ -201,8 +146,7 @@ export async function initializeWAM(): Promise<(WAMController & { audioContext: 
 }
 
 /**
- * Toggle test tone on/off
- * For now, this just ensures microphone input is active for testing
+ * Toggle microphone input on/off
  */
 export async function toggleTestTone(enable: boolean): Promise<void> {
   if (!globalWAMController) {
@@ -211,39 +155,42 @@ export async function toggleTestTone(enable: boolean): Promise<void> {
   }
 
   console.log('🎚️  Microphone input mode:', enable ? 'ACTIVE' : 'INACTIVE');
-  console.log('   WAM controller exists:', !!globalWAMController);
-  console.log('   Audio source exists:', !!globalWAMController.audioSource);
 
   const targetNode = window.AWPF?.isAudioWorkletPolyfilled && globalWAMController.input
     ? globalWAMController.input
     : (globalWAMController as unknown as AudioNode);
 
-  console.log('   Target node type:', window.AWPF?.isAudioWorkletPolyfilled ? 'WAM input (polyfilled)' : 'WAM controller (native)');
-  console.log('   Target node exists:', !!targetNode);
-
   if (enable) {
-    // Ensure microphone is connected
+    // Request microphone access if not already obtained
+    if (!globalWAMController.audioSource) {
+      try {
+        console.log('🎤 Requesting microphone access...');
+        const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        console.log('✅ Microphone access granted');
+
+        const audioSource = globalWAMController.audioContext.createMediaStreamSource(mediaStream);
+
+        // Store references
+        (globalWAMController as any).mediaStream = mediaStream;
+        (globalWAMController as any).audioSource = audioSource;
+      } catch (error) {
+        console.error('❌ Failed to get microphone access:', error);
+        throw error;
+      }
+    }
+
+    // Connect microphone to WAM input
     if (globalWAMController.audioSource) {
       try {
         // Disconnect first to avoid double-connection
         globalWAMController.audioSource.disconnect();
 
-        // TEMPORARY DIAGNOSTIC: Connect mic directly to destination to verify mic works
-        const audioContext = (globalWAMController as any).audioContext;
-        console.log('🔬 DIAGNOSTIC: Connecting microphone DIRECTLY to speakers (bypass WAM)');
-        globalWAMController.audioSource.connect(audioContext.destination);
-        console.log('   If you hear your voice now, the microphone works but WAM routing is broken');
-        console.log('   If you still hear nothing, the microphone input itself has an issue');
-
-        // Reconnect to WAM input (this will be in parallel with direct connection for testing)
+        // Connect to WAM input for processing
         globalWAMController.audioSource.connect(targetNode);
-        console.log('🎤 Microphone connected to BOTH WAM input AND direct output');
-        console.log('   You should hear your voice (possibly louder from direct connection)');
+        console.log('🎤 Microphone connected to WAM input for processing');
       } catch (error) {
         console.error('Could not connect audio source:', error);
       }
-    } else {
-      console.warn('⚠️  No microphone input available');
     }
   } else {
     // Disconnect microphone
