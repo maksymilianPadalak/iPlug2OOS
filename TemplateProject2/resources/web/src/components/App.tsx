@@ -8,13 +8,16 @@ import { ParameterProvider } from './ParameterContext';
 import { Knob } from './Knob';
 import { Meter } from './Meter';
 import { TestToneButton } from './TestToneButton';
+import { AudioFileInput } from './AudioFileInput';
 import { EParams } from '../config/constants';
 import { initializeEnvironment } from '../utils/environment';
-import { initializeWAM, toggleTestTone, isTestTonePlaying } from '../audio/wam-controller';
+import { initializeWAM, toggleTestTone, loadAndPlayAudioFile, stopAudioFile } from '../audio/wam-controller';
 
 export function App() {
   const [audioStatus, setAudioStatus] = React.useState<'working' | 'not-working' | null>(null);
   const [testToneEnabled, setTestToneEnabled] = React.useState(false);
+  const [audioFilePlaying, setAudioFilePlaying] = React.useState(false);
+  const [currentFileName, setCurrentFileName] = React.useState<string | undefined>(undefined);
 
   // Initialize environment detection and auto-start WAM
   React.useEffect(() => {
@@ -39,6 +42,14 @@ export function App() {
   // Handle test tone toggle
   const handleTestToneToggle = React.useCallback(async () => {
     console.log('🎵 Test tone button clicked, current state:', testToneEnabled);
+    
+    // Stop audio file if playing
+    if (audioFilePlaying) {
+      stopAudioFile();
+      setAudioFilePlaying(false);
+      setCurrentFileName(undefined);
+    }
+    
     const newState = !testToneEnabled;
     try {
       await toggleTestTone(newState);
@@ -46,6 +57,29 @@ export function App() {
       console.log('✅ Test tone toggled successfully to:', newState);
     } catch (error) {
       console.error('❌ Error toggling test tone:', error);
+    }
+  }, [testToneEnabled, audioFilePlaying]);
+
+  // Handle audio file selection
+  const handleFileSelected = React.useCallback(async (file: File) => {
+    // Stop microphone if active
+    if (testToneEnabled) {
+      try {
+        await toggleTestTone(false);
+        setTestToneEnabled(false);
+      } catch (error) {
+        console.error('Error stopping microphone:', error);
+      }
+    }
+
+    try {
+      await loadAndPlayAudioFile(file);
+      setAudioFilePlaying(true);
+      setCurrentFileName(file.name);
+      console.log('✅ Audio file loaded and playing:', file.name);
+    } catch (error) {
+      console.error('❌ Error loading audio file:', error);
+      alert('Failed to load audio file. Please try another file.');
     }
   }, [testToneEnabled]);
 
@@ -109,11 +143,23 @@ export function App() {
             {/* Divider */}
             <div className="h-32 w-px bg-gradient-to-b from-transparent via-cyan-500/30 to-transparent" />
 
-            {/* Microphone Input Section */}
+            {/* Audio Input Section */}
             <div className="flex flex-col items-center gap-3 p-6 border-2 border-cyan-600/30 bg-black/40 rounded min-w-[240px]">
               <span className="text-cyan-300 text-xs font-bold uppercase tracking-wider">
                 Audio Input
               </span>
+              
+              {/* Audio File Input */}
+              <AudioFileInput
+                onFileSelected={handleFileSelected}
+                isPlaying={audioFilePlaying}
+                currentFileName={currentFileName}
+              />
+              
+              {/* Divider */}
+              <div className="w-full h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent my-1" />
+              
+              {/* Microphone Input */}
               <TestToneButton
                 isPlaying={testToneEnabled}
                 onToggle={handleTestToneToggle}

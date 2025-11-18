@@ -3,14 +3,13 @@
  */
 
 import { WAMController } from '../types/wam';
-import { detectEnvironment } from '../utils/environment';
-import { sendParameterValue, sendParameterEnum } from '../communication/iplug-bridge';
+import { sendParameterValue } from '../communication/iplug-bridge';
 import { EParams } from '../config/constants';
 import { TestToneGenerator } from './test-tone';
 
 // Global references for test tone management
 let globalTestTone: TestToneGenerator | null = null;
-let globalWAMController: (WAMController & { audioContext: AudioContext; mediaStream?: MediaStream; audioSource?: MediaStreamAudioSourceNode }) | null = null;
+let globalWAMController: (WAMController & { audioContext: AudioContext; mediaStream?: MediaStream; audioSource?: MediaStreamAudioSourceNode; audioBufferSource?: AudioBufferSourceNode }) | null = null;
 
 /**
  * Initialize WAM controller
@@ -161,6 +160,11 @@ export async function toggleTestTone(enable: boolean): Promise<void> {
     : (globalWAMController as unknown as AudioNode);
 
   if (enable) {
+    // Stop audio file if playing
+    if (globalWAMController.audioBufferSource) {
+      stopAudioFile();
+    }
+
     // Request microphone access if not already obtained
     if (!globalWAMController.audioSource) {
       try {
@@ -210,6 +214,181 @@ export async function toggleTestTone(enable: boolean): Promise<void> {
  */
 export function isTestTonePlaying(): boolean {
   return globalTestTone?.getIsPlaying() ?? false;
+}
+
+/**
+ * Load and play an audio file
+ */
+export async function loadAndPlayAudioFile(file: File): Promise<void> {
+  if (!globalWAMController) {
+    console.error('WAM controller not initialized');
+    throw new Error('WAM controller not initialized');
+  }
+
+  const actx = globalWAMController.audioContext;
+
+  // Ensure audio context is running
+  if (actx.state === 'suspended') {
+    console.log('Resuming audio context...');
+    await actx.resume();
+  }
+
+  try {
+    // Disconnect any existing audio source (mic or previous file)
+    if (globalWAMController.audioSource) {
+      try {
+        globalWAMController.audioSource.disconnect();
+      } catch (e) {
+        console.warn('Error disconnecting existing audio source:', e);
+      }
+    }
+    if (globalWAMController.audioBufferSource) {
+      try {
+        globalWAMController.audioBufferSource.stop();
+        globalWAMController.audioBufferSource.disconnect();
+      } catch (e) {
+        console.warn('Error stopping existing audio buffer source:', e);
+      }
+    }
+    if ((globalWAMController as any).audioFileGainNode) {
+      try {
+        (globalWAMController as any).audioFileGainNode.disconnect();
+      } catch (e) {
+        console.warn('Error disconnecting audio file gain node:', e);
+      }
+    }
+    if ((globalWAMController as any).channelMerger) {
+      try {
+        (globalWAMController as any).channelMerger.disconnect();
+      } catch (e) {
+        console.warn('Error disconnecting channel merger:', e);
+      }
+    }
+
+    // Read file as array buffer
+    const arrayBuffer = await file.arrayBuffer();
+    
+    // Decode audio data
+    const audioBuffer = await actx.decodeAudioData(arrayBuffer);
+    console.log('✅ Audio file decoded:', {
+      duration: audioBuffer.duration,
+      sampleRate: audioBuffer.sampleRate,
+      numberOfChannels: audioBuffer.numberOfChannels,
+    });
+
+    // Create buffer source node
+    const source = actx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.loop = true; // Loop the audio file
+
+    // Create gain node for volume control
+    const gainNode = actx.createGain();
+    gainNode.gain.value = 1.0;
+
+    // Connect source to gain
+    source.connect(gainNode);
+
+    // Handle channel conversion: ensure stereo output
+    let finalOutput: AudioNode = gainNode;
+    
+    if (audioBuffer.numberOfChannels === 1) {
+      // Mono file: split to stereo using ChannelMerger
+      console.log('Converting mono to stereo...');
+      const merger = actx.createChannelMerger(2);
+      gainNode.connect(merger, 0, 0); // Left channel
+      gainNode.connect(merger, 0, 1); // Right channel
+      finalOutput = merger;
+      (globalWAMController as any).channelMerger = merger;
+    } else if (audioBuffer.numberOfChannels === 2) {
+      // Already stereo, use gain node directly
+      console.log('Audio file is already stereo');
+    } else {
+      // Multi-channel: take first two channels
+      console.log(`Audio file has ${audioBuffer.numberOfChannels} channels, using first 2`);
+      const splitter = actx.createChannelSplitter(2);
+      const merger = actx.createChannelMerger(2);
+      gainNode.connect(splitter);
+      splitter.connect(merger, 0, 0); // Left
+      splitter.connect(merger, 1, 1); // Right
+      finalOutput = merger;
+      (globalWAMController as any).channelMerger = merger;
+    }
+    
+    // Connect to WAM input
+    const targetNode = window.AWPF?.isAudioWorkletPolyfilled && globalWAMController.input
+      ? globalWAMController.input
+      : (globalWAMController as unknown as AudioNode);
+
+    console.log('Connecting audio file to WAM input...');
+    console.log('Target node:', targetNode);
+    console.log('Target node type:', window.AWPF?.isAudioWorkletPolyfilled ? 'WAM.input (polyfill)' : 'WAM controller (native)');
+    
+    finalOutput.connect(targetNode);
+    console.log('✅ Audio file connected to WAM input');
+
+    // Start playback
+    source.start(0);
+    console.log('🎵 Audio file playback started');
+
+    // Store references
+    (globalWAMController as any).audioBufferSource = source;
+    (globalWAMController as any).audioFileGainNode = gainNode;
+    (globalWAMController as any).currentAudioFile = file.name;
+
+  } catch (error) {
+    console.error('❌ Error loading/playing audio file:', error);
+    console.error('Error details:', {
+      name: (error as Error).name,
+      message: (error as Error).message,
+      stack: (error as Error).stack,
+    });
+    throw error;
+  }
+}
+
+/**
+ * Stop audio file playback
+ */
+export function stopAudioFile(): void {
+  if (!globalWAMController) {
+    return;
+  }
+
+  if (globalWAMController.audioBufferSource) {
+    try {
+      globalWAMController.audioBufferSource.stop();
+      globalWAMController.audioBufferSource.disconnect();
+      (globalWAMController as any).audioBufferSource = null;
+      console.log('🛑 Audio file playback stopped');
+    } catch (e) {
+      console.warn('Error stopping audio buffer source:', e);
+    }
+  }
+
+  if ((globalWAMController as any).audioFileGainNode) {
+    try {
+      (globalWAMController as any).audioFileGainNode.disconnect();
+      (globalWAMController as any).audioFileGainNode = null;
+    } catch (e) {
+      console.warn('Error disconnecting audio file gain node:', e);
+    }
+  }
+
+  if ((globalWAMController as any).channelMerger) {
+    try {
+      (globalWAMController as any).channelMerger.disconnect();
+      (globalWAMController as any).channelMerger = null;
+    } catch (e) {
+      console.warn('Error disconnecting channel merger:', e);
+    }
+  }
+}
+
+/**
+ * Check if audio file is currently playing
+ */
+export function isAudioFilePlaying(): boolean {
+  return !!(globalWAMController?.audioBufferSource);
 }
 
 /**
