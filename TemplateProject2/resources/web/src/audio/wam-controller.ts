@@ -9,7 +9,16 @@ import { TestToneGenerator } from './test-tone';
 
 // Global references for test tone management
 let globalTestTone: TestToneGenerator | null = null;
-let globalWAMController: (WAMController & { audioContext: AudioContext; mediaStream?: MediaStream; audioSource?: MediaStreamAudioSourceNode; audioBufferSource?: AudioBufferSourceNode }) | null = null;
+let globalWAMController: (WAMController & { 
+  audioContext: AudioContext; 
+  mediaStream?: MediaStream; 
+  audioSource?: MediaStreamAudioSourceNode; 
+  audioBufferSource?: AudioBufferSourceNode;
+  loadedAudioBuffer?: AudioBuffer;
+  loadedAudioFileName?: string;
+  audioFileGainNode?: GainNode;
+  channelMerger?: ChannelMergerNode;
+}) | null = null;
 
 /**
  * Initialize WAM controller
@@ -217,15 +226,54 @@ export function isTestTonePlaying(): boolean {
 }
 
 /**
- * Load and play an audio file
+ * Load an audio file (without playing)
  */
-export async function loadAndPlayAudioFile(file: File): Promise<void> {
+export async function loadAudioFile(file: File): Promise<void> {
   if (!globalWAMController) {
     console.error('WAM controller not initialized');
     throw new Error('WAM controller not initialized');
   }
 
   const actx = globalWAMController.audioContext;
+
+  try {
+    // Read file as array buffer
+    const arrayBuffer = await file.arrayBuffer();
+    
+    // Decode audio data
+    const audioBuffer = await actx.decodeAudioData(arrayBuffer);
+    console.log('✅ Audio file decoded:', {
+      duration: audioBuffer.duration,
+      sampleRate: audioBuffer.sampleRate,
+      numberOfChannels: audioBuffer.numberOfChannels,
+    });
+
+    // Store the buffer and filename for later playback
+    (globalWAMController as any).loadedAudioBuffer = audioBuffer;
+    (globalWAMController as any).loadedAudioFileName = file.name;
+    console.log('📁 Audio file loaded (ready to play):', file.name);
+
+  } catch (error) {
+    console.error('❌ Error loading audio file:', error);
+    throw error;
+  }
+}
+
+/**
+ * Play the loaded audio file
+ */
+export async function playLoadedAudioFile(): Promise<void> {
+  if (!globalWAMController) {
+    console.error('WAM controller not initialized');
+    throw new Error('WAM controller not initialized');
+  }
+
+  const actx = globalWAMController.audioContext;
+  const audioBuffer = (globalWAMController as any).loadedAudioBuffer;
+
+  if (!audioBuffer) {
+    throw new Error('No audio file loaded. Please select a file first.');
+  }
 
   // Ensure audio context is running
   if (actx.state === 'suspended') {
@@ -264,17 +312,6 @@ export async function loadAndPlayAudioFile(file: File): Promise<void> {
         console.warn('Error disconnecting channel merger:', e);
       }
     }
-
-    // Read file as array buffer
-    const arrayBuffer = await file.arrayBuffer();
-    
-    // Decode audio data
-    const audioBuffer = await actx.decodeAudioData(arrayBuffer);
-    console.log('✅ Audio file decoded:', {
-      duration: audioBuffer.duration,
-      sampleRate: audioBuffer.sampleRate,
-      numberOfChannels: audioBuffer.numberOfChannels,
-    });
 
     // Create buffer source node
     const source = actx.createBufferSource();
@@ -333,10 +370,9 @@ export async function loadAndPlayAudioFile(file: File): Promise<void> {
     // Store references
     (globalWAMController as any).audioBufferSource = source;
     (globalWAMController as any).audioFileGainNode = gainNode;
-    (globalWAMController as any).currentAudioFile = file.name;
 
   } catch (error) {
-    console.error('❌ Error loading/playing audio file:', error);
+    console.error('❌ Error playing audio file:', error);
     console.error('Error details:', {
       name: (error as Error).name,
       message: (error as Error).message,
@@ -344,6 +380,14 @@ export async function loadAndPlayAudioFile(file: File): Promise<void> {
     });
     throw error;
   }
+}
+
+/**
+ * Load and play an audio file (convenience function that loads and plays immediately)
+ */
+export async function loadAndPlayAudioFile(file: File): Promise<void> {
+  await loadAudioFile(file);
+  await playLoadedAudioFile();
 }
 
 /**
@@ -389,6 +433,20 @@ export function stopAudioFile(): void {
  */
 export function isAudioFilePlaying(): boolean {
   return !!(globalWAMController?.audioBufferSource);
+}
+
+/**
+ * Check if an audio file is loaded (but not necessarily playing)
+ */
+export function hasAudioFileLoaded(): boolean {
+  return !!(globalWAMController?.loadedAudioBuffer);
+}
+
+/**
+ * Get the name of the currently loaded audio file
+ */
+export function getLoadedAudioFileName(): string | undefined {
+  return (globalWAMController as any)?.loadedAudioFileName;
 }
 
 /**

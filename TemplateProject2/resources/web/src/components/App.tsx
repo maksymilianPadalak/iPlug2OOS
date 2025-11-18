@@ -11,7 +11,7 @@ import { TestToneButton } from './TestToneButton';
 import { AudioFileInput } from './AudioFileInput';
 import { EParams } from '../config/constants';
 import { initializeEnvironment } from '../utils/environment';
-import { initializeWAM, toggleTestTone, loadAndPlayAudioFile, stopAudioFile } from '../audio/wam-controller';
+import { initializeWAM, toggleTestTone, loadAudioFile, playLoadedAudioFile, stopAudioFile } from '../audio/wam-controller';
 
 export function App() {
   const [audioStatus, setAudioStatus] = React.useState<'working' | 'not-working' | null>(null);
@@ -60,8 +60,26 @@ export function App() {
     }
   }, [testToneEnabled, audioFilePlaying]);
 
-  // Handle audio file selection
+  // Handle audio file selection (loads but doesn't play)
   const handleFileSelected = React.useCallback(async (file: File) => {
+    // Stop playback if currently playing
+    if (audioFilePlaying) {
+      stopAudioFile();
+      setAudioFilePlaying(false);
+    }
+
+    try {
+      await loadAudioFile(file);
+      setCurrentFileName(file.name);
+      console.log('✅ Audio file loaded (ready to play):', file.name);
+    } catch (error) {
+      console.error('❌ Error loading audio file:', error);
+      alert('Failed to load audio file. Please try another file.');
+    }
+  }, [audioFilePlaying]);
+
+  // Handle play audio file
+  const handlePlayAudioFile = React.useCallback(async () => {
     // Stop microphone if active
     if (testToneEnabled) {
       try {
@@ -73,15 +91,25 @@ export function App() {
     }
 
     try {
-      await loadAndPlayAudioFile(file);
+      await playLoadedAudioFile();
       setAudioFilePlaying(true);
-      setCurrentFileName(file.name);
-      console.log('✅ Audio file loaded and playing:', file.name);
+      console.log('✅ Audio file playback started');
     } catch (error) {
-      console.error('❌ Error loading audio file:', error);
-      alert('Failed to load audio file. Please try another file.');
+      console.error('❌ Error playing audio file:', error);
+      if ((error as Error).message.includes('No audio file loaded')) {
+        alert('Please select an audio file first.');
+      } else {
+        alert('Failed to play audio file.');
+      }
     }
   }, [testToneEnabled]);
+
+  // Handle stop audio file
+  const handleStopAudioFile = React.useCallback(() => {
+    stopAudioFile();
+    setAudioFilePlaying(false);
+    console.log('🛑 Audio file stopped');
+  }, []);
 
   return (
     <ParameterProvider>
@@ -152,7 +180,10 @@ export function App() {
               {/* Audio File Input */}
               <AudioFileInput
                 onFileSelected={handleFileSelected}
+                onPlay={handlePlayAudioFile}
+                onStop={handleStopAudioFile}
                 isPlaying={audioFilePlaying}
+                hasFile={!!currentFileName}
                 currentFileName={currentFileName}
               />
               
