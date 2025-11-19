@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { sendNoteOn, sendNoteOff } from '../communication/iplug-bridge';
+import { sendNoteOn, sendNoteOff } from '../../communication/iplug-bridge';
 
 const QWERTY_TO_NOTE: Record<string, number> = {
   'KeyA': 0,   // C

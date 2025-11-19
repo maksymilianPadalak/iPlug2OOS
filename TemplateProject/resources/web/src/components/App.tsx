@@ -1,9 +1,9 @@
 import React from 'react';
-import { ParameterProvider, useParameters } from './ParameterContext';
-import { Knob } from './Knob';
-import { Dropdown } from './Dropdown';
-import { Meter } from './Meter';
-import { PianoKeyboard } from './PianoKeyboard';
+import { ParameterProvider, useParameters } from './system/ParameterContext';
+import { Knob } from './controls/Knob';
+import { Dropdown } from './controls/Dropdown';
+import { Meter } from './visualizations/Meter';
+import { PianoKeyboard } from './visualizations/PianoKeyboard';
 import { EParams } from '../config/constants';
 import { initializeEnvironment } from '../utils/environment';
 import { initializeWAM, setupMIDIDevices } from '../audio/wam-controller';

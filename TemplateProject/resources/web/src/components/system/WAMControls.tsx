@@ -3,7 +3,7 @@
  */
 
 import React, { useState } from 'react';
-import { initializeWAM, setupMIDIDevices } from '../audio/wam-controller';
+import { initializeWAM, setupMIDIDevices } from '../../audio/wam-controller';
 
 export function WAMControls() {
   const [status, setStatus] = useState('Ready - Click \'Start web audio!\' to begin');
