@@ -1,7 +1,3 @@
-/**
- * LFO Waveform visualization - Berlin Brutalism Style
- */
-
 import React, { useRef, useEffect } from 'react';
 import { useParameters } from '../system/ParameterContext';
 
@@ -21,7 +17,7 @@ export function LFOWaveform() {
 
     function drawWaveform() {
       if (!ctx) return;
-      
+
       ctx.fillStyle = '#ef0000';
       ctx.fillRect(0, 0, width, height);
 
@@ -48,7 +44,7 @@ export function LFOWaveform() {
     }
 
     drawWaveform();
-    
+
     let animationFrame: number;
     function animate() {
       if (!ctx) return;

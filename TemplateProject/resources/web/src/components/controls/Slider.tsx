@@ -1,12 +1,8 @@
-/**
- * Slider component - Berlin Brutalism Style
- */
-
 import React from 'react';
 import { EParams } from '../../config/constants';
 import { normalizedToDisplay } from '../../utils/parameter';
-import { useParameters } from '../system/ParameterContext';
 import { sendParameterValue } from '../../communication/iplug-bridge';
+import { useParameters } from '../system/ParameterContext';
 import { isUpdatingFromProcessor } from '../system/ParameterContext';
 
 interface SliderProps {
@@ -23,9 +19,9 @@ export function Slider({ paramIdx, label, min = 0, max = 1, step = 0.001 }: Slid
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = Number(e.target.value);
-    
+
     setParamValue(paramIdx, newValue);
-    
+
     if (!isUpdatingFromProcessor()) {
       sendParameterValue(paramIdx, newValue);
     }

@@ -1,7 +1,3 @@
-/**
- * Audio meter component - Simple numeric display
- */
-
 import React from 'react';
 import { useParameters } from '../system/ParameterContext';
 

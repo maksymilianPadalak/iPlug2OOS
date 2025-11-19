@@ -1,12 +1,8 @@
-/**
- * Brutalist Knob component - Berlin Brutalism Style
- */
-
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { EParams } from '../../config/constants';
 import { normalizedToDisplay } from '../../utils/parameter';
-import { useParameters } from '../system/ParameterContext';
 import { sendParameterValue } from '../../communication/iplug-bridge';
+import { useParameters } from '../system/ParameterContext';
 import { isUpdatingFromProcessor } from '../system/ParameterContext';
 
 interface KnobProps {

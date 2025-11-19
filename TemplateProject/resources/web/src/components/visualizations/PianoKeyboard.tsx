@@ -1,7 +1,3 @@
-/**
- * Piano keyboard component - Shows multiple octaves
- */
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { sendNoteOn, sendNoteOff } from '../../communication/iplug-bridge';
 
@@ -112,7 +108,7 @@ export function PianoKeyboard() {
           OCTAVES 3-5 (Z/X = SHIFT)
         </div>
       </div>
-      
+
       {/* Render all 3 octaves in one continuous line */}
       <div className="relative h-16">
         {/* Render all white keys first */}
@@ -141,7 +137,7 @@ export function PianoKeyboard() {
             })
           ))}
         </div>
-        
+
         {/* Render all black keys absolutely positioned */}
         {displayOctaves.map((octave) => {
           let whiteKeyIndex = 0;
@@ -154,7 +150,7 @@ export function PianoKeyboard() {
               const octaveOffset = (octave - 3) * 7 * 40;
               const keyOffset = whiteKeyIndex * 40 - 10;
               const totalOffset = octaveOffset + keyOffset;
-              
+
               return (
                 <div
                   key={`black-${octave}-${index}`}
@@ -179,4 +175,3 @@ export function PianoKeyboard() {
     </div>
   );
 }
-

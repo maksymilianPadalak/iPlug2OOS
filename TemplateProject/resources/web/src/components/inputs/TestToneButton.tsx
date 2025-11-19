@@ -1,8 +1,3 @@
-/**
- * Test Tone Button Component
- * Simple on/off button to toggle test tone for effect testing
- */
-
 import React from 'react';
 
 interface TestToneButtonProps {

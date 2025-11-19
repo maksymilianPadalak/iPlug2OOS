@@ -1,11 +1,7 @@
-/**
- * Checkbox component - Berlin Brutalism Style
- */
-
 import React from 'react';
 import { EParams } from '../../config/constants';
-import { useParameters } from '../system/ParameterContext';
 import { sendParameterValue } from '../../communication/iplug-bridge';
+import { useParameters } from '../system/ParameterContext';
 import { isUpdatingFromProcessor } from '../system/ParameterContext';
 
 interface CheckboxProps {
@@ -20,9 +16,9 @@ export function Checkbox({ paramIdx, label }: CheckboxProps) {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.checked ? 1.0 : 0.0;
-    
+
     setParamValue(paramIdx, newValue);
-    
+
     if (!isUpdatingFromProcessor()) {
       sendParameterValue(paramIdx, newValue);
     }

@@ -1,7 +1,3 @@
-/**
- * Tab component - Berlin Brutalism Style
- */
-
 import React from 'react';
 
 interface TabProps {
@@ -46,7 +42,7 @@ export function TabContainer({ children, tabs, activeTab, onTabChange }: TabCont
           />
         ))}
       </div>
-      
+
       {/* Tab content */}
       <div className="bg-amber-950 border-2 border-amber-700 p-3">
         {children}

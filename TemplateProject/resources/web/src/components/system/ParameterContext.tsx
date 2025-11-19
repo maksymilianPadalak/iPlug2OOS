@@ -1,10 +1,3 @@
-/**
- * Parameter Context - React state management for iPlug2 parameters
- * 
- * CRITICAL: This bridges C++ callbacks to React state.
- * Global callbacks (SPVFD, SCVFD) must be able to update React state.
- */
-
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { EParams, EControlTags } from '../../config/constants';
 import { getDefaultNormalizedValues } from '../../utils/parameter';
@@ -87,7 +80,7 @@ export function registerCallbacksWithReact(): void {
         const leftRMS = dataView.getFloat32(16, true);
         const rightPeak = dataView.getFloat32(20, true);
         const rightRMS = dataView.getFloat32(24, true);
-        
+
         globalStateSetters.setMeterValue(0, leftPeak, leftRMS);
         globalStateSetters.setMeterValue(1, rightPeak, rightRMS);
       } catch (e) {
@@ -109,7 +102,7 @@ export function registerCallbacksWithReact(): void {
   // StartIdleTimer: Start periodic updates
   window.StartIdleTimer = () => {
     let idleTimerInterval: number | null = null;
-    
+
     if (idleTimerInterval) {
       clearInterval(idleTimerInterval);
     }
@@ -142,7 +135,7 @@ export function ParameterProvider({ children }: { children: React.ReactNode }) {
     left: { peak: 0, rms: 0 },
     right: { peak: 0, rms: 0 },
   });
-  
+
   // LFO waveform buffer (512 samples)
   const [lfoWaveform, setLfoWaveform] = useState<Float32Array>(new Float32Array(512).fill(0.5));
   const lfoWaveformIndexRef = useRef(0);

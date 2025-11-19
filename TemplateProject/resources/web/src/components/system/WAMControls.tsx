@@ -1,7 +1,3 @@
-/**
- * WAM Controls component - Berlin Brutalism Style
- */
-
 import React, { useState } from 'react';
 import { initializeWAM, setupMIDIDevices } from '../../audio/wam-controller';
 
@@ -16,13 +12,13 @@ export function WAMControls() {
 
     try {
       const wamController = await initializeWAM();
-      
+
       if (wamController) {
         window.TemplateProject_WAM = wamController;
         setStatus('✓ AudioWorklet initialized and ready!');
         setWamReady(true);
         setIsInitializing(false);
-        
+
         setTimeout(() => {
           setupMIDIDevices();
         }, 100);
@@ -48,15 +44,15 @@ export function WAMControls() {
         >
           {isInitializing ? 'INITIALIZING...' : wamReady ? '✓ READY' : 'START WEB AUDIO!'}
         </button>
-        <select 
-          id="midiInSelect" 
+        <select
+          id="midiInSelect"
           disabled={!wamReady}
           className="bg-black border-4 border-white text-white px-4 py-2 font-mono text-xs uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-900 focus:outline-none focus:bg-gray-900 cursor-pointer"
         >
           <option value="default">MIDI INPUT</option>
         </select>
-        <select 
-          id="midiOutSelect" 
+        <select
+          id="midiOutSelect"
           disabled={!wamReady}
           className="bg-black border-4 border-white text-white px-4 py-2 font-mono text-xs uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-900 focus:outline-none focus:bg-gray-900 cursor-pointer"
         >
