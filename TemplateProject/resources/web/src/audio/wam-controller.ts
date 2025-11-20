@@ -121,9 +121,6 @@ export async function initializeWAM(): Promise<WAMController | null> {
     wamController.connect(actx.destination);
   }
 
-  // Initialize default parameter values
-  initializeDefaultParameters();
-
   return wamController;
 }
 
@@ -192,23 +189,6 @@ function loadScript(src: string): Promise<void> {
     };
     document.head.appendChild(script);
   });
-}
-
-/**
- * Initialize default parameter values
- */
-function initializeDefaultParameters(): void {
-  sendParameterValue(EParams.kParamGain, 1.0); // 100%
-  sendParameterValue(EParams.kParamAttack, 0.01); // ~10ms
-  sendParameterValue(EParams.kParamDecay, 0.01); // ~10ms
-  sendParameterValue(EParams.kParamSustain, 0.5); // 50%
-  sendParameterValue(EParams.kParamRelease, 0.01); // ~10ms
-  sendParameterValue(EParams.kParamOsc1Mix, 1.0); // 100%
-  sendParameterValue(EParams.kParamOsc2Mix, 0.0); // 0%
-  sendParameterEnum(EParams.kParamOsc1Wave, 0); // Sine
-  sendParameterEnum(EParams.kParamOsc2Wave, 0); // Sine
-  sendParameterValue(EParams.kParamReverbDry, 1.0); // 100%
-  sendParameterValue(EParams.kParamReverbWet, 0.0); // 0%
 }
 
 /**
