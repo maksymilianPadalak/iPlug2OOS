@@ -138,9 +138,6 @@ export async function initializeWAM(): Promise<(WAMController & { audioContext: 
   wamController.connect(actx.destination);
   console.log('✅ WAM controller connected to audio destination');
 
-  // Initialize default parameter values
-  initializeDefaultParameters();
-
   // Attach audio context to controller for test tone access
   (wamController as any).audioContext = actx;
 
@@ -514,17 +511,6 @@ function loadScript(src: string): Promise<void> {
     };
     document.head.appendChild(script);
   });
-}
-
-/**
- * Initialize default parameter values
- */
-function initializeDefaultParameters(): void {
-  sendParameterValue(EParams.kParamGain, 0.5); // 100% (normalized: 100/200 = 0.5)
-  sendParameterValue(EParams.kParamDelayTime, 0.125); // 250ms (normalized: 250/2000 = 0.125)
-  sendParameterValue(EParams.kParamDelayFeedback, 0.316); // 30% (normalized: 30/95 = 0.316)
-  sendParameterValue(EParams.kParamDelayDry, 0.5); // 50% (normalized: 50/100 = 0.5)
-  sendParameterValue(EParams.kParamDelayWet, 0.5); // 50% (normalized: 50/100 = 0.5)
 }
 
 /**
