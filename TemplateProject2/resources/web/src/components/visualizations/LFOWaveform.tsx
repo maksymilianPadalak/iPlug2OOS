@@ -3,7 +3,7 @@
  */
 
 import React, { useRef, useEffect } from 'react';
-import { useParameters } from './ParameterContext';
+import { useParameters } from '../system/ParameterContext';
 
 export function LFOWaveform() {
   const { lfoWaveform } = useParameters();

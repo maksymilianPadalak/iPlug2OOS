@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { useParameters } from './ParameterContext';
+import { useParameters } from '../system/ParameterContext';
 
 interface MeterProps {
   channel: 0 | 1;

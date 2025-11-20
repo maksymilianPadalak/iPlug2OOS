@@ -6,8 +6,8 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { EParams, EControlTags } from '../config/constants';
-import { getDefaultNormalizedValues } from '../utils/parameter';
+import { EParams, EControlTags } from '../../config/constants';
+import { getDefaultNormalizedValues } from '../../utils/parameter';
 
 interface ParameterState {
   // Parameter values (normalized 0-1)

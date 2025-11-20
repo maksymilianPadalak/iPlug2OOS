@@ -3,10 +3,10 @@
  */
 
 import React from 'react';
-import { EParams } from '../config/constants';
-import { useParameters } from './ParameterContext';
-import { sendParameterValue } from '../communication/iplug-bridge';
-import { isUpdatingFromProcessor } from './ParameterContext';
+import { EParams } from '../../config/constants';
+import { useParameters } from '../system/ParameterContext';
+import { sendParameterValue } from '../../communication/iplug-bridge';
+import { isUpdatingFromProcessor } from '../system/ParameterContext';
 
 interface DropdownProps {
   paramIdx: EParams;
