@@ -11,6 +11,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
+import type { ParameterMetadata } from "./generate-parameters/utils/schemas.js";
 
 // Check if required files exist
 async function checkRequiredFiles(): Promise<{ available: boolean; errors: string[] }> {
@@ -49,7 +50,7 @@ async function main() {
   console.log("✅ Required C++ files found\n");
 
   // Now import dependencies
-  const { CPP_PATHS, TS_PATHS } = await import("./generate-parameters/config.js");
+    const { CPP_PATHS, TS_PATHS } = await import("./generate-parameters/config.js");
   const { extractParameterMetadata } = await import("./generate-parameters/utils/extract-metadata.js");
   const { calculateEnumIndices } = await import("./generate-parameters/utils/calculate-indices.js");
   const { generateConstantsFile } = await import("./generate-parameters/generators/generate-constants.js");
@@ -96,6 +97,11 @@ async function main() {
       paramIndices,
     );
     const parameterContent = generateParameterFile(metadata, paramIndices);
+    const manifestContent = buildParameterManifest(
+      metadata,
+      paramIndices,
+      path.basename(CPP_PATHS.header, ".h"),
+    );
     console.log("✅ Generated constants.ts");
     console.log("✅ Generated parameter.ts\n");
 
@@ -135,6 +141,7 @@ async function main() {
     console.log("💾 Writing generated files...");
     await fs.writeFile(TS_PATHS.constants, constantsContent, "utf-8");
     await fs.writeFile(TS_PATHS.parameter, parameterContent, "utf-8");
+    await fs.writeFile(TS_PATHS.manifest, manifestContent, "utf-8");
     console.log(`✅ Wrote ${TS_PATHS.constants}`);
     console.log(`✅ Wrote ${TS_PATHS.parameter}\n`);
 
@@ -152,6 +159,7 @@ async function main() {
     console.log("✅ Parameter generation completed successfully!");
     console.log(`   Generated: ${TS_PATHS.constants}`);
     console.log(`   Generated: ${TS_PATHS.parameter}`);
+    console.log(`   Generated: ${TS_PATHS.manifest}`);
   } catch (error) {
     console.error("\n❌ Parameter generation failed!");
     console.error(`   Error: ${error instanceof Error ? error.message : String(error)}`);
@@ -184,6 +192,78 @@ async function main() {
     console.error("   Fix the errors above and try again.\n");
     process.exit(1); // Fail build
   }
+}
+
+type ParameterManifestEntry = {
+  paramIdx: string;
+  index: number;
+  name: string;
+  defaultValue: number;
+  minValue: number;
+  maxValue: number;
+  step: number | null;
+  unit: string;
+  type: ParameterMetadata["type"];
+  shape: ParameterMetadata["shape"];
+  shapeParameter: number | null;
+  enumValues: string[] | null;
+  group: string | null;
+  automatable: boolean;
+};
+
+type ParameterManifest = {
+  project: string;
+  generatedAt: string;
+  parameterCount: number;
+  parameters: ParameterManifestEntry[];
+};
+
+function buildParameterManifest(
+  metadata: ParameterMetadata[],
+  paramIndices: Map<string, number>,
+  projectName: string,
+): string {
+  const metadataMap = new Map(metadata.map((entry) => [entry.paramIdx, entry]));
+  const entries: ParameterManifestEntry[] = [];
+
+  const sortedParams = Array.from(paramIndices.entries()).sort(
+    (a, b) => a[1] - b[1],
+  );
+
+  for (const [paramIdx, index] of sortedParams) {
+    if (paramIdx === "kNumParams") continue;
+    const entry = metadataMap.get(paramIdx);
+    entries.push({
+      paramIdx,
+      index,
+      name:
+        entry?.name ??
+        paramIdx
+          .replace(/^kParam/, "")
+          .replace(/([A-Z])/g, " $1")
+          .trim(),
+      defaultValue: entry?.default ?? 0,
+      minValue: entry?.min ?? 0,
+      maxValue: entry?.max ?? 1,
+      step: entry?.step ?? null,
+      unit: entry?.unit ?? "",
+      type: entry?.type ?? "double",
+      shape: entry?.shape ?? "ShapeLinear",
+      shapeParameter: entry?.shapeParam ?? null,
+      enumValues: entry?.enumValues ?? null,
+      group: entry?.group ?? null,
+      automatable: true,
+    });
+  }
+
+  const manifest: ParameterManifest = {
+    project: projectName,
+    generatedAt: new Date().toISOString(),
+    parameterCount: entries.length,
+    parameters: entries,
+  };
+
+  return JSON.stringify(manifest, null, 2);
 }
 
 // Run main function

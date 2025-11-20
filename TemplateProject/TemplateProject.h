@@ -42,7 +42,6 @@ enum EParams
 };
 
 #if IPLUG_DSP
-// will use EParams in TemplateProject_DSP.h
 #include "TemplateProject_DSP.h"
 #endif
 
@@ -67,7 +66,7 @@ class TemplateProject final : public Plugin
 public:
   TemplateProject(const InstanceInfo& info);
 
-#if IPLUG_DSP // http://bit.ly/2S64BDd
+#if IPLUG_DSP
 public:
   void ProcessBlock(sample** inputs, sample** outputs, int nFrames) override;
   void ProcessMidiMsg(const IMidiMsg& msg) override;

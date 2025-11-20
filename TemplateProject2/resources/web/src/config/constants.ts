@@ -56,10 +56,10 @@ export const CallbackTypes = {
 export const ParamNames: Record<EParams, string> = {
   [EParams.kParamGain]: "Gain",
   // Delay
-  [EParams.kParamDelayTime]: "Delay Time",
-  [EParams.kParamDelayFeedback]: "Delay Feedback",
-  [EParams.kParamDelayDry]: "Delay Dry",
-  [EParams.kParamDelayWet]: "Delay Wet",
+  [EParams.kParamDelayTime]: "Size",
+  [EParams.kParamDelayFeedback]: "Feedback",
+  [EParams.kParamDelayDry]: "Dry",
+  [EParams.kParamDelayWet]: "Wet",
 
   [EParams.kNumParams]: "",
 };

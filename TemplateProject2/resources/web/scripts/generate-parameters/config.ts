@@ -17,6 +17,7 @@ export const CPP_PATHS = {
 export const TS_PATHS = {
   constants: path.resolve(PROJECT_ROOT, "src/config/constants.ts"),
   parameter: path.resolve(PROJECT_ROOT, "src/utils/parameter.ts"),
+  manifest: path.resolve(PROJECT_ROOT, "src/config/parameters.json"),
 };
 
 // Backup directory
