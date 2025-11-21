@@ -14,9 +14,6 @@ import { ParameterProvider } from './system/ParameterContext';
 import { WebControls } from './sections/WebControls';
 import { PluginHeader } from './sections/PluginHeader';
 import { OutputMeters } from './sections/OutputMeters';
-import { OscillatorSection } from './sections/OscillatorSection';
-import { EnvelopeSection } from './sections/EnvelopeSection';
-import { ReverbSection } from './sections/ReverbSection';
 import { MasterSection } from './sections/MasterSection';
 import { KeyboardSection } from './sections/KeyboardSection';
 
@@ -60,20 +57,7 @@ export function App() {
           <OutputMeters />
 
           {/* Main Controls Area */}
-          <div className="flex gap-6 mb-3">
-            {/* Left side - Oscillators, Envelope, and Reverb */}
-            <div className="flex-1">
-              {/* Oscillators */}
-              <OscillatorSection />
-
-              {/* Envelope and Reverb */}
-              <div className="flex gap-12 justify-center">
-                <EnvelopeSection />
-                <ReverbSection />
-              </div>
-            </div>
-
-            {/* Right side - Master gain */}
+          <div className="flex justify-center mb-6">
             <MasterSection />
           </div>
 

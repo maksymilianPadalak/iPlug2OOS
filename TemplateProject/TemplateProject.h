@@ -11,33 +11,6 @@ const int kNumPresets = 1;
 enum EParams
 {
   kParamGain = 0,
-  kParamAttack,
-  kParamDecay,
-  kParamSustain,
-  kParamRelease,
-  // Oscillators
-  kParamOsc1Mix,
-  kParamOsc2Mix,
-  kParamOsc3Mix,
-  kParamOsc4Mix,
-  kParamOsc1Detune,
-  kParamOsc2Detune,
-  kParamOsc3Detune,
-  kParamOsc4Detune,
-  kParamOsc1Octave,
-  kParamOsc2Octave,
-  kParamOsc3Octave,
-  kParamOsc4Octave,
-  kParamOsc1Wave,
-  kParamOsc2Wave,
-  kParamOsc3Wave,
-  kParamOsc4Wave,
-  // Reverb
-  kParamReverbRoomSize,
-  kParamReverbDamp,
-  kParamReverbWidth,
-  kParamReverbDry,
-  kParamReverbWet,
   kNumParams
 };
 

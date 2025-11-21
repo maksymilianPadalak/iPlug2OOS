@@ -23,54 +23,10 @@ function hexToRgba(hex: string, alpha = 1) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// Determine color palette based on oscillator param index
-function getColorsForParam(paramIdx: EParams) {
-  // Oscillator 1
-  const osc1 = new Set([
-    EParams.kParamOsc1Mix,
-    EParams.kParamOsc1Detune,
-    EParams.kParamOsc1Octave,
-    EParams.kParamOsc1Wave,
-  ]);
-
-  const osc2 = new Set([
-    EParams.kParamOsc2Mix,
-    EParams.kParamOsc2Detune,
-    EParams.kParamOsc2Octave,
-    EParams.kParamOsc2Wave,
-  ]);
-
-  const osc3 = new Set([
-    EParams.kParamOsc3Mix,
-    EParams.kParamOsc3Detune,
-    EParams.kParamOsc3Octave,
-    EParams.kParamOsc3Wave,
-  ]);
-
-  const osc4 = new Set([
-    EParams.kParamOsc4Mix,
-    EParams.kParamOsc4Detune,
-    EParams.kParamOsc4Octave,
-    EParams.kParamOsc4Wave,
-  ]);
-
-  // Default (master/envelope/reverb) - warm orange
+// Determine color palette for knobs (single palette for minimal synth)
+function getColorsForParam(_: EParams) {
   const defaultPrimary = '#fb923c';
   const defaultRings = ['#fb923c', '#f97316', '#ea580c', '#dc2626', '#b91c1c'];
-
-  if (osc1.has(paramIdx)) {
-    // Changed oscillator 1 color to cyan/teal to differentiate from orange and other oscillators
-    return { primary: '#06b6d4', rings: ['#06b6d4', '#0891b2', '#0e7490', '#155e75'] };
-  }
-  if (osc2.has(paramIdx)) {
-    return { primary: '#34d399', rings: ['#34d399', '#10b981', '#059669', '#047857'] };
-  }
-  if (osc3.has(paramIdx)) {
-    return { primary: '#a78bfa', rings: ['#a78bfa', '#8b5cf6', '#7c3aed', '#6d28d9'] };
-  }
-  if (osc4.has(paramIdx)) {
-    return { primary: '#f472b6', rings: ['#f472b6', '#f43f5e', '#ec4899', '#db2777'] };
-  }
 
   return { primary: defaultPrimary, rings: defaultRings };
 }
