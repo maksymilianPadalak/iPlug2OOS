@@ -21,11 +21,6 @@ enum EParams
 enum EControlTags
 {
   kCtrlTagMeter = 0,
-  kCtrlTagLFOVis,
-  kCtrlTagScope,
-  kCtrlTagRTText,
-  kCtrlTagKeyboard,
-  kCtrlTagBender,
   kNumCtrlTags
 };
 
@@ -50,8 +45,7 @@ public:
   bool OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData) override;
 
 private:
-  TemplateProjectDSP<sample> mDSP {16};
-  ISender<1> mLFOVisSender;
+  TemplateProjectDSP<sample> mDSP;
   IPeakAvgSender<2> mMeterSender;
 #endif
 };

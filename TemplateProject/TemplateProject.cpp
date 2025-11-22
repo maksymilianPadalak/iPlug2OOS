@@ -22,7 +22,7 @@ TemplateProject::TemplateProject(const InstanceInfo& info)
 #if IPLUG_DSP
 void TemplateProject::ProcessBlock(sample** inputs, sample** outputs, int nFrames)
 {
-  mDSP.ProcessBlock(nullptr, outputs, 2, nFrames, mTimeInfo.mPPQPos, mTimeInfo.mTransportIsRunning);
+  mDSP.ProcessBlock(nullptr, outputs, 2, nFrames);
   mMeterSender.ProcessBlock(outputs, nFrames, kCtrlTagMeter);
 }
 

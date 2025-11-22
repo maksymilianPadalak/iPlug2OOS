@@ -13,12 +13,7 @@ export enum EParams {
  */
 export enum EControlTags {
   kCtrlTagMeter = 0,
-  kCtrlTagLFOVis = 1,
-  kCtrlTagScope = 2,
-  kCtrlTagRTText = 3,
-  kCtrlTagKeyboard = 4,
-  kCtrlTagBender = 5,
-  kNumCtrlTags = 6
+  kNumCtrlTags = 1
 }
 
 /**

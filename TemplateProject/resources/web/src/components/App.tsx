@@ -44,25 +44,25 @@ export function App() {
 
   return (
     <ParameterProvider>
-      <div className="w-full bg-black">
-        {/* Web Controls - WAM-only MIDI and audio status */}
-        <WebControls audioStatus={audioStatus} />
+      <div className="min-h-screen w-full bg-neutral-950 py-8 px-4 text-orange-100">
+        <div className="max-w-5xl mx-auto space-y-4">
+          <WebControls audioStatus={audioStatus} />
+          <div className="flex justify-center">
+            <div
+              id="plugin-body"
+              className="w-[1100px] rounded-2xl border border-orange-900/40 bg-gradient-to-b from-stone-900 via-neutral-950 to-black shadow-[0_20px_60px_rgba(0,0,0,0.6)] p-8 space-y-8"
+            >
+              <PluginHeader />
 
-        {/* Plugin Content - Main Container */}
-        <div id="plugin-body" className="w-[1100px] mx-auto bg-gradient-to-br from-neutral-900 via-stone-900 to-neutral-950 border border-orange-800/30 rounded-lg shadow-2xl p-3">
-          {/* Plugin Title and Version */}
-          <PluginHeader />
-
-          {/* Output Level Meters */}
-          <OutputMeters />
-
-          {/* Main Controls Area */}
-          <div className="flex justify-center mb-6">
-            <MasterSection />
+              <div className="flex flex-col gap-8">
+                <OutputMeters />
+                <div className="flex justify-center">
+                  <MasterSection />
+                </div>
+                <KeyboardSection />
+              </div>
+            </div>
           </div>
-
-          {/* Keyboard Section */}
-          <KeyboardSection />
         </div>
       </div>
     </ParameterProvider>

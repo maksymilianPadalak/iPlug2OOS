@@ -3,7 +3,6 @@
 #include <cmath>
 #include <cstring>
 
-#include "MidiSynth.h"
 #include "Oscillator.h"
 
 using namespace iplug;
@@ -12,102 +11,68 @@ template<typename T>
 class TemplateProjectDSP
 {
 public:
-  class Voice : public SynthVoice
-  {
-  public:
-    Voice() = default;
+  TemplateProjectDSP() = default;
 
-    bool GetBusy() const override
-    {
-      return mActive;
-    }
-
-    void Trigger(double level, bool /*isRetrigger*/) override
-    {
-      mOSC.Reset();
-      mLevel = static_cast<T>(level);
-      mActive = true;
-    }
-
-    void Release() override
-    {
-      mActive = false;
-    }
-
-    void ProcessSamplesAccumulating(T** /*inputs*/, T** outputs, int /*nInputs*/, int nOutputs, int startIdx, int nFrames) override
-    {
-      if (!mActive)
-        return;
-
-      const double pitch = mInputs[kVoiceControlPitch].endValue;
-      const double pitchBend = mInputs[kVoiceControlPitchBend].endValue;
-      const double baseFreq = 440. * std::pow(2., pitch + pitchBend);
-
-      for (int i = startIdx; i < startIdx + nFrames; ++i)
-      {
-        const T sample = mOSC.Process(baseFreq) * mLevel;
-
-        for (int ch = 0; ch < nOutputs; ++ch)
-        {
-          outputs[ch][i] += sample;
-        }
-      }
-    }
-
-    void SetSampleRateAndBlockSize(double sampleRate, int /*blockSize*/) override
-    {
-      mOSC.SetSampleRate(sampleRate);
-    }
-
-    void SetProgramNumber(int) override {}
-    void SetControl(int, float) override {}
-
-  private:
-    FastSinOscillator<T> mOSC;
-    T mLevel = static_cast<T>(1.0);
-    bool mActive = false;
-  };
-
-public:
-  TemplateProjectDSP(int nVoices)
-  {
-    for (int i = 0; i < nVoices; ++i)
-    {
-      mSynth.AddVoice(new Voice(), 0);
-    }
-  }
-
-  void ProcessBlock(T** /*inputs*/, T** outputs, int nOutputs, int nFrames, double /*qnPos*/ = 0., bool /*transportIsRunning*/ = false, double /*tempo*/ = 120.)
+  void ProcessBlock(T** /*inputs*/, T** outputs, int nOutputs, int nFrames)
   {
     for (int i = 0; i < nOutputs; ++i)
     {
       std::memset(outputs[i], 0, nFrames * sizeof(T));
     }
 
-    mSynth.ProcessBlock(nullptr, outputs, 0, nOutputs, nFrames);
+    if (!mActive)
+      return;
 
+    const double frequency = mFrequency;
     const T gain = mGain;
+    const T level = mLevel;
 
     for (int s = 0; s < nFrames; ++s)
     {
+      const T sample = static_cast<T>(mOsc.Process(frequency)) * gain * level;
+
       for (int ch = 0; ch < nOutputs; ++ch)
       {
-        outputs[ch][s] *= gain;
+        outputs[ch][s] += sample;
       }
     }
   }
 
-  void Reset(double sampleRate, int blockSize)
+  void Reset(double sampleRate, int /*blockSize*/)
   {
-    mSynth.SetSampleRateAndBlockSize(sampleRate, blockSize);
-    mSynth.Reset();
+    mOsc.SetSampleRate(sampleRate);
+    mOsc.Reset();
 
     mGain = static_cast<T>(0.8);
+    mLevel = static_cast<T>(1.0);
+    mFrequency = 440.0;
+    mActive = false;
   }
 
   void ProcessMidiMsg(const IMidiMsg& msg)
   {
-    mSynth.AddMidiMsgToQueue(msg);
+    switch (msg.StatusMsg())
+    {
+      case IMidiMsg::kNoteOn:
+      {
+        const int note = msg.NoteNumber();
+        const int velocity = msg.Velocity();
+        if (velocity == 0)
+        {
+          mActive = false;
+          break;
+        }
+        mFrequency = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+        mLevel = static_cast<T>(velocity / 127.0);
+        mActive = true;
+        break;
+      }
+      case IMidiMsg::kNoteOff:
+        mActive = false;
+        break;
+      default:
+        break;
+    }
   }
 
   void SetParam(int paramIdx, double value)
@@ -123,6 +88,9 @@ public:
   }
 
 private:
-  MidiSynth mSynth { VoiceAllocator::kPolyModePoly, MidiSynth::kDefaultBlockSize };
+  FastSinOscillator<T> mOsc;
   T mGain = static_cast<T>(0.8);
+  T mLevel = static_cast<T>(1.0);
+  double mFrequency = 440.0;
+  bool mActive = false;
 };
