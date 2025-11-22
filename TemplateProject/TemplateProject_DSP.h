@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cmath>
 #include <cstring>
 
@@ -20,16 +21,24 @@ public:
       std::memset(outputs[i], 0, nFrames * sizeof(T));
     }
 
-    if (!mActive)
+    if (!HasActiveVoices())
       return;
 
-    const double frequency = mFrequency;
     const T gain = mGain;
-    const T level = mLevel;
 
     for (int s = 0; s < nFrames; ++s)
     {
-      const T sample = static_cast<T>(mOsc.Process(frequency)) * gain * level;
+      T sample = static_cast<T>(0.0);
+
+      for (auto& voice : mVoices)
+      {
+        if (!voice.active)
+          continue;
+
+        sample += static_cast<T>(voice.osc.Process(voice.frequency)) * voice.level;
+      }
+
+      sample *= gain;
 
       for (int ch = 0; ch < nOutputs; ++ch)
       {
@@ -40,13 +49,13 @@ public:
 
   void Reset(double sampleRate, int /*blockSize*/)
   {
-    mOsc.SetSampleRate(sampleRate);
-    mOsc.Reset();
+    for (auto& voice : mVoices)
+    {
+      voice.Reset(sampleRate);
+    }
 
     mGain = static_cast<T>(0.8);
-    mLevel = static_cast<T>(1.0);
-    mFrequency = 440.0;
-    mActive = false;
+    mNextVoice = 0;
   }
 
   void ProcessMidiMsg(const IMidiMsg& msg)
@@ -59,16 +68,17 @@ public:
         const int velocity = msg.Velocity();
         if (velocity == 0)
         {
-          mActive = false;
+          ReleaseVoice(note);
           break;
         }
-        mFrequency = 440.0 * std::pow(2.0, (note - 69) / 12.0);
-        mLevel = static_cast<T>(velocity / 127.0);
-        mActive = true;
+
+        const double frequency = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+        const T level = static_cast<T>(static_cast<double>(velocity) / 127.0);
+        ActivateVoice(note, frequency, level);
         break;
       }
       case IMidiMsg::kNoteOff:
-        mActive = false;
+        ReleaseVoice(msg.NoteNumber());
         break;
       default:
         break;
@@ -88,9 +98,93 @@ public:
   }
 
 private:
-  FastSinOscillator<T> mOsc;
+  static constexpr int kMaxVoices = 8;
+
+  struct Voice
+  {
+    FastSinOscillator<T> osc;
+    T level = static_cast<T>(0.0);
+    double frequency = 0.0;
+    bool active = false;
+    int noteNumber = -1;
+
+    void Reset(double sampleRate)
+    {
+      osc.SetSampleRate(sampleRate);
+      osc.Reset();
+      level = static_cast<T>(0.0);
+      frequency = 0.0;
+      active = false;
+      noteNumber = -1;
+    }
+  };
+
+  std::array<Voice, kMaxVoices> mVoices;
   T mGain = static_cast<T>(0.8);
-  T mLevel = static_cast<T>(1.0);
-  double mFrequency = 440.0;
-  bool mActive = false;
+  int mNextVoice = 0;
+
+  bool HasActiveVoices() const
+  {
+    for (const auto& voice : mVoices)
+    {
+      if (voice.active)
+        return true;
+    }
+
+    return false;
+  }
+
+  int FindVoiceByNote(int noteNumber) const
+  {
+    for (int i = 0; i < kMaxVoices; ++i)
+    {
+      if (mVoices[i].active && mVoices[i].noteNumber == noteNumber)
+        return i;
+    }
+
+    return -1;
+  }
+
+  int AllocateVoice()
+  {
+    for (int i = 0; i < kMaxVoices; ++i)
+    {
+      if (!mVoices[i].active)
+        return i;
+    }
+
+    const int stolenIndex = mNextVoice;
+    mNextVoice = (mNextVoice + 1) % kMaxVoices;
+    return stolenIndex;
+  }
+
+  void ActivateVoice(int noteNumber, double frequency, T level)
+  {
+    int voiceIndex = FindVoiceByNote(noteNumber);
+
+    if (voiceIndex < 0)
+    {
+      voiceIndex = AllocateVoice();
+    }
+
+    auto& voice = mVoices[voiceIndex];
+    voice.frequency = frequency;
+    voice.level = level;
+    voice.noteNumber = noteNumber;
+    voice.active = true;
+    voice.osc.Reset();
+  }
+
+  void ReleaseVoice(int noteNumber)
+  {
+    const int voiceIndex = FindVoiceByNote(noteNumber);
+
+    if (voiceIndex < 0)
+      return;
+
+    auto& voice = mVoices[voiceIndex];
+    voice.active = false;
+    voice.level = static_cast<T>(0.0);
+    voice.noteNumber = -1;
+  }
 };
