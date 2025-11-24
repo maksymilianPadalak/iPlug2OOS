@@ -2,8 +2,7 @@
  * MIDI keyboard handling
  */
 
-import { sendNoteOn, sendNoteOff } from '../communication/iplug-bridge';
-import { NoteNames, MidiStatus } from '../config/constants';
+import { sendNoteOff, sendNoteOn } from '../glue/iplugBridge/iplugBridge';
 
 /**
  * QWERTY to note mapping (C major scale starting from C)

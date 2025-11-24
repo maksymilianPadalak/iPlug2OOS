@@ -2,18 +2,17 @@
  * iPlug2 communication bridge
  */
 
-import { IPlugUIMessage } from '../types/iplug';
-import { MessageTypes } from '../config/constants';
-import { EParams } from '../config/constants';
+import { IPlugUIMessage } from "../../types/iplug";
+import { MessageTypes, EParams } from "../../config/constants";
 
 /**
  * Send a message to the iPlug2 processor
  */
 export function sendIPlugMessage(message: IPlugUIMessage): void {
-  if (typeof window.IPlugSendMsg === 'function') {
+  if (typeof window.IPlugSendMsg === "function") {
     window.IPlugSendMsg(message);
   } else {
-    console.warn('IPlugSendMsg not available');
+    console.warn("IPlugSendMsg not available");
   }
 }
 
@@ -24,7 +23,7 @@ export function sendParameterValue(paramIdx: EParams, normalizedValue: number): 
   sendIPlugMessage({
     msg: MessageTypes.SPVFUI,
     paramIdx,
-    value: normalizedValue
+    value: normalizedValue,
   });
 }
 
@@ -35,7 +34,7 @@ export function sendParameterEnum(paramIdx: EParams, enumValue: number): void {
   sendIPlugMessage({
     msg: MessageTypes.SPVFUI,
     paramIdx,
-    value: enumValue
+    value: enumValue,
   });
 }
 
@@ -47,7 +46,7 @@ export function sendMIDIMessage(statusByte: number, dataByte1: number, dataByte2
     msg: MessageTypes.SMMFUI,
     statusByte,
     dataByte1,
-    dataByte2
+    dataByte2,
   });
 }
 
@@ -69,5 +68,6 @@ export function sendNoteOff(noteNumber: number, velocity: number = 0): void {
  * Check if IPlugSendMsg is available
  */
 export function isIPlugAvailable(): boolean {
-  return typeof window.IPlugSendMsg === 'function';
+  return typeof window.IPlugSendMsg === "function";
 }
+

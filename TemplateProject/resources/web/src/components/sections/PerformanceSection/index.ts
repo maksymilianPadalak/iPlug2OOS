@@ -1,2 +1,0 @@
-export { PerformanceSection } from "./PerformanceSection";
-

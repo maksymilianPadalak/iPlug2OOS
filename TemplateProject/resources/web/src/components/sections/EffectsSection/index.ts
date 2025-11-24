@@ -1,2 +1,0 @@
-export { EffectsSection } from "./EffectsSection";
-

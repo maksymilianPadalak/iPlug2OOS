@@ -2,21 +2,20 @@
  * Callback handlers for processor-to-UI communication
  */
 
-import { IPlugCallbackMessage } from '../types/iplug';
-import { EParams, EControlTags } from '../config/constants';
-import { normalizedToDisplay, getParamInputId, getParamValueId } from '../utils/parameter';
+import { EParams, EControlTags } from "../../config/constants";
+import { normalizedToDisplay, getParamInputId, getParamValueId } from "../../utils/parameter";
 
-let _updatingFromProcessor = false;
+let updatingFromProcessor = false;
 
 function setUpdatingFromProcessor(value: boolean): void {
-  _updatingFromProcessor = value;
+  updatingFromProcessor = value;
 }
 
 /**
  * Check if we're updating from processor (to prevent feedback loops)
  */
 export function isUpdatingFromProcessor(): boolean {
-  return _updatingFromProcessor;
+  return updatingFromProcessor;
 }
 
 /**
@@ -40,14 +39,12 @@ export function setupCallbacks(): void {
 
   // SAMFD: Send Arbitrary Message From Delegate
   window.SAMFD = (msgTag: number, dataSize: number, base64Data: string) => {
-    // Handle arbitrary messages if needed
-    console.log('SAMFD received:', msgTag, dataSize, base64Data);
+    console.log("SAMFD received:", msgTag, dataSize, base64Data);
   };
 
   // SMMFD: Send MIDI Message From Delegate
   window.SMMFD = (statusByte: number, dataByte1: number, dataByte2: number) => {
-    // Handle MIDI messages from processor if needed
-    console.log('SMMFD received:', statusByte, dataByte1, dataByte2);
+    console.log("SMMFD received:", statusByte, dataByte1, dataByte2);
   };
 
   // StartIdleTimer: Start periodic updates
@@ -69,21 +66,20 @@ function updateParameterFromProcessor(paramIdx: number, normalizedValue: number)
     const valueEl = document.getElementById(valueId);
 
     if (inputEl) {
-      if (inputEl instanceof HTMLInputElement && inputEl.type === 'range') {
+      if (inputEl instanceof HTMLInputElement && inputEl.type === "range") {
         inputEl.value = normalizedValue.toString();
       } else if (inputEl instanceof HTMLSelectElement) {
         inputEl.selectedIndex = Math.round(normalizedValue);
-      } else if (inputEl instanceof HTMLInputElement && inputEl.type === 'checkbox') {
+      } else if (inputEl instanceof HTMLInputElement && inputEl.type === "checkbox") {
         inputEl.checked = normalizedValue > 0.5;
       }
 
-      // Update display value
       if (valueEl) {
         valueEl.textContent = normalizedToDisplay(paramIdx as EParams, normalizedValue);
       }
     }
-  } catch (e) {
-    console.error('Error updating parameter:', paramIdx, e);
+  } catch (error) {
+    console.error("Error updating parameter:", paramIdx, error);
   } finally {
     setUpdatingFromProcessor(false);
   }
@@ -95,19 +91,22 @@ function updateParameterFromProcessor(paramIdx: number, normalizedValue: number)
 function updateControlValue(ctrlTag: number, normalizedValue: number): void {
   switch (ctrlTag) {
     case EControlTags.kCtrlTagMeter:
-      // Meter updates are handled by SCMFD
       break;
     default:
-      console.log('Unknown control tag:', ctrlTag);
+      console.log("Unknown control tag:", ctrlTag);
   }
 }
 
 /**
  * Handle control message from processor (SCMFD)
  */
-function handleControlMessage(ctrlTag: number, msgTag: number, dataSize: number, base64Data: string): void {
+function handleControlMessage(
+  ctrlTag: number,
+  msgTag: number,
+  dataSize: number,
+  base64Data: string,
+): void {
   if (ctrlTag === EControlTags.kCtrlTagMeter) {
-    // Decode meter data (peak/rms values)
     try {
       const binaryString = atob(base64Data);
       const buffer = new ArrayBuffer(binaryString.length);
@@ -121,13 +120,12 @@ function handleControlMessage(ctrlTag: number, msgTag: number, dataSize: number,
       const rightPeak = dataView.getFloat32(20, true);
       const rightRMS = dataView.getFloat32(24, true);
 
-      // Update meters - this will be handled by the meters module
       if (window.updateMeter) {
         window.updateMeter(0, leftPeak, leftRMS);
         window.updateMeter(1, rightPeak, rightRMS);
       }
-    } catch (e) {
-      console.error('Error decoding meter data:', e);
+    } catch (error) {
+      console.error("Error decoding meter data:", error);
     }
   }
 }
@@ -138,16 +136,16 @@ let idleTimerInterval: number | null = null;
  * Start idle timer for periodic updates
  */
 function startIdleTimer(): void {
-  console.log('StartIdleTimer called - setting up periodic TICK messages');
+  console.log("StartIdleTimer called - setting up periodic TICK messages");
 
   if (idleTimerInterval) {
     clearInterval(idleTimerInterval);
   }
 
-  // Send TICK messages periodically to trigger OnIdle() in processor
   idleTimerInterval = window.setInterval(() => {
-    if (window.TemplateProject_WAM && typeof window.TemplateProject_WAM.sendMessage === 'function') {
-      window.TemplateProject_WAM.sendMessage('TICK', '', 0);
+    if (window.TemplateProject_WAM && typeof window.TemplateProject_WAM.sendMessage === "function") {
+      window.TemplateProject_WAM.sendMessage("TICK", "", 0);
     }
-  }, 16); // ~60fps
+  }, 16);
 }
+

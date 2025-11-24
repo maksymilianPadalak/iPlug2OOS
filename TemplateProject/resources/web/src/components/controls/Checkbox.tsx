@@ -1,6 +1,6 @@
 import React from 'react';
 import { EParams } from '../../config/constants';
-import { sendParameterValue } from '../../communication/iplug-bridge';
+import { sendParameterValue } from '../../glue/iplugBridge/iplugBridge';
 import { useParameters } from '../system/ParameterContext';
 import { isUpdatingFromProcessor } from '../system/ParameterContext';
 

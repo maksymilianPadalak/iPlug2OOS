@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 
 import { EParams } from "../../../config/constants";
-import { useParameterValue } from "../../../hooks/useParameterValue/useParameterValue";
+import { useParameterValue } from "../../../hooks/useParameterValue";
 import { MasterSection } from "../MasterSection";
 
 function formatActualValue(

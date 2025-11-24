@@ -3,8 +3,8 @@
  */
 
 import { EParams } from '../config/constants';
-import { sendParameterValue, sendParameterEnum } from '../communication/iplug-bridge';
-import { isUpdatingFromProcessor } from '../communication/callbacks';
+import { sendParameterEnum, sendParameterValue } from '../glue/iplugBridge/iplugBridge';
+import { isUpdatingFromProcessor } from '../glue/processorCallbacks/processorCallbacks';
 import { normalizedToDisplay, getParamValueId } from '../utils/parameter';
 
 /**

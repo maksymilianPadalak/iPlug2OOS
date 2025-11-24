@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { EParams } from '../../config/constants';
 import { normalizedToDisplay } from '../../utils/parameter';
-import { sendParameterValue } from '../../communication/iplug-bridge';
+import { sendParameterValue } from '../../glue/iplugBridge/iplugBridge';
 import { useParameters } from '../system/ParameterContext';
 import { isUpdatingFromProcessor } from '../system/ParameterContext';
 

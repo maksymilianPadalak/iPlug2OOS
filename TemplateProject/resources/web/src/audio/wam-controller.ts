@@ -3,9 +3,6 @@
  */
 
 import { WAMController } from '../types/wam';
-import { detectEnvironment } from '../utils/environment';
-import { sendParameterValue, sendParameterEnum } from '../communication/iplug-bridge';
-import { EParams } from '../config/constants';
 
 /**
  * Initialize WAM controller

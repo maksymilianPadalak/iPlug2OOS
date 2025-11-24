@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { sendNoteOn, sendNoteOff } from '../../communication/iplug-bridge';
+import { useState, useCallback, useEffect } from 'react';
+import { sendNoteOff, sendNoteOn } from '../../glue/iplugBridge/iplugBridge';
 
 const QWERTY_TO_NOTE: Record<string, number> = {
   'KeyA': 0,   // C

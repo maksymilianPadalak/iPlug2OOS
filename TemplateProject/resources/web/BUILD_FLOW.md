@@ -19,9 +19,8 @@ resources/web/
 │   ├── utils/
 │   │   ├── environment.ts       # WebView vs WAM detection
 │   │   └── parameter.ts         # Parameter conversion utilities
-│   ├── communication/
-│   │   ├── iplug-bridge.ts      # UI → Processor messages
-│   │   └── callbacks.ts         # Processor → UI callbacks
+│   ├── iplugBridge.ts          # UI → Processor bridge (do not auto-edit)
+│   ├── processorCallbacks.ts   # Processor → UI callbacks
 │   ├── audio/
 │   │   ├── wam-controller.ts    # WAM initialization
 │   │   └── midi.ts              # MIDI keyboard handling
@@ -66,7 +65,7 @@ tsc && esbuild scripts/index.js --bundle --format=iife --global-name=TemplatePro
    - Outputs:
      - `scripts/index.js` (with ES6 imports)
      - `scripts/audio/midi.js`
-     - `scripts/communication/callbacks.js`
+     - `scripts/processorCallbacks.js`
      - etc. (one JS file per TS file)
    - Generates `.js.map` files for debugging
 
