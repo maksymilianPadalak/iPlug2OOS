@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { OutputMeters } from '../OutputMeters';
+import { OutputMeters } from './OutputMeters';
 
 export function RoutingSection() {
   return (

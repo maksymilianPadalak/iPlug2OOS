@@ -1,8 +1,8 @@
 import { useCallback, useMemo } from "react";
 
-import { EParams, ParamNames } from "../../config/constants";
-import parametersJson from "../../config/parameters.json";
-import { useParameters } from "../../components/system/ParameterContext";
+import { EParams, ParamNames } from "../config/constants";
+import parametersJson from "../config/parameters.json";
+import { useParameters } from "../components/system/ParameterContext";
 
 type ParameterManifestEntry = {
   paramIdx: string;

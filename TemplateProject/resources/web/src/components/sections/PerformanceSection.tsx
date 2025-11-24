@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { KeyboardSection } from '../KeyboardSection';
+import { KeyboardSection } from './KeyboardSection';
 
 export function PerformanceSection() {
   return (
