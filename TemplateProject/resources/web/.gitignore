@@ -31,3 +31,6 @@ Thumbs.db
 # Build distribution folder (runtime files only, generated during build)
 dist/
 
+
+*storybook.log
+storybook-static
