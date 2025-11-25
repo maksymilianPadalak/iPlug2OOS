@@ -24,3 +24,4 @@ Each section lives in `sections/<SectionName>/` with a single export. Avoid nest
 
 Future enhancements (shadcn components, richer manifests) can build on this structure without rewriting the core layout.*** End Patch
 
+

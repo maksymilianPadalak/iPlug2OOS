@@ -71,3 +71,4 @@ export function isIPlugAvailable(): boolean {
   return typeof window.IPlugSendMsg === "function";
 }
 
+

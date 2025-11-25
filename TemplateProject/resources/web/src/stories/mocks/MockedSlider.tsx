@@ -68,3 +68,4 @@ export function MockedSlider({ paramId, label, orientation = 'horizontal', initi
   );
 }
 
+
