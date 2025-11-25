@@ -17,6 +17,49 @@ export type RuntimeParameter = {
   shapeParameter: number;
   enumValues: string[] | null;
   automatable: boolean;
+  key: string;
 };
 
-export const runtimeParameters: RuntimeParameter[] = [];
+export type ControlTag = {
+  id: number;
+  key: string;
+};
+
+export const runtimeParameters: RuntimeParameter[] = [
+  {
+    "id": 0,
+    "name": "Gain",
+    "type": "float",
+    "min": 0,
+    "max": 100,
+    "default": 80,
+    "step": 0.01,
+    "unit": "%",
+    "group": "",
+    "shape": "ShapeLinear",
+    "shapeParameter": 0,
+    "enumValues": null,
+    "automatable": true,
+    "key": "kParamGain"
+  }
+];
+
+export const controlTags: ControlTag[] = [
+  {
+    "id": 0,
+    "key": "kCtrlTagMeter"
+  }
+];
+
+// Convenience lookups (type-safe)
+export const EParams = {
+  kParamGain: 0,
+} as const;
+
+export const EControlTags = {
+  kCtrlTagMeter: 0,
+} as const;
+
+// Type helpers
+export type EParamsKey = keyof typeof EParams;
+export type EControlTagsKey = keyof typeof EControlTags;
