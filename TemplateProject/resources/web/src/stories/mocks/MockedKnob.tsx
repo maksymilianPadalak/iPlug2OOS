@@ -4,12 +4,11 @@
  */
 
 import React, { useState } from 'react';
-import { EParams } from '../../config/constants';
 
 type KnobSize = 'sm' | 'md' | 'lg';
 
 type MockedKnobProps = {
-  paramId: EParams;
+  paramId: number;
   label?: string;
   size?: KnobSize;
   initialValue?: number;

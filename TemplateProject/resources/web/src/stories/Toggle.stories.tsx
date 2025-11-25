@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { MockedToggle } from './mocks/MockedToggle';
-import { EParams } from '../config/constants';
+import { EParams } from '../config/runtimeParameters';
 
 const meta = {
   title: 'Controls/Toggle',
@@ -57,6 +57,7 @@ export const NoLabel: Story = {
 
 // Common use cases
 export const EffectToggles: Story = {
+  args: { paramId: 0 },
   render: () => (
     <div className="flex flex-col gap-4 p-4 bg-black/40 rounded-xl border border-orange-900/40">
       <MockedToggle paramId={EParams.kParamGain} label="Reverb" initialValue={true} />
@@ -69,6 +70,7 @@ export const EffectToggles: Story = {
 
 // Inline toggles
 export const InlineToggles: Story = {
+  args: { paramId: 0 },
   render: () => (
     <div className="flex gap-6 p-4 bg-black/40 rounded-xl border border-orange-900/40">
       <MockedToggle paramId={EParams.kParamGain} label="Mono" initialValue={false} />

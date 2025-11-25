@@ -3,10 +3,8 @@
  * Provides no-op implementations of bridge functions
  */
 
-import { EParams } from '../../config/constants';
-
 // No-op: In Storybook we don't send to a real plugin
-export function sendParameterValue(_paramIdx: EParams, _value: number): void {
+export function sendParameterValue(_paramIdx: number, _value: number): void {
   // Log for debugging in Storybook
   console.log(`[Storybook Mock] sendParameterValue(${_paramIdx}, ${_value})`);
 }

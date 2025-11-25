@@ -3,7 +3,7 @@
  */
 
 import { IPlugUIMessage } from "../../types/iplug";
-import { MessageTypes, EParams } from "../../config/constants";
+import { MessageTypes } from "../../config/protocol";
 
 /**
  * Send a message to the iPlug2 processor
@@ -19,7 +19,7 @@ export function sendIPlugMessage(message: IPlugUIMessage): void {
 /**
  * Send parameter value update
  */
-export function sendParameterValue(paramIdx: EParams, normalizedValue: number): void {
+export function sendParameterValue(paramIdx: number, normalizedValue: number): void {
   sendIPlugMessage({
     msg: MessageTypes.SPVFUI,
     paramIdx,
@@ -30,7 +30,7 @@ export function sendParameterValue(paramIdx: EParams, normalizedValue: number): 
 /**
  * Send parameter enum value update
  */
-export function sendParameterEnum(paramIdx: EParams, enumValue: number): void {
+export function sendParameterEnum(paramIdx: number, enumValue: number): void {
   sendIPlugMessage({
     msg: MessageTypes.SPVFUI,
     paramIdx,

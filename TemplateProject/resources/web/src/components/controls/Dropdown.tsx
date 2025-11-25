@@ -5,12 +5,11 @@
  */
 
 import React from 'react';
-import { EParams } from '../../config/constants';
 import { sendParameterValue } from '../../glue/iplugBridge/iplugBridge';
 import { useParameters, isUpdatingFromProcessor } from '../system/ParameterContext';
 
 type DropdownProps = {
-  paramId: EParams;
+  paramId: number;
   label?: string;
   options: string[];
 };

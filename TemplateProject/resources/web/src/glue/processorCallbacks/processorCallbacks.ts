@@ -2,7 +2,7 @@
  * Callback handlers for processor-to-UI communication
  */
 
-import { EControlTags } from "../../config/constants";
+import { EControlTags } from "../../config/runtimeParameters";
 import type { ProcessorEventHandlers } from "./types";
 
 let updatingFromProcessor = false;
@@ -28,11 +28,11 @@ export function registerProcessorCallbacks(newHandlers: ProcessorEventHandlers):
   };
 
   window.SAMFD = (msgTag: number, dataSize: number, base64Data: string) => {
-    console.log("SAMFD received:", msgTag, dataSize, base64Data);
+    handleArbitraryMessage(msgTag, dataSize, base64Data);
   };
 
   window.SMMFD = (statusByte: number, dataByte1: number, dataByte2: number) => {
-    console.log("SMMFD received:", statusByte, dataByte1, dataByte2);
+    handleMidiMessage(statusByte, dataByte1, dataByte2);
   };
 
   window.StartIdleTimer = () => {
@@ -93,6 +93,44 @@ function handleControlMessage(
   } catch (error) {
     console.error("Error decoding meter data:", error);
   }
+}
+
+/**
+ * Handle arbitrary message from processor (SAMFD)
+ * Used for custom data: FFT, waveforms, status messages, etc.
+ */
+function handleArbitraryMessage(
+  msgTag: number,
+  dataSize: number,
+  base64Data: string,
+): void {
+  if (!handlers?.onArbitraryMessage) {
+    return;
+  }
+
+  try {
+    const binaryString = atob(base64Data);
+    const buffer = new ArrayBuffer(binaryString.length);
+    const view = new Uint8Array(buffer);
+    for (let i = 0; i < binaryString.length; i++) {
+      view[i] = binaryString.charCodeAt(i);
+    }
+    handlers.onArbitraryMessage(msgTag, dataSize, buffer);
+  } catch (error) {
+    console.error("Error decoding arbitrary message:", error);
+  }
+}
+
+/**
+ * Handle MIDI message from processor (SMMFD)
+ * Used for MIDI monitoring, keyboard visualization, MIDI learn feedback
+ */
+function handleMidiMessage(
+  statusByte: number,
+  dataByte1: number,
+  dataByte2: number,
+): void {
+  handlers?.onMidiMessage?.(statusByte, dataByte1, dataByte2);
 }
 
 let idleTimerInterval: number | null = null;

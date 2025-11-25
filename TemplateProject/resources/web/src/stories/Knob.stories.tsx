@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { MockedKnob } from './mocks/MockedKnob';
-import { EParams } from '../config/constants';
+import { EParams } from '../config/runtimeParameters';
 
 const meta = {
   title: 'Controls/Knob',
@@ -73,6 +73,7 @@ export const NoLabel: Story = {
 
 // All sizes side by side
 export const AllSizes: Story = {
+  args: { paramId: 0 },
   render: () => (
     <div className="flex items-end gap-8">
       <MockedKnob paramId={EParams.kParamGain} label="Small" size="sm" initialValue={0.3} />
@@ -84,6 +85,7 @@ export const AllSizes: Story = {
 
 // Example use cases
 export const MasterSection: Story = {
+  args: { paramId: 0 },
   render: () => (
     <div className="flex items-end gap-6 p-4 bg-black/40 rounded-xl border border-orange-900/40">
       <MockedKnob paramId={EParams.kParamGain} label="Volume" size="lg" initialValue={0.8} />

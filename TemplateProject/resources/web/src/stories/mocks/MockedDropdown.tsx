@@ -3,10 +3,9 @@
  */
 
 import React, { useState } from 'react';
-import { EParams } from '../../config/constants';
 
 type MockedDropdownProps = {
-  paramId: EParams;
+  paramId: number;
   label?: string;
   options: string[];
   initialIndex?: number;

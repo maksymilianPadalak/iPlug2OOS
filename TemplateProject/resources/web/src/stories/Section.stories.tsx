@@ -4,7 +4,7 @@ import { MockedKnob } from './mocks/MockedKnob';
 import { MockedSlider } from './mocks/MockedSlider';
 import { MockedToggle } from './mocks/MockedToggle';
 import { MockedDropdown } from './mocks/MockedDropdown';
-import { EParams } from '../config/constants';
+import { EParams } from '../config/runtimeParameters';
 
 const meta = {
   title: 'Layout/Section',
@@ -54,6 +54,7 @@ export const WithoutDescription: Story = {
 
 // Filter section example
 export const FilterSection: Story = {
+  args: { title: 'Filter', children: null },
   render: () => (
     <MockedSection title="Filter" description="Low pass filter">
       <MockedDropdown paramId={EParams.kParamGain} label="Type" options={['LP', 'HP', 'BP', 'Notch']} initialIndex={0} />
@@ -66,6 +67,7 @@ export const FilterSection: Story = {
 
 // Envelope section
 export const EnvelopeSection: Story = {
+  args: { title: 'Envelope', children: null },
   render: () => (
     <MockedSection title="Amp Envelope" description="ADSR">
       <MockedKnob paramId={EParams.kParamGain} label="Attack" size="sm" initialValue={0.1} />
@@ -78,6 +80,7 @@ export const EnvelopeSection: Story = {
 
 // Effects section with toggles
 export const EffectsSection: Story = {
+  args: { title: 'Effects', children: null },
   render: () => (
     <MockedSection title="Effects">
       <div className="flex flex-col gap-4">
@@ -98,6 +101,7 @@ export const EffectsSection: Story = {
 
 // Complete synth layout
 export const CompleteSynthLayout: Story = {
+  args: { title: 'Synth', children: null },
   render: () => (
     <div className="flex flex-col gap-4 max-w-4xl">
       <MockedSection title="Oscillators" description="Sound sources">

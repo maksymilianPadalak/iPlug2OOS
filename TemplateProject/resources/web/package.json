@@ -3,10 +3,8 @@
   "version": "1.0.0",
   "description": "TemplateProject Web UI",
   "scripts": {
-    "build": "npm run generate-parameters; tsc && postcss styles/style.source.css -o styles/style.processed.css && NODE_ENV=production esbuild scripts/index.js --bundle --format=iife --global-name=TemplateProjectUI --outfile=scripts/index.bundle.js --jsx=automatic --minify --define:process.env.NODE_ENV=\\\"production\\\"",
+    "build": "tsc && postcss styles/style.source.css -o styles/style.processed.css && NODE_ENV=production esbuild scripts/index.js --bundle --format=iife --global-name=TemplateProjectUI --outfile=scripts/index.bundle.js --jsx=automatic --minify --define:process.env.NODE_ENV=\\\"production\\\"",
     "watch": "tsc --watch",
-    "generate-parameters": "tsx scripts/generate-parameters.ts",
-    "init-vector-store": "tsx scripts/init-vector-store.ts",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },

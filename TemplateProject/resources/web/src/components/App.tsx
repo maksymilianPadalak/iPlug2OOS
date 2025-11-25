@@ -20,7 +20,7 @@ import { KeyboardSection } from './sections/KeyboardSection';
 
 // Controls
 import { Knob } from './controls/Knob';
-import { EParams } from '../config/constants';
+import { EParams } from '../config/runtimeParameters';
 
 // AI_IMPORT_MARKER
 

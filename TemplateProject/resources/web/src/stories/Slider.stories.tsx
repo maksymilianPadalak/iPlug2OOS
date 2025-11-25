@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { MockedSlider } from './mocks/MockedSlider';
-import { EParams } from '../config/constants';
+import { EParams } from '../config/runtimeParameters';
 
 const meta = {
   title: 'Controls/Slider',
@@ -64,6 +64,7 @@ export const NoLabel: Story = {
 
 // Both orientations
 export const BothOrientations: Story = {
+  args: { paramId: 0 },
   render: () => (
     <div className="flex items-start gap-8">
       <div className="w-48">
@@ -76,6 +77,7 @@ export const BothOrientations: Story = {
 
 // Mixer-style faders
 export const MixerFaders: Story = {
+  args: { paramId: 0 },
   render: () => (
     <div className="flex gap-4 p-4 bg-black/40 rounded-xl border border-orange-900/40">
       <MockedSlider paramId={EParams.kParamGain} label="Ch 1" orientation="vertical" initialValue={0.6} />

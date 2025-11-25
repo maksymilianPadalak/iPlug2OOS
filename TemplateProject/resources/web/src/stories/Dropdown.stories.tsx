@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { MockedDropdown } from './mocks/MockedDropdown';
-import { EParams } from '../config/constants';
+import { EParams } from '../config/runtimeParameters';
 
 const meta = {
   title: 'Controls/Dropdown',
@@ -74,6 +74,7 @@ export const NoLabel: Story = {
 
 // Multiple dropdowns
 export const OscillatorSection: Story = {
+  args: { paramId: 0, options: [] },
   render: () => (
     <div className="flex gap-4 p-4 bg-black/40 rounded-xl border border-orange-900/40">
       <MockedDropdown 

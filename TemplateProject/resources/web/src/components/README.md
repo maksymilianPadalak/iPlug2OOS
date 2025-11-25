@@ -14,7 +14,7 @@ Each section lives in `sections/<SectionName>/` with a single export. Avoid nest
 
 ## Hooks
 
-- `useParameterValue` exposes `{ value, setValue, metadata }` for any `EParams` entry, pulling metadata from `config/parameters.json`. Macro sections should prefer this over reading context maps directly.
+- `useParameterValue` exposes `{ value, setValue, metadata }` for any `EParams` entry, pulling metadata from `config/runtimeParameters.ts`. Macro sections should prefer this over reading context maps directly.
 
 ## Authoring Guidance
 
@@ -23,5 +23,7 @@ Each section lives in `sections/<SectionName>/` with a single export. Avoid nest
 - **Keep layout flat:** `App.tsx` should import sections directly (one layer of composition) to remain easy to parse.
 
 Future enhancements (shadcn components, richer manifests) can build on this structure without rewriting the core layout.*** End Patch
+
+
 
 

@@ -2,7 +2,6 @@
  * Parameter UI management
  */
 
-import { EParams } from '../config/constants';
 import { sendParameterEnum, sendParameterValue } from '../glue/iplugBridge/iplugBridge';
 import { isUpdatingFromProcessor } from '../glue/processorCallbacks/processorCallbacks';
 import { normalizedToDisplay, getParamValueId } from '../utils/parameter';
@@ -10,7 +9,7 @@ import { normalizedToDisplay, getParamValueId } from '../utils/parameter';
 /**
  * Update parameter value from UI interaction
  */
-export function updateParam(paramIdx: EParams, normalizedValue: number): void {
+export function updateParam(paramIdx: number, normalizedValue: number): void {
   if (!isUpdatingFromProcessor()) {
     sendParameterValue(paramIdx, normalizedValue);
   }
@@ -20,7 +19,7 @@ export function updateParam(paramIdx: EParams, normalizedValue: number): void {
 /**
  * Update parameter enum value from UI interaction
  */
-export function updateParamEnum(paramIdx: EParams, enumValue: number): void {
+export function updateParamEnum(paramIdx: number, enumValue: number): void {
   if (!isUpdatingFromProcessor()) {
     sendParameterEnum(paramIdx, enumValue);
   }
@@ -29,7 +28,7 @@ export function updateParamEnum(paramIdx: EParams, enumValue: number): void {
 /**
  * Update parameter display value
  */
-export function updateParamDisplay(paramIdx: EParams, normalizedValue: number): void {
+export function updateParamDisplay(paramIdx: number, normalizedValue: number): void {
   const valueId = getParamValueId(paramIdx);
   const valueEl = document.getElementById(valueId);
   if (valueEl) {

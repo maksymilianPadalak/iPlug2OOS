@@ -3,10 +3,9 @@
  */
 
 import React, { useState } from 'react';
-import { EParams } from '../../config/constants';
 
 type MockedSliderProps = {
-  paramId: EParams;
+  paramId: number;
   label?: string;
   orientation?: 'horizontal' | 'vertical';
   initialValue?: number;

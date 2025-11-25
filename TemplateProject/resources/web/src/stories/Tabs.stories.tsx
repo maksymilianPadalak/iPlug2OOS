@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { MockedTabContainer, MockedTab } from './mocks/MockedTabs';
 import { MockedKnob } from './mocks/MockedKnob';
 import { MockedSlider } from './mocks/MockedSlider';
-import { EParams } from '../config/constants';
+import { EParams } from '../config/runtimeParameters';
 
 const meta = {
   title: 'Layout/Tabs',
@@ -37,6 +37,7 @@ export const Basic: Story = {
 
 // Oscillator tabs
 export const OscillatorTabs: Story = {
+  args: { tabs: ['OSC 1', 'OSC 2', 'SUB'] },
   render: () => (
     <MockedTabContainer tabs={['OSC 1', 'OSC 2', 'SUB']}>
       {(activeTab) => (
@@ -52,6 +53,7 @@ export const OscillatorTabs: Story = {
 
 // Effect tabs
 export const EffectTabs: Story = {
+  args: { tabs: ['REVERB', 'DELAY', 'CHORUS'] },
   render: () => (
     <MockedTabContainer tabs={['REVERB', 'DELAY', 'CHORUS']} initialTab={1}>
       {(activeTab) => (
@@ -108,6 +110,7 @@ export const ManyTabs: Story = {
 
 // Individual Tab component
 export const IndividualTab: Story = {
+  args: { tabs: ['Tab'] },
   render: () => (
     <div className="flex gap-2">
       <MockedTab label="Active" active={true} onClick={() => {}} />

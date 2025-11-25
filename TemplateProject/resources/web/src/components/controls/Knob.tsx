@@ -6,7 +6,6 @@
  */
 
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { EParams } from '../../config/constants';
 import { normalizedToDisplay } from '../../utils/parameter';
 import { sendParameterValue } from '../../glue/iplugBridge/iplugBridge';
 import { useParameters, isUpdatingFromProcessor } from '../system/ParameterContext';
@@ -14,7 +13,7 @@ import { useParameters, isUpdatingFromProcessor } from '../system/ParameterConte
 type KnobSize = 'sm' | 'md' | 'lg';
 
 type KnobProps = {
-  paramId: EParams;
+  paramId: number;
   label?: string;
   size?: KnobSize;
 };

@@ -3,10 +3,9 @@
  */
 
 import React, { useState } from 'react';
-import { EParams } from '../../config/constants';
 
 type MockedToggleProps = {
-  paramId: EParams;
+  paramId: number;
   label?: string;
   initialValue?: boolean;
 };
