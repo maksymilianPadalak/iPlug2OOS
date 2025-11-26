@@ -1,14 +1,13 @@
 /**
  * Slider Control Component
- * 
+ *
  * Linear control for panning, faders, and continuous parameters.
  * Supports horizontal/vertical orientation.
  */
 
 import React from 'react';
 import { normalizedToDisplay } from '../../utils/parameter';
-import { sendParameterValue } from '../../glue/iplugBridge/iplugBridge';
-import { useParameters, isUpdatingFromProcessor } from '../system/ParameterContext';
+import { useParameter } from '../../glue/hooks/useParameter';
 
 type SliderProps = {
   paramId: number;
@@ -17,16 +16,19 @@ type SliderProps = {
 };
 
 export function Slider({ paramId, label, orientation = 'horizontal' }: SliderProps) {
-  const { paramValues, setParamValue } = useParameters();
-  const value = paramValues.get(paramId) ?? 0;
+  const { value, setValue, beginChange, endChange } = useParameter(paramId);
+
+  const handlePointerDown = () => {
+    beginChange(); // Signal start of parameter change for automation
+  };
+
+  const handlePointerUp = () => {
+    endChange(); // Signal end of parameter change for automation
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = Number(e.target.value);
-    setParamValue(paramId, newValue);
-
-    if (!isUpdatingFromProcessor()) {
-      sendParameterValue(paramId, newValue);
-    }
+    setValue(newValue);
   };
 
   const isVertical = orientation === 'vertical';
@@ -46,6 +48,8 @@ export function Slider({ paramId, label, orientation = 'horizontal' }: SliderPro
         step={0.001}
         value={value}
         onChange={handleChange}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
         className={`
           ${isVertical ? 'h-24 w-2' : 'w-full h-2'}
           appearance-none cursor-pointer rounded-full

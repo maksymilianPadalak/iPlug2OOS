@@ -230,3 +230,25 @@ void IPlugWAM::SendArbitraryMsgFromDelegate(int msgTag, int dataSize, const void
   postMessage("SAMFD", propStr.Get(), pData, (uint32_t) dataSize);
 }
 
+void IPlugWAM::SendSysexMsgFromDelegate(const ISysEx& msg)
+{
+  WDL_String dataStr;
+  // Convert SysEx bytes to hex string
+  for(int i = 0; i < msg.mSize; i++)
+  {
+    dataStr.AppendFormatted(8, "%02x", msg.mData[i]);
+  }
+  
+  // TODO: in the future this will be done via shared array buffer
+  postMessage("SSMFD", dataStr.Get(), "");
+}
+
+void IPlugWAM::SendMidiMsgFromDelegate(const IMidiMsg& msg)
+{
+  WDL_String dataStr;
+  dataStr.SetFormatted(16, "%i:%i:%i", msg.mStatus, msg.mData1, msg.mData2);
+  
+  // TODO: in the future this will be done via shared array buffer
+  postMessage("SMMFD", dataStr.Get(), "");
+}
+

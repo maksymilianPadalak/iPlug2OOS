@@ -1,65 +1,60 @@
 /**
  * Integration Patterns - How to connect UI to the audio engine
- * 
+ *
  * These patterns ARE REQUIRED for audio functionality to work.
  * Everything else (styling, layout, components) is up to you.
  */
 
 /**
  * How to read/write parameters
- * 
+ *
  * Parameters are the bridge between UI and DSP.
- * Use these patterns to create interactive controls.
+ * Use the useParameter hook for all parameter interactions.
  */
 export const parameterPatterns = {
   /**
-   * Reading a parameter value
+   * Using the useParameter hook (recommended)
    */
-  readParameter: `
-import { useParameters } from './system/ParameterContext';
-import { EParams } from '../config/runtimeParameters';
-
-function MyComponent() {
-  const { paramValues } = useParameters();
-  const value = paramValues.get(EParams.kParamGain) ?? 0; // 0-1 normalized
-  return <div>{value}</div>;
-}`,
-
-  /**
-   * Writing a parameter value (updating from UI)
-   */
-  writeParameter: `
-import { useParameters, isUpdatingFromProcessor } from './system/ParameterContext';
-import { sendParameterValue } from '../glue/iplugBridge/iplugBridge';
-import { EParams } from '../config/runtimeParameters';
-
-function MyControl() {
-  const { paramValues, setParamValue } = useParameters();
-  const value = paramValues.get(EParams.kParamGain) ?? 0;
-
-  const handleChange = (newValue: number) => {
-    setParamValue(EParams.kParamGain, newValue);
-    
-    // Send to audio processor (skip if value came from processor)
-    if (!isUpdatingFromProcessor()) {
-      sendParameterValue(EParams.kParamGain, newValue);
-    }
-  };
-
-  return <input type="range" value={value} onChange={e => handleChange(Number(e.target.value))} />;
-}`,
-
-  /**
-   * Using the useParameterValue hook (simpler API)
-   */
-  useParameterValueHook: `
-import { useParameterValue } from '../hooks/useParameterValue';
+  useParameterHook: `
+import { useParameter } from '../glue/hooks/useParameter';
 import { EParams } from '../config/runtimeParameters';
 
 function MyKnob() {
-  const { value, setValue } = useParameterValue(EParams.kParamGain);
-  // value is 0-1 normalized, setValue handles the bridge communication
-  return <MyKnobUI value={value} onChange={setValue} />;
+  const { value, setValue, beginChange, endChange } = useParameter(EParams.kParamGain);
+
+  // For continuous controls (knob, slider):
+  // - Call beginChange() on drag start
+  // - Call setValue() during drag
+  // - Call endChange() on drag end
+
+  return (
+    <MyKnobUI
+      value={value}
+      onDragStart={beginChange}
+      onDrag={setValue}
+      onDragEnd={endChange}
+    />
+  );
+}`,
+
+  /**
+   * For instant controls (toggle, dropdown)
+   */
+  instantControl: `
+import { useParameter } from '../glue/hooks/useParameter';
+import { EParams } from '../config/runtimeParameters';
+
+function MyToggle() {
+  const { value, setValue, beginChange, endChange } = useParameter(EParams.kParamBypass);
+  const isOn = value > 0.5;
+
+  const handleToggle = () => {
+    beginChange();
+    setValue(isOn ? 0 : 1);
+    endChange();
+  };
+
+  return <button onClick={handleToggle}>{isOn ? 'ON' : 'OFF'}</button>;
 }`,
 };
 
@@ -78,6 +73,27 @@ sendNoteOn(60, 127); // Middle C, full velocity
 
 // Note off: noteNumber, velocity (usually 0)
 sendNoteOff(60, 0);`,
+
+  /**
+   * Receiving MIDI from DSP (echo)
+   */
+  receiveMidi: `
+import { useMidi } from '../glue/hooks/useMidi';
+
+function MyPianoKeyboard() {
+  const { activeNotes, isNoteActive } = useMidi();
+
+  // activeNotes: Map<noteNumber, velocity>
+  // isNoteActive(noteNumber): boolean
+
+  return (
+    <div>
+      {[60, 62, 64, 65, 67].map(note => (
+        <Key key={note} active={isNoteActive(note)} />
+      ))}
+    </div>
+  );
+}`,
 };
 
 /**
@@ -88,43 +104,40 @@ export const meterPatterns = {
    * Reading audio levels
    */
   readMeters: `
-import { useParameters } from './system/ParameterContext';
+import { useMeter } from '../glue/hooks/useMeter';
 
 function MyMeter() {
-  const { meterValues } = useParameters();
-  
-  // meterValues.left.peak - left channel peak (0-1 linear)
-  // meterValues.left.rms - left channel RMS
-  // meterValues.right.peak - right channel peak
-  // meterValues.right.rms - right channel RMS
-  
-  const leftDb = meterValues.left.peak > 0 
-    ? 20 * Math.log10(meterValues.left.peak) 
-    : -Infinity;
-    
-  return <div>{leftDb.toFixed(1)} dB</div>;
+  const { peak, rms } = useMeter(0); // 0 = left, 1 = right
+
+  // peak/rms are 0-1 linear values
+  const peakDb = peak > 0 ? 20 * Math.log10(peak) : -Infinity;
+
+  return <div>{peakDb.toFixed(1)} dB</div>;
 }`,
 };
 
 /**
- * How to read LFO waveform data
+ * How to read arbitrary visualization data (spectrum, oscilloscope, envelope, etc.)
  */
-export const lfoPatterns = {
+export const visualizationPatterns = {
   /**
-   * Reading LFO waveform buffer
+   * Reading arbitrary binary data from DSP
    */
-  readLfoWaveform: `
-import { useParameters } from './system/ParameterContext';
+  readArbitraryData: `
+import { useArbitraryMessage } from '../glue/hooks/useArbitraryMessage';
+import { EMsgTags } from '../config/runtimeParameters';
 
-function MyLfoDisplay() {
-  const { lfoWaveform } = useParameters();
-  
-  // lfoWaveform is Float32Array(512) with values 0-1
-  // Values update in real-time from the DSP
-  
+function MySpectrum() {
+  const message = useArbitraryMessage(EMsgTags.kMsgTagSpectrum);
+
+  if (!message) return <div>Waiting for data...</div>;
+
+  // message.data is ArrayBuffer - convert to typed array
+  const spectrum = new Float32Array(message.data);
+
   return (
     <canvas ref={canvasRef}>
-      {/* Draw lfoWaveform data */}
+      {/* Draw spectrum data */}
     </canvas>
   );
 }`,
@@ -132,35 +145,38 @@ function MyLfoDisplay() {
 
 /**
  * Required context wrapper
- * 
- * App must be wrapped in ParameterProvider for any of the above to work.
+ *
+ * App must be wrapped in BridgeProvider for any of the above to work.
  */
 export const contextWrapper = `
-import { ParameterProvider } from './system/ParameterContext';
+import { BridgeProvider } from '../glue/BridgeProvider';
 
 export function App() {
   return (
-    <ParameterProvider>
+    <BridgeProvider>
       {/* Your UI here - any components, any styles */}
-    </ParameterProvider>
+    </BridgeProvider>
   );
 }`;
 
 /**
- * EParams enum - parameter IDs defined in config/runtimeParameters.ts
- * 
- * This enum is AUTO-GENERATED from the C++ DSP code.
- * Reference it to know what parameters exist.
+ * Available hooks summary
  */
-export const parameterReference = `
-// Check config/runtimeParameters.ts for the actual enum:
-export enum EParams {
-  kParamGain = 0,
-  // ... more parameters added by AI during DSP generation
-  kNumParams = N
-}
+export const availableHooks = {
+  useParameter: 'Read/write parameter values with DAW automation support',
+  useMidi: 'Read MIDI note state from DSP',
+  useMeter: 'Read audio level meters (peak/rms)',
+  useArbitraryMessage: 'Read raw binary data for custom visualizations',
+};
 
-// Use like:
-<Knob paramId={EParams.kParamGain} />
-`;
-
+/**
+ * Parameter shapes - how normalized (0-1) maps to actual values
+ *
+ * Shape is defined in runtimeParameters.ts for each parameter.
+ * The UI automatically handles conversion via normalizedToActual/actualToNormalized.
+ */
+export const parameterShapes = {
+  ShapeLinear: 'Linear mapping: actual = min + normalized * (max - min)',
+  ShapePowCurve: 'Power curve: actual = min + pow(normalized, shape) * (max - min)',
+  ShapeExp: 'Exponential: actual = min * pow(max/min, normalized) - for frequency params',
+};

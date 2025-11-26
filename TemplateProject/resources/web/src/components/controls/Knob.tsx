@@ -7,8 +7,7 @@
 
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { normalizedToDisplay } from '../../utils/parameter';
-import { sendParameterValue } from '../../glue/iplugBridge/iplugBridge';
-import { useParameters, isUpdatingFromProcessor } from '../system/ParameterContext';
+import { useParameter } from '../../glue/hooks/useParameter';
 
 type KnobSize = 'sm' | 'md' | 'lg';
 
@@ -49,8 +48,7 @@ function formatDisplayValue(displayStr: string): string {
 }
 
 export function Knob({ paramId, label, size = 'md' }: KnobProps) {
-  const { paramValues, setParamValue } = useParameters();
-  const value = paramValues.get(paramId) ?? 0;
+  const { value, setValue, beginChange, endChange } = useParameter(paramId);
   const knobRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -63,16 +61,14 @@ export function Knob({ paramId, label, size = 'md' }: KnobProps) {
 
   const startDrag = useCallback((startClientY: number, startValue: number) => {
     setIsDragging(true);
+    beginChange(); // Signal start of parameter change for automation
     const sensitivity = 0.004;
 
     const handleMove = (clientY: number) => {
       const deltaY = startClientY - clientY;
       const newValue = clamp(startValue + deltaY * sensitivity);
 
-      setParamValue(paramId, newValue);
-      if (!isUpdatingFromProcessor()) {
-        sendParameterValue(paramId, newValue);
-      }
+      setValue(newValue);
     };
 
     const onMouseMove = (ev: MouseEvent) => {
@@ -85,19 +81,20 @@ export function Knob({ paramId, label, size = 'md' }: KnobProps) {
       if (ev.touches[0]) handleMove(ev.touches[0].clientY);
     };
 
-    const endDrag = () => {
+    const onEndDrag = () => {
+      endChange(); // Signal end of parameter change for automation
       setIsDragging(false);
       document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', endDrag);
+      document.removeEventListener('mouseup', onEndDrag);
       document.removeEventListener('touchmove', onTouchMove);
-      document.removeEventListener('touchend', endDrag);
+      document.removeEventListener('touchend', onEndDrag);
     };
 
     document.addEventListener('mousemove', onMouseMove, { passive: false });
-    document.addEventListener('mouseup', endDrag);
+    document.addEventListener('mouseup', onEndDrag);
     document.addEventListener('touchmove', onTouchMove, { passive: false });
-    document.addEventListener('touchend', endDrag);
-  }, [paramId, setParamValue]);
+    document.addEventListener('touchend', onEndDrag);
+  }, [setValue, beginChange, endChange]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();

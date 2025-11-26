@@ -21,8 +21,20 @@ export function useParameterBridge(handlers: ProcessorEventHandlers): void {
       onControlValue: (ctrlTag, normalizedValue) => {
         handlersRef.current.onControlValue?.(ctrlTag, normalizedValue);
       },
-      onMeterData: (channel, peak, rms) => {
-        handlersRef.current.onMeterData?.(channel, peak, rms);
+      onControlMessage: (ctrlTag, msgTag, dataSize, data) => {
+        handlersRef.current.onControlMessage?.(ctrlTag, msgTag, dataSize, data);
+      },
+      onArbitraryMessage: (msgTag, dataSize, data) => {
+        handlersRef.current.onArbitraryMessage?.(msgTag, dataSize, data);
+      },
+      onMidiMessage: (statusByte, dataByte1, dataByte2) => {
+        handlersRef.current.onMidiMessage?.(statusByte, dataByte1, dataByte2);
+      },
+      onSysexMessage: (data) => {
+        handlersRef.current.onSysexMessage?.(data);
+      },
+      onStateDump: (data) => {
+        handlersRef.current.onStateDump?.(data);
       },
     });
 
@@ -31,6 +43,7 @@ export function useParameterBridge(handlers: ProcessorEventHandlers): void {
     };
   }, []);
 }
+
 
 
 

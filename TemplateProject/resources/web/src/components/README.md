@@ -1,29 +1,47 @@
-# TemplateProject Web Components
+# Plugin UI Components
 
-This folder holds the reference UI scaffold for the TemplateProject plugin. The layout is intentionally simple so AI agents can reason about it quickly.
+Minimal template for AI-generated plugin UIs. Keep it simple.
 
-## Sections
+## Structure
 
-- `MacroControlsSection` – Core tone controls, macros, gain readouts.
-- `ModulationSection` – Placeholder for LFOs/envelopes/routing.
-- `EffectsSection` – Placeholder for filters, FX stacks, spatial tools.
-- `PerformanceSection` – Live widgets (keyboard, pads, macros).
-- `RoutingSection` – Output meters, automation, channel routing.
-
-Each section lives in `sections/<SectionName>/` with a single export. Avoid nested sub-components unless they are truly reusable across sections.
+```
+components/
+├── controls/       # Knob, Slider, Dropdown, Toggle
+├── visualizations/ # Meter, PianoKeyboard
+├── layouts/        # Section, Tabs
+├── sections/       # PluginHeader, WebControls, KeyboardSection
+└── App.tsx         # Main app (wrap in BridgeProvider)
+```
 
 ## Hooks
 
-- `useParameterValue` exposes `{ value, setValue, metadata }` for any `EParams` entry, pulling metadata from `config/runtimeParameters.ts`. Macro sections should prefer this over reading context maps directly.
+| Hook | Returns | Use For |
+|------|---------|---------|
+| `useParameter` | `{ value, setValue, beginChange, endChange }` | All parameter controls |
+| `useMeter` | `{ peak, rms }` | Audio level meters |
+| `useMidi` | `{ activeNotes, isNoteActive }` | Piano keyboard, MIDI display |
+| `useArbitraryMessage` | `{ data: ArrayBuffer }` | Custom visualizations (spectrum, scope) |
 
-## Authoring Guidance
+## Controls
 
-- **No tests:** The TemplateProject UI is AI-generated; skip Jest files under this tree.
-- **Document intent:** Use short comments or copy inside sections to describe missing widgets so the agent knows what to add.
-- **Keep layout flat:** `App.tsx` should import sections directly (one layer of composition) to remain easy to parse.
+All controls take `paramId` from `EParams` enum:
 
-Future enhancements (shadcn components, richer manifests) can build on this structure without rewriting the core layout.*** End Patch
+```tsx
+import { Knob } from './controls/Knob';
+import { EParams } from '../config/runtimeParameters';
 
+<Knob paramId={EParams.kParamGain} label="Gain" size="lg" />
+```
 
+## Adding New Parameters
 
+1. Add to C++ `EParams` enum
+2. Add to `runtimeParameters.ts` (auto-generated)
+3. Use in UI with any control component
 
+## Files Reference
+
+- `config/runtimeParameters.ts` - Parameter definitions (generated from C++)
+- `contracts/integrationPatterns.ts` - Code patterns for AI
+- `uiManifest.ts` - Available components manifest
+- `glue/` - DSP communication layer (don't modify)

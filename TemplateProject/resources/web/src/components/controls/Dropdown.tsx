@@ -1,12 +1,11 @@
 /**
  * Dropdown Control Component
- * 
+ *
  * Selection control for enum parameters (waveform, mode, etc.)
  */
 
 import React from 'react';
-import { sendParameterValue } from '../../glue/iplugBridge/iplugBridge';
-import { useParameters, isUpdatingFromProcessor } from '../system/ParameterContext';
+import { useParameter } from '../../glue/hooks/useParameter';
 
 type DropdownProps = {
   paramId: number;
@@ -15,8 +14,7 @@ type DropdownProps = {
 };
 
 export function Dropdown({ paramId, label, options }: DropdownProps) {
-  const { paramValues, setParamValue } = useParameters();
-  const value = paramValues.get(paramId) ?? 0;
+  const { value, setValue, beginChange, endChange } = useParameter(paramId);
 
   const normalizedToIndex = (norm: number): number => {
     return Math.round(norm * (options.length - 1));
@@ -32,11 +30,9 @@ export function Dropdown({ paramId, label, options }: DropdownProps) {
     const newIndex = e.target.selectedIndex;
     const normalizedValue = indexToNormalized(newIndex);
 
-    setParamValue(paramId, normalizedValue);
-
-    if (!isUpdatingFromProcessor()) {
-      sendParameterValue(paramId, normalizedValue);
-    }
+    beginChange(); // Signal start of parameter change for automation
+    setValue(normalizedValue);
+    endChange(); // Signal end of parameter change for automation
   };
 
   return (

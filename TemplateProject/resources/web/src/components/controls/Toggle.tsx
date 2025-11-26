@@ -1,12 +1,11 @@
 /**
  * Toggle Control Component
- * 
+ *
  * On/off switch for boolean parameters (bypass, enable, etc.)
  */
 
 import React from 'react';
-import { sendParameterValue } from '../../glue/iplugBridge/iplugBridge';
-import { useParameters, isUpdatingFromProcessor } from '../system/ParameterContext';
+import { useParameter } from '../../glue/hooks/useParameter';
 
 type ToggleProps = {
   paramId: number;
@@ -14,17 +13,14 @@ type ToggleProps = {
 };
 
 export function Toggle({ paramId, label }: ToggleProps) {
-  const { paramValues, setParamValue } = useParameters();
-  const value = paramValues.get(paramId) ?? 0;
+  const { value, setValue, beginChange, endChange } = useParameter(paramId);
   const isOn = value > 0.5;
 
   const handleToggle = () => {
     const newValue = isOn ? 0.0 : 1.0;
-    setParamValue(paramId, newValue);
-
-    if (!isUpdatingFromProcessor()) {
-      sendParameterValue(paramId, newValue);
-    }
+    beginChange(); // Signal start of parameter change for automation
+    setValue(newValue);
+    endChange(); // Signal end of parameter change for automation
   };
 
   return (

@@ -1,6 +1,12 @@
 /**
  * Parameter value conversion and display utilities
- * Reads from runtimeParameters for dynamic lookup
+ *
+ * Handles all iPlug2 shape types:
+ * - ShapeLinear: Linear mapping (default)
+ * - ShapePowCurve: Power curve with configurable exponent
+ * - ShapeExp: Exponential/logarithmic mapping (for frequency, etc.)
+ *
+ * @see IPlugParameter.h / IPlugParameter.cpp for reference implementations
  */
 
 import { runtimeParameters, type RuntimeParameter } from '../config/runtimeParameters';
@@ -64,6 +70,8 @@ function formatValue(value: number, metadata: RuntimeParameter): string {
 
 /**
  * Convert normalized parameter value (0-1) to actual value
+ *
+ * Matches iPlug2 IParam::FromNormalized() behavior for all shape types.
  */
 export function normalizedToActual(paramIdx: number, normalizedValue: number): number {
   const metadata = getParameterMetadata(paramIdx);
@@ -74,23 +82,37 @@ export function normalizedToActual(paramIdx: number, normalizedValue: number): n
   }
 
   const { min, max, shape, shapeParameter } = metadata;
-  const span = max - min;
 
-  // Apply shape curve if needed
-  let shaped = value;
-  if (shape === 'ShapePowCurve' && shapeParameter > 0) {
-    shaped = Math.pow(value, shapeParameter);
-  } else if (shape === 'ShapeExp') {
-    // Exponential shape (e.g., for frequency)
-    shaped = (Math.exp(value * Math.log(1 + shapeParameter)) - 1) / shapeParameter;
+  switch (shape) {
+    case 'ShapePowCurve': {
+      // IPlugParameter.cpp line 51-54:
+      // return min + pow(value, mShape) * (max - min)
+      const shaped = Math.pow(value, shapeParameter);
+      return min + shaped * (max - min);
+    }
+
+    case 'ShapeExp': {
+      // IPlugParameter.cpp line 61-74:
+      // mAdd = log(min), mMul = log(max/min)
+      // return exp(mAdd + value * mMul) = min * pow(max/min, value)
+      const safeMin = Math.max(min, 0.00000001);
+      return safeMin * Math.pow(max / safeMin, value);
+    }
+
+    case 'ShapeLinear':
+    default: {
+      // IPlugParameter.cpp line 26-29:
+      // return min + value * (max - min)
+      return min + value * (max - min);
+    }
   }
-
-  return min + shaped * span;
 }
 
 /**
  * Convert actual parameter value to normalized value (0-1)
- * This is the inverse of normalizedToActual
+ *
+ * Matches iPlug2 IParam::ToNormalized() behavior for all shape types.
+ * This is the inverse of normalizedToActual.
  */
 export function actualToNormalized(paramIdx: number, actualValue: number): number {
   const metadata = getParameterMetadata(paramIdx);
@@ -106,13 +128,33 @@ export function actualToNormalized(paramIdx: number, actualValue: number): numbe
     return 0;
   }
 
-  let normalized = (actualValue - min) / span;
+  let normalized: number;
 
-  // Inverse shape curve if needed
-  if (shape === 'ShapePowCurve' && shapeParameter > 0) {
-    normalized = Math.pow(normalized, 1 / shapeParameter);
-  } else if (shape === 'ShapeExp' && shapeParameter > 0) {
-    normalized = Math.log(1 + normalized * shapeParameter) / Math.log(1 + shapeParameter);
+  switch (shape) {
+    case 'ShapePowCurve': {
+      // IPlugParameter.cpp line 56-59:
+      // return pow((value - min) / (max - min), 1.0 / mShape)
+      const linear = (actualValue - min) / span;
+      normalized = Math.pow(linear, 1 / shapeParameter);
+      break;
+    }
+
+    case 'ShapeExp': {
+      // IPlugParameter.cpp line 77-80:
+      // return (log(value) - mAdd) / mMul = log(value/min) / log(max/min)
+      const safeMin = Math.max(min, 0.00000001);
+      const safeValue = Math.max(actualValue, safeMin);
+      normalized = Math.log(safeValue / safeMin) / Math.log(max / safeMin);
+      break;
+    }
+
+    case 'ShapeLinear':
+    default: {
+      // IPlugParameter.cpp line 31-34:
+      // return (value - min) / (max - min)
+      normalized = (actualValue - min) / span;
+      break;
+    }
   }
 
   return Math.max(0, Math.min(1, normalized));
@@ -120,21 +162,14 @@ export function actualToNormalized(paramIdx: number, actualValue: number): numbe
 
 /**
  * Get default normalized values matching C++ DSP defaults
- * Reads from runtimeParameters
+ *
+ * Uses actualToNormalized to properly handle all shape types.
  */
 export function getDefaultNormalizedValues(): Map<number, number> {
   const defaults = new Map<number, number>();
 
   for (const param of runtimeParameters) {
-    const { id, min, max, default: defaultValue } = param;
-    const span = max - min;
-
-    if (span > 0) {
-      const normalized = (defaultValue - min) / span;
-      defaults.set(id, normalized);
-    } else {
-      defaults.set(id, 0);
-    }
+    defaults.set(param.id, actualToNormalized(param.id, param.default));
   }
 
   return defaults;

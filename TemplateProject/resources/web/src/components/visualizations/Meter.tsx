@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParameters } from '../system/ParameterContext';
+import { useMeter } from '../../glue/hooks/useMeter';
 
 interface MeterProps {
   channel: 0 | 1;
@@ -7,8 +7,7 @@ interface MeterProps {
 }
 
 export function Meter({ channel, compact = false }: MeterProps) {
-  const { meterValues } = useParameters();
-  const meter = channel === 0 ? meterValues.left : meterValues.right;
+  const meter = useMeter(channel);
 
   // Calculate dB values from linear amplitude (0-1)
   const peakDb = meter.peak > 0.0001 ? 20 * Math.log10(meter.peak) : -Infinity;
@@ -26,9 +25,9 @@ export function Meter({ channel, compact = false }: MeterProps) {
   const isHot = dbValue >= -6 && dbValue < -0.5;
 
   return (
-    <div className="flex items-center gap-2 bg-gradient-to-br from-stone-900/60 to-black/60 border border-orange-700/30 rounded-lg px-4 py-2 shadow-md">
-      {/* Numeric display */}
-      <div className={`text-lg font-black font-mono transition-colors ${
+    <div className="flex items-center gap-2 bg-gradient-to-br from-stone-900/60 to-black/60 border border-orange-700/30 rounded-lg px-4 py-2 shadow-md w-24">
+      {/* Numeric display - fixed width to prevent layout shift */}
+      <div className={`text-lg font-black font-mono tabular-nums text-center w-full transition-colors ${
         isClipping ? 'text-red-400' : isHot ? 'text-orange-400' : 'text-orange-300/70'
       }`}>
         {formatDb(peakDb)} <span className="text-xs">dB</span>

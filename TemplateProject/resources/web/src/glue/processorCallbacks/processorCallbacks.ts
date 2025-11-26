@@ -1,40 +1,168 @@
 /**
- * Callback handlers for processor-to-UI communication
+ * Pure transport layer for DSP-UI communication.
+ *
+ * This module is AGNOSTIC - it has no knowledge of specific message types,
+ * enum values, or binary formats. It simply:
+ * 1. Receives messages from iPlug2
+ * 2. Decodes base64 payloads
+ * 3. Passes raw data to registered handlers
+ *
+ * All parsing and routing logic belongs in BridgeProvider.
  */
 
-import { EControlTags } from "../../config/runtimeParameters";
+import { reportBridgeError } from "../errors/bridgeErrors";
 import type { ProcessorEventHandlers } from "./types";
 
 let updatingFromProcessor = false;
 let handlers: ProcessorEventHandlers | null = null;
 
-const microtask = typeof queueMicrotask === "function" ? queueMicrotask : (fn: () => void) => {
-  Promise.resolve().then(fn);
-};
+const microtask =
+  typeof queueMicrotask === "function"
+    ? queueMicrotask
+    : (fn: () => void) => {
+        Promise.resolve().then(fn);
+      };
 
-export function registerProcessorCallbacks(newHandlers: ProcessorEventHandlers): void {
+/** Decode base64 string to ArrayBuffer */
+function decodeBase64(data: string): ArrayBuffer {
+  const binary = atob(data);
+  const buffer = new ArrayBuffer(binary.length);
+  const view = new Uint8Array(buffer);
+  for (let i = 0; i < binary.length; i++) {
+    view[i] = binary.charCodeAt(i);
+  }
+  return buffer;
+}
+
+export function registerProcessorCallbacks(
+  newHandlers: ProcessorEventHandlers
+): void {
   handlers = newHandlers;
 
+  // SPVFD: Parameter value from delegate
   window.SPVFD = (paramIdx: number, normalizedValue: number) => {
-    updateParameterFromProcessor(paramIdx, normalizedValue);
+    if (!handlers?.onParameterValue) return;
+    try {
+      updatingFromProcessor = true;
+      handlers.onParameterValue(paramIdx, normalizedValue);
+      microtask(() => {
+        updatingFromProcessor = false;
+      });
+    } catch (error) {
+      reportBridgeError(
+        "HANDLER_THREW",
+        error instanceof Error ? error.message : "onParameterValue error",
+        { paramIdx, error }
+      );
+    }
   };
 
+  // SCVFD: Control value from delegate
   window.SCVFD = (ctrlTag: number, normalizedValue: number) => {
-    updateControlValue(ctrlTag, normalizedValue);
+    if (!handlers?.onControlValue) return;
+    try {
+      handlers.onControlValue(ctrlTag, normalizedValue);
+    } catch (error) {
+      reportBridgeError(
+        "HANDLER_THREW",
+        error instanceof Error ? error.message : "onControlValue error",
+        { ctrlTag, error }
+      );
+    }
   };
 
-  window.SCMFD = (ctrlTag: number, msgTag: number, dataSize: number, base64Data: string) => {
-    handleControlMessage(ctrlTag, msgTag, dataSize, base64Data);
+  // SCMFD: Control message from delegate
+  window.SCMFD = (
+    ctrlTag: number,
+    msgTag: number,
+    dataSize: number,
+    base64Data: string
+  ) => {
+    if (!handlers?.onControlMessage) return;
+    try {
+      const buffer = decodeBase64(base64Data);
+      if (buffer.byteLength < dataSize) {
+        reportBridgeError(
+          "MESSAGE_MALFORMED",
+          `Buffer size mismatch: expected ${dataSize}, got ${buffer.byteLength}`,
+          { ctrlTag, msgTag }
+        );
+        return;
+      }
+      handlers.onControlMessage(ctrlTag, msgTag, dataSize, buffer);
+    } catch (error) {
+      reportBridgeError(
+        "HANDLER_THREW",
+        error instanceof Error ? error.message : "onControlMessage error",
+        { ctrlTag, msgTag, error }
+      );
+    }
   };
 
+  // SAMFD: Arbitrary message from delegate
   window.SAMFD = (msgTag: number, dataSize: number, base64Data: string) => {
-    handleArbitraryMessage(msgTag, dataSize, base64Data);
+    if (!handlers?.onArbitraryMessage) return;
+    try {
+      const buffer = decodeBase64(base64Data);
+      handlers.onArbitraryMessage(msgTag, dataSize, buffer);
+    } catch (error) {
+      reportBridgeError(
+        "HANDLER_THREW",
+        error instanceof Error ? error.message : "onArbitraryMessage error",
+        { msgTag, error }
+      );
+    }
   };
 
+  // SMMFD: MIDI message from delegate
   window.SMMFD = (statusByte: number, dataByte1: number, dataByte2: number) => {
-    handleMidiMessage(statusByte, dataByte1, dataByte2);
+    if (!handlers?.onMidiMessage) return;
+    try {
+      handlers.onMidiMessage(statusByte, dataByte1, dataByte2);
+    } catch (error) {
+      reportBridgeError(
+        "HANDLER_THREW",
+        error instanceof Error ? error.message : "onMidiMessage error",
+        { statusByte, error }
+      );
+    }
   };
 
+  // SSMFD: SysEx message from delegate
+  window.SSMFD = (_dataSize: number, base64Data: string) => {
+    if (!handlers?.onSysexMessage) return;
+    try {
+      const buffer = decodeBase64(base64Data);
+      handlers.onSysexMessage(buffer);
+    } catch (error) {
+      reportBridgeError(
+        "HANDLER_THREW",
+        error instanceof Error ? error.message : "onSysexMessage error",
+        { error }
+      );
+    }
+  };
+
+  // SSTATE: Full state dump from delegate
+  window.SSTATE = (base64Data: string) => {
+    if (!handlers?.onStateDump) return;
+    try {
+      const buffer = decodeBase64(base64Data);
+      updatingFromProcessor = true;
+      handlers.onStateDump(buffer);
+      microtask(() => {
+        updatingFromProcessor = false;
+      });
+    } catch (error) {
+      reportBridgeError(
+        "HANDLER_THREW",
+        error instanceof Error ? error.message : "onStateDump error",
+        { error }
+      );
+    }
+  };
+
+  // StartIdleTimer: Begin periodic TICK messages
   window.StartIdleTimer = () => {
     startIdleTimer();
   };
@@ -48,96 +176,8 @@ export function isUpdatingFromProcessor(): boolean {
   return updatingFromProcessor;
 }
 
-function updateParameterFromProcessor(paramIdx: number, normalizedValue: number): void {
-  if (!handlers?.onParameterValue) {
-    return;
-  }
-
-  updatingFromProcessor = true;
-  handlers.onParameterValue(paramIdx, normalizedValue);
-
-  microtask(() => {
-    updatingFromProcessor = false;
-  });
-}
-
-function updateControlValue(ctrlTag: number, normalizedValue: number): void {
-  handlers?.onControlValue?.(ctrlTag, normalizedValue);
-}
-
-function handleControlMessage(
-  ctrlTag: number,
-  _msgTag: number,
-  _dataSize: number,
-  base64Data: string,
-): void {
-  if (!handlers?.onMeterData || ctrlTag !== EControlTags.kCtrlTagMeter) {
-    return;
-  }
-
-  try {
-    const binaryString = atob(base64Data);
-    const buffer = new ArrayBuffer(binaryString.length);
-    const view = new Uint8Array(buffer);
-    for (let i = 0; i < binaryString.length; i++) {
-      view[i] = binaryString.charCodeAt(i);
-    }
-    const dataView = new DataView(buffer);
-    const leftPeak = dataView.getFloat32(12, true);
-    const leftRMS = dataView.getFloat32(16, true);
-    const rightPeak = dataView.getFloat32(20, true);
-    const rightRMS = dataView.getFloat32(24, true);
-
-    handlers.onMeterData(0, leftPeak, leftRMS);
-    handlers.onMeterData(1, rightPeak, rightRMS);
-  } catch (error) {
-    console.error("Error decoding meter data:", error);
-  }
-}
-
-/**
- * Handle arbitrary message from processor (SAMFD)
- * Used for custom data: FFT, waveforms, status messages, etc.
- */
-function handleArbitraryMessage(
-  msgTag: number,
-  dataSize: number,
-  base64Data: string,
-): void {
-  if (!handlers?.onArbitraryMessage) {
-    return;
-  }
-
-  try {
-    const binaryString = atob(base64Data);
-    const buffer = new ArrayBuffer(binaryString.length);
-    const view = new Uint8Array(buffer);
-    for (let i = 0; i < binaryString.length; i++) {
-      view[i] = binaryString.charCodeAt(i);
-    }
-    handlers.onArbitraryMessage(msgTag, dataSize, buffer);
-  } catch (error) {
-    console.error("Error decoding arbitrary message:", error);
-  }
-}
-
-/**
- * Handle MIDI message from processor (SMMFD)
- * Used for MIDI monitoring, keyboard visualization, MIDI learn feedback
- */
-function handleMidiMessage(
-  statusByte: number,
-  dataByte1: number,
-  dataByte2: number,
-): void {
-  handlers?.onMidiMessage?.(statusByte, dataByte1, dataByte2);
-}
-
 let idleTimerInterval: number | null = null;
 
-/**
- * Start idle timer for periodic updates
- */
 function startIdleTimer(): void {
   console.log("StartIdleTimer called - setting up periodic TICK messages");
 
@@ -146,9 +186,11 @@ function startIdleTimer(): void {
   }
 
   idleTimerInterval = window.setInterval(() => {
-    if (window.TemplateProject_WAM && typeof window.TemplateProject_WAM.sendMessage === "function") {
+    if (
+      window.TemplateProject_WAM &&
+      typeof window.TemplateProject_WAM.sendMessage === "function"
+    ) {
       window.TemplateProject_WAM.sendMessage("TICK", "", 0);
     }
   }, 16);
 }
-

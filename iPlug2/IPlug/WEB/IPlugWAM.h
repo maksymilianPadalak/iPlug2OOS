@@ -55,6 +55,8 @@ public:
   void SendControlMsgFromDelegate(int ctrlTag, int msgTag, int dataSize, const void* pData) override;
   void SendParameterValueFromDelegate(int paramIdx, double value, bool normalized) override;
   void SendArbitraryMsgFromDelegate(int msgTag, int dataSize = 0, const void* pData = nullptr) override;
+  void SendSysexMsgFromDelegate(const ISysEx& msg) override;
+  void SendMidiMsgFromDelegate(const IMidiMsg& msg) override;
   
 private:
   /** Called repeatedly to emulate IPlugAPIBase::OnTimer() */

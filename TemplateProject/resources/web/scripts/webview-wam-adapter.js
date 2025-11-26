@@ -237,6 +237,23 @@ function setupWAMMessageHandlers(controller) {
         }
         break;
 
+      case "SSMFD": // Send SysEx Message From Delegate
+        // IPlugWAM sends SysEx as hex string in msg.prop (e.g., "f07d00503202005032f7")
+        if (typeof window.SSMFD === 'function') {
+          const hexString = msg.prop || "";
+          if (hexString.length > 0) {
+            // Convert hex string to Uint8Array
+            const bytes = new Uint8Array(hexString.length / 2);
+            for (let i = 0; i < bytes.length; i++) {
+              bytes[i] = parseInt(hexString.substr(i * 2, 2), 16);
+            }
+            // Convert to base64
+            const base64 = btoa(String.fromCharCode(...bytes));
+            window.SSMFD(bytes.length, base64);
+          }
+        }
+        break;
+
       case "StartIdleTimer":
         // Start idle timer for periodic updates
         if (typeof window.StartIdleTimer === 'function') {
