@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { MockedSection } from './mocks/MockedSection';
-import { MockedKnob } from './mocks/MockedKnob';
-import { MockedSlider } from './mocks/MockedSlider';
-import { MockedToggle } from './mocks/MockedToggle';
-import { MockedDropdown } from './mocks/MockedDropdown';
-import { EParams } from '../config/runtimeParameters';
+import { MockedSection } from '@/stories/mocks/MockedSection';
+import { MockedKnob } from '@/stories/mocks/MockedKnob';
+import { MockedSlider } from '@/stories/mocks/MockedSlider';
+import { MockedToggle } from '@/stories/mocks/MockedToggle';
+import { MockedDropdown } from '@/stories/mocks/MockedDropdown';
+import { EParams } from '@/config/runtimeParameters';
 
 const meta = {
   title: 'Layout/Section',

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { MockedMeter, MockedBarMeter } from './mocks/MockedMeter';
+import { MockedMeter, MockedBarMeter } from '@/stories/mocks/MockedMeter';
 
 const meta = {
   title: 'Visualizations/Meter',

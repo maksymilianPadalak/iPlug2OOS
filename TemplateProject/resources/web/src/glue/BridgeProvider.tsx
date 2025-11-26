@@ -17,14 +17,14 @@
  */
 
 import React, { useEffect } from 'react';
-import { useParameterBridge } from './hooks/useParameterBridge';
-import { parameterStore } from './state/parameterStore';
-import { meterStore } from './state/realtimeBuffers';
-import { arbitraryMessageStore } from './state/arbitraryMessageStore';
-import { midiStore } from './state/midiStore';
-import { systemExclusiveStore } from './state/systemExclusiveStore';
-import { requestStateSync } from './iplugBridge/iplugBridge';
-import { EControlTags } from '../config/runtimeParameters';
+import { useParameterBridge } from '@/glue/hooks/useParameterBridge';
+import { parameterStore } from '@/glue/state/parameterStore';
+import { meterStore } from '@/glue/state/realtimeBuffers';
+import { arbitraryMessageStore } from '@/glue/state/arbitraryMessageStore';
+import { midiStore } from '@/glue/state/midiStore';
+import { systemExclusiveStore } from '@/glue/state/systemExclusiveStore';
+import { requestStateSync } from '@/glue/iplugBridge/iplugBridge';
+import { EControlTags } from '@/config/runtimeParameters';
 
 /**
  * Parse meter data from SCMFD buffer.

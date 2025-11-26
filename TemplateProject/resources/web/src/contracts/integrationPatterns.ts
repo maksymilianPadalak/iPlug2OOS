@@ -16,8 +16,8 @@ export const parameterPatterns = {
    * Using the useParameter hook (recommended)
    */
   useParameterHook: `
-import { useParameter } from '../glue/hooks/useParameter';
-import { EParams } from '../config/runtimeParameters';
+import { useParameter } from '@/glue/hooks/useParameter';
+import { EParams } from '@/config/runtimeParameters';
 
 function MyKnob() {
   const { value, setValue, beginChange, endChange } = useParameter(EParams.kParamGain);
@@ -41,8 +41,8 @@ function MyKnob() {
    * For instant controls (toggle, dropdown)
    */
   instantControl: `
-import { useParameter } from '../glue/hooks/useParameter';
-import { EParams } from '../config/runtimeParameters';
+import { useParameter } from '@/glue/hooks/useParameter';
+import { EParams } from '@/config/runtimeParameters';
 
 function MyToggle() {
   const { value, setValue, beginChange, endChange } = useParameter(EParams.kParamBypass);
@@ -66,7 +66,7 @@ export const midiPatterns = {
    * Sending note on/off
    */
   sendNotes: `
-import { sendNoteOn, sendNoteOff } from '../glue/iplugBridge/iplugBridge';
+import { sendNoteOn, sendNoteOff } from '@/glue/iplugBridge/iplugBridge';
 
 // Note on: noteNumber (0-127), velocity (0-127)
 sendNoteOn(60, 127); // Middle C, full velocity
@@ -78,7 +78,7 @@ sendNoteOff(60, 0);`,
    * Receiving MIDI from DSP (echo)
    */
   receiveMidi: `
-import { useMidi } from '../glue/hooks/useMidi';
+import { useMidi } from '@/glue/hooks/useMidi';
 
 function MyPianoKeyboard() {
   const { activeNotes, isNoteActive } = useMidi();
@@ -104,7 +104,7 @@ export const meterPatterns = {
    * Reading audio levels
    */
   readMeters: `
-import { useMeter } from '../glue/hooks/useMeter';
+import { useMeter } from '@/glue/hooks/useMeter';
 
 function MyMeter() {
   const { peak, rms } = useMeter(0); // 0 = left, 1 = right
@@ -124,8 +124,8 @@ export const visualizationPatterns = {
    * Reading arbitrary binary data from DSP
    */
   readArbitraryData: `
-import { useArbitraryMessage } from '../glue/hooks/useArbitraryMessage';
-import { EMsgTags } from '../config/runtimeParameters';
+import { useArbitraryMessage } from '@/glue/hooks/useArbitraryMessage';
+import { EMsgTags } from '@/config/runtimeParameters';
 
 function MySpectrum() {
   const message = useArbitraryMessage(EMsgTags.kMsgTagSpectrum);
@@ -149,7 +149,7 @@ function MySpectrum() {
  * App must be wrapped in BridgeProvider for any of the above to work.
  */
 export const contextWrapper = `
-import { BridgeProvider } from '../glue/BridgeProvider';
+import { BridgeProvider } from '@/glue/BridgeProvider';
 
 export function App() {
   return (

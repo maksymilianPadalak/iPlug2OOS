@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { MockedTestToneButton, MockedCompactMicButton } from './mocks/MockedTestToneButton';
+import { MockedTestToneButton, MockedCompactMicButton } from '@/stories/mocks/MockedTestToneButton';
 
 const meta = {
   title: 'Inputs/TestToneButton',

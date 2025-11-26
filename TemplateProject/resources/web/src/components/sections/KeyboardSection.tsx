@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { PianoKeyboard } from '../visualizations/PianoKeyboard';
+import { PianoKeyboard } from '@/components/visualizations/PianoKeyboard';
 
 export function KeyboardSection() {
   return (

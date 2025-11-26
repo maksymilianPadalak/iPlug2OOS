@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { MockedPluginHeader, MockedCompactHeader } from './mocks/MockedPluginHeader';
+import { MockedPluginHeader, MockedCompactHeader } from '@/stories/mocks/MockedPluginHeader';
 
 const meta = {
   title: 'Sections/PluginHeader',

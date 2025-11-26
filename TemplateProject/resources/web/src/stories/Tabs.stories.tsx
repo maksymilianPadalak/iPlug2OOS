@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { MockedTabContainer, MockedTab } from './mocks/MockedTabs';
-import { MockedKnob } from './mocks/MockedKnob';
-import { MockedSlider } from './mocks/MockedSlider';
-import { EParams } from '../config/runtimeParameters';
+import { MockedTabContainer, MockedTab } from '@/stories/mocks/MockedTabs';
+import { MockedKnob } from '@/stories/mocks/MockedKnob';
+import { MockedSlider } from '@/stories/mocks/MockedSlider';
+import { EParams } from '@/config/runtimeParameters';
 
 const meta = {
   title: 'Layout/Tabs',

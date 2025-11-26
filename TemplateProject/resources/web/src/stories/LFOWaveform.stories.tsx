@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { MockedLFOWaveform, MockedWaveformDisplay } from './mocks/MockedLFOWaveform';
+import { MockedLFOWaveform, MockedWaveformDisplay } from '@/stories/mocks/MockedLFOWaveform';
 
 const meta = {
   title: 'Visualizations/LFOWaveform',

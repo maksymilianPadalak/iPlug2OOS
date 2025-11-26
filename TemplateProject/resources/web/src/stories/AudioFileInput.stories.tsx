@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { MockedAudioFileInput } from './mocks/MockedAudioFileInput';
+import { MockedAudioFileInput } from '@/stories/mocks/MockedAudioFileInput';
 
 const meta = {
   title: 'Inputs/AudioFileInput',

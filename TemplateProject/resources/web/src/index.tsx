@@ -4,8 +4,8 @@
 
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './components/App';
-import { initializeEnvironment } from './utils/environment';
+import { App } from '@/components/App';
+import { initializeEnvironment } from '@/utils/environment';
 
 // Prevent tab key navigation and touch scrolling
 document.addEventListener('keydown', (e) => {

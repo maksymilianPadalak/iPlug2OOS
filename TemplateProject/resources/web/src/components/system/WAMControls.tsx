@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-import { startWebAudio } from "../../glue/wamLifecycle/startWebAudio";
+import { startWebAudio } from "@/glue/wamLifecycle/startWebAudio";
 
 export function WAMControls() {
   const [status, setStatus] = useState("Ready - Click 'Start web audio!' to begin");

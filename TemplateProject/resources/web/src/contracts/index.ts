@@ -16,7 +16,7 @@
  */
 
 // What components already exist (reference only)
-export { existingComponents, componentImports } from './existingComponents';
+export { existingComponents, componentImports } from '@/contracts/existingComponents';
 
 // How to integrate with audio engine (required patterns)
 export {
@@ -27,4 +27,4 @@ export {
   contextWrapper,
   availableHooks,
   parameterShapes,
-} from './integrationPatterns';
+} from '@/contracts/integrationPatterns';

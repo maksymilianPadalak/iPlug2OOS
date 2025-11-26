@@ -14,7 +14,11 @@
     "rootDir": "./src",
     "declaration": false,
     "sourceMap": true,
-    "noEmitOnError": true
+    "noEmitOnError": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "scripts"]

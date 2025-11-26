@@ -9,7 +9,7 @@
  * @see IPlugParameter.h / IPlugParameter.cpp for reference implementations
  */
 
-import { runtimeParameters, type RuntimeParameter } from '../config/runtimeParameters';
+import { runtimeParameters, type RuntimeParameter } from '@/config/runtimeParameters';
 
 // Build lookup map from runtimeParameters
 const parameterMap = new Map<number, RuntimeParameter>(

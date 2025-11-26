@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { MockedToggle } from './mocks/MockedToggle';
-import { EParams } from '../config/runtimeParameters';
+import { MockedToggle } from '@/stories/mocks/MockedToggle';
+import { EParams } from '@/config/runtimeParameters';
 
 const meta = {
   title: 'Controls/Toggle',

@@ -10,8 +10,8 @@
  * All parsing and routing logic belongs in BridgeProvider.
  */
 
-import { reportBridgeError } from "../errors/bridgeErrors";
-import type { ProcessorEventHandlers } from "./types";
+import { reportBridgeError } from "@/glue/errors/bridgeErrors";
+import type { ProcessorEventHandlers } from "@/glue/processorCallbacks/types";
 
 let updatingFromProcessor = false;
 let handlers: ProcessorEventHandlers | null = null;

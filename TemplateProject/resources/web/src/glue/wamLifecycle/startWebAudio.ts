@@ -1,4 +1,4 @@
-import { initializeWAM, setupMIDIDevices } from "../../audio/wam-controller";
+import { initializeWAM, setupMIDIDevices } from "@/audio/wam-controller";
 
 type StartWebAudioResult =
   | { success: true }

@@ -6,8 +6,8 @@
  */
 
 import React from 'react';
-import { normalizedToDisplay } from '../../utils/parameter';
-import { useParameter } from '../../glue/hooks/useParameter';
+import { normalizedToDisplay } from '@/utils/parameter';
+import { useParameter } from '@/glue/hooks/useParameter';
 
 type SliderProps = {
   paramId: number;

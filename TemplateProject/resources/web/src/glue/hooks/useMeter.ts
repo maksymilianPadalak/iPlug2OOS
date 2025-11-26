@@ -3,10 +3,12 @@
  *
  * Per-channel subscriptions - left meter changes don't re-render right meter.
  * Stable object references - no re-render if values unchanged.
+ *
+ * @sync Any changes to this hook's API must be reflected in hooksManifest.ts
  */
 
 import { useSyncExternalStore, useCallback } from 'react';
-import { meterStore } from '../state/realtimeBuffers';
+import { meterStore } from '@/glue/state/realtimeBuffers';
 
 /**
  * Subscribe to meter data for a specific channel.

@@ -5,16 +5,18 @@
  * - Value subscription (O(1) re-renders)
  * - DAW automation lifecycle (begin/end change)
  * - Value sending to DSP
+ *
+ * @sync Any changes to this hook's API must be reflected in hooksManifest.ts
  */
 
 import { useSyncExternalStore, useCallback, useRef } from 'react';
-import { parameterStore } from '../state/parameterStore';
+import { parameterStore } from '@/glue/state/parameterStore';
 import {
   beginParameterChange,
   endParameterChange,
   sendParameterValue,
-} from '../iplugBridge/iplugBridge';
-import { isUpdatingFromProcessor } from '../processorCallbacks/processorCallbacks';
+} from '@/glue/iplugBridge/iplugBridge';
+import { isUpdatingFromProcessor } from '@/glue/processorCallbacks/processorCallbacks';
 
 /**
  * Hook for parameter controls.

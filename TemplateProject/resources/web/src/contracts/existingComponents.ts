@@ -84,16 +84,16 @@ export const existingComponents = {
  * Quick reference - just the import paths
  */
 export const componentImports = {
-  Knob: "import { Knob } from './controls/Knob'",
-  Slider: "import { Slider } from './controls/Slider'",
-  Toggle: "import { Toggle } from './controls/Toggle'",
-  Dropdown: "import { Dropdown } from './controls/Dropdown'",
-  Section: "import { Section } from './layouts/Section'",
-  TabContainer: "import { TabContainer } from './layouts/Tabs'",
-  Meter: "import { Meter } from './visualizations/Meter'",
-  PianoKeyboard: "import { PianoKeyboard } from './visualizations/PianoKeyboard'",
-  LFOWaveform: "import { LFOWaveform } from './visualizations/LFOWaveform'",
-  PluginHeader: "import { PluginHeader } from './sections/PluginHeader'",
-  KeyboardSection: "import { KeyboardSection } from './sections/KeyboardSection'",
+  Knob: "import { Knob } from '@/contracts/controls/Knob'",
+  Slider: "import { Slider } from '@/contracts/controls/Slider'",
+  Toggle: "import { Toggle } from '@/contracts/controls/Toggle'",
+  Dropdown: "import { Dropdown } from '@/contracts/controls/Dropdown'",
+  Section: "import { Section } from '@/contracts/layouts/Section'",
+  TabContainer: "import { TabContainer } from '@/contracts/layouts/Tabs'",
+  Meter: "import { Meter } from '@/contracts/visualizations/Meter'",
+  PianoKeyboard: "import { PianoKeyboard } from '@/contracts/visualizations/PianoKeyboard'",
+  LFOWaveform: "import { LFOWaveform } from '@/contracts/visualizations/LFOWaveform'",
+  PluginHeader: "import { PluginHeader } from '@/contracts/sections/PluginHeader'",
+  KeyboardSection: "import { KeyboardSection } from '@/contracts/sections/KeyboardSection'",
 };
 

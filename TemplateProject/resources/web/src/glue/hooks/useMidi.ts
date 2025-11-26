@@ -3,10 +3,12 @@
  *
  * Provides access to MIDI state from DSP (active notes, last message).
  * Uses useSyncExternalStore for O(1) re-renders.
+ *
+ * @sync Any changes to this hook's API must be reflected in hooksManifest.ts
  */
 
 import { useSyncExternalStore, useCallback } from 'react';
-import { midiStore } from '../state/midiStore';
+import { midiStore } from '@/glue/state/midiStore';
 
 export function useMidi() {
   const subscribe = useCallback(

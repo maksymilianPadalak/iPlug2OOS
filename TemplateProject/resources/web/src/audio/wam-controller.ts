@@ -2,7 +2,7 @@
  * WAM (Web Audio Module) controller initialization and management
  */
 
-import { WAMController } from '../types/wam';
+import { WAMController } from '@/types/wam';
 
 /**
  * Initialize WAM controller

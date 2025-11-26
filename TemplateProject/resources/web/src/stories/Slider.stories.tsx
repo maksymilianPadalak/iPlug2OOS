@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { MockedSlider } from './mocks/MockedSlider';
-import { EParams } from '../config/runtimeParameters';
+import { MockedSlider } from '@/stories/mocks/MockedSlider';
+import { EParams } from '@/config/runtimeParameters';
 
 const meta = {
   title: 'Controls/Slider',

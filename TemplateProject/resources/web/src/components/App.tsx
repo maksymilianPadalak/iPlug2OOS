@@ -5,16 +5,16 @@
  */
 
 import React from 'react';
-import { initializeWAM, setupMIDIDevices } from '../audio/wam-controller';
-import { initializeEnvironment } from '../utils/environment';
+import { initializeWAM, setupMIDIDevices } from '@/audio/wam-controller';
+import { initializeEnvironment } from '@/utils/environment';
 
-import { BridgeProvider } from '../glue/BridgeProvider';
-import { WebControls } from './sections/WebControls';
-import { PluginHeader } from './sections/PluginHeader';
-import { Section } from './layouts/Section';
-import { KeyboardSection } from './sections/KeyboardSection';
-import { Knob } from './controls/Knob';
-import { EParams } from '../config/runtimeParameters';
+import { BridgeProvider } from '@/glue/BridgeProvider';
+import { WebControls } from '@/components/sections/WebControls';
+import { PluginHeader } from '@/components/sections/PluginHeader';
+import { Section } from '@/components/layouts/Section';
+import { KeyboardSection } from '@/components/sections/KeyboardSection';
+import { Knob } from '@/components/controls/Knob';
+import { EParams } from '@/config/runtimeParameters';
 
 export function App() {
   const [audioStatus, setAudioStatus] = React.useState<'working' | 'not-working' | null>(null);

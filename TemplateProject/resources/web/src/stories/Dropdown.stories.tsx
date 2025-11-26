@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { MockedDropdown } from './mocks/MockedDropdown';
-import { EParams } from '../config/runtimeParameters';
+import { MockedDropdown } from '@/stories/mocks/MockedDropdown';
+import { EParams } from '@/config/runtimeParameters';
 
 const meta = {
   title: 'Controls/Dropdown',

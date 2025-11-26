@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { MockedWebControls, MockedAudioStatus } from './mocks/MockedWebControls';
+import { MockedWebControls, MockedAudioStatus } from '@/stories/mocks/MockedWebControls';
 
 const meta = {
   title: 'Sections/WebControls',

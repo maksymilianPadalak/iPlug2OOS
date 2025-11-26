@@ -8,7 +8,7 @@
  * - setMany batches notifications to avoid mid-update re-renders
  */
 
-import { getDefaultNormalizedValues } from '../../utils/parameter';
+import { getDefaultNormalizedValues } from '@/utils/parameter';
 
 type Listener = () => void;
 

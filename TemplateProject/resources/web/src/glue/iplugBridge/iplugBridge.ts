@@ -2,8 +2,8 @@
  * iPlug2 communication bridge
  */
 
-import { IPlugUIMessage } from "../../types/iplug";
-import { MessageTypes } from "../../config/protocol";
+import { IPlugUIMessage } from "@/types/iplug";
+import { MessageTypes } from "@/config/protocol";
 
 /**
  * Send a message to the iPlug2 processor

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { sendNoteOff, sendNoteOn } from '../../glue/iplugBridge/iplugBridge';
-import { useMidi } from '../../glue/hooks/useMidi';
+import { sendNoteOff, sendNoteOn } from '@/glue/iplugBridge/iplugBridge';
+import { useMidi } from '@/glue/hooks/useMidi';
 
 const QWERTY_TO_NOTE: Record<string, number> = {
   'KeyA': 0,   // C

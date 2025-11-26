@@ -1,5 +1,5 @@
 import React from 'react';
-import { useMeter } from '../../glue/hooks/useMeter';
+import { useMeter } from '@/glue/hooks/useMeter';
 
 interface MeterProps {
   channel: 0 | 1;

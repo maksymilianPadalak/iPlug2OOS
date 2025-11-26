@@ -5,8 +5,8 @@
  */
 
 import React, { useEffect } from 'react';
-import { parameterStore } from '../glue/state/parameterStore';
-import { runtimeParameters } from '../config/runtimeParameters';
+import { parameterStore } from '@/glue/state/parameterStore';
+import { runtimeParameters } from '@/config/runtimeParameters';
 
 type MockBridgeProviderProps = {
   children: React.ReactNode;

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { MockedPianoKeyboard, MockedMiniKeyboard } from './mocks/MockedPianoKeyboard';
+import { MockedPianoKeyboard, MockedMiniKeyboard } from '@/stories/mocks/MockedPianoKeyboard';
 
 const meta = {
   title: 'Visualizations/PianoKeyboard',

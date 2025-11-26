@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { useParameter } from '../../glue/hooks/useParameter';
+import { useParameter } from '@/glue/hooks/useParameter';
 
 type ToggleProps = {
   paramId: number;
