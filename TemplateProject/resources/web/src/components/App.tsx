@@ -1,7 +1,8 @@
 /**
- * Plugin App - Minimal Base
+ * Plugin App - Shell
  *
- * Single Gain knob. Build custom components on top of this.
+ * Contains glue code and fixed utilities (WebControls, Keyboard).
+ * PluginBody contains all AI-modifiable content.
  */
 
 import React from 'react';
@@ -10,11 +11,9 @@ import { initializeEnvironment } from '@/utils/environment';
 
 import { BridgeProvider } from '@/glue/BridgeProvider';
 import { WebControls } from '@/components/sections/WebControls';
-import { PluginHeader } from '@/components/sections/PluginHeader';
 import { Section } from '@/components/layouts/Section';
 import { KeyboardSection } from '@/components/sections/KeyboardSection';
-import { Knob } from '@/components/controls/Knob';
-import { EParams } from '@/config/runtimeParameters';
+import { PluginBody } from '@/components/PluginBody';
 
 export function App() {
   const [audioStatus, setAudioStatus] = React.useState<'working' | 'not-working' | null>(null);
@@ -43,25 +42,10 @@ export function App() {
       <div className="min-h-screen w-full bg-neutral-950 py-4 px-2 text-orange-100">
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-3">
           <WebControls audioStatus={audioStatus} />
-
-          <div
-            id="plugin-body"
-            className="rounded-2xl border border-orange-900/40 bg-gradient-to-b from-stone-900 via-neutral-950 to-black shadow-[0_20px_60px_rgba(0,0,0,0.6)] p-4"
-          >
-            <div className="flex flex-col gap-4">
-              <PluginHeader />
-
-              <Section title="Master">
-                <div className="flex items-center justify-center h-24">
-                  <Knob paramId={EParams.kParamGain} label="Gain" size="lg" />
-                </div>
-              </Section>
-
-              <Section title="Keyboard">
-                <KeyboardSection />
-              </Section>
-            </div>
-          </div>
+          <PluginBody />
+          <Section title="Keyboard">
+            <KeyboardSection />
+          </Section>
         </div>
       </div>
     </BridgeProvider>
