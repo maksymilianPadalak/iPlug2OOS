@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstring>
 
+#include "ADSREnvelope.h"
 #include "Oscillator.h"
 
 using namespace iplug;
@@ -25,6 +26,7 @@ public:
       return;
 
     const T gain = mGain;
+    const T sustainLevel = mSustain;
 
     for (int s = 0; s < nFrames; ++s)
     {
@@ -32,13 +34,17 @@ public:
 
       for (auto& voice : mVoices)
       {
-        if (!voice.active)
+        if (!voice.env.GetBusy())
           continue;
 
-        sample += static_cast<T>(voice.osc.Process(voice.frequency)) * voice.level;
+        const T envValue = voice.env.Process(sustainLevel);
+        const T oscValue = static_cast<T>(voice.osc.Process(voice.frequency));
+        sample += oscValue * envValue;
       }
 
-      sample *= gain;
+      // Scale down for polyphony (1/sqrt(maxVoices) preserves perceived loudness)
+      constexpr T kPolyScale = static_cast<T>(1.0 / 2.83); // ~1/sqrt(8)
+      sample *= gain * kPolyScale;
 
       for (int ch = 0; ch < nOutputs; ++ch)
       {
@@ -54,8 +60,11 @@ public:
       voice.Reset(sampleRate);
     }
 
+    mSampleRate = sampleRate;
     mGain = static_cast<T>(0.8);
     mNextVoice = 0;
+
+    UpdateEnvelopeTimes();
   }
 
   void ProcessMidiMsg(const IMidiMsg& msg)
@@ -92,6 +101,21 @@ public:
       case kParamGain:
         mGain = static_cast<T>(value / 100.0);
         break;
+      case kParamAttack:
+        mAttackMs = value;
+        UpdateEnvelopeTimes();
+        break;
+      case kParamDecay:
+        mDecayMs = value;
+        UpdateEnvelopeTimes();
+        break;
+      case kParamSustain:
+        mSustain = static_cast<T>(value / 100.0);
+        break;
+      case kParamRelease:
+        mReleaseMs = value;
+        UpdateEnvelopeTimes();
+        break;
       default:
         break;
     }
@@ -102,32 +126,45 @@ private:
 
   struct Voice
   {
+    ADSREnvelope<T> env;
     FastSinOscillator<T> osc;
-    T level = static_cast<T>(0.0);
     double frequency = 0.0;
-    bool active = false;
     int noteNumber = -1;
 
     void Reset(double sampleRate)
     {
+      env.SetSampleRate(sampleRate);
       osc.SetSampleRate(sampleRate);
       osc.Reset();
-      level = static_cast<T>(0.0);
       frequency = 0.0;
-      active = false;
       noteNumber = -1;
     }
   };
 
   std::array<Voice, kMaxVoices> mVoices;
   T mGain = static_cast<T>(0.8);
+  T mSustain = static_cast<T>(0.7);
+  double mAttackMs = 10.0;
+  double mDecayMs = 100.0;
+  double mReleaseMs = 200.0;
+  double mSampleRate = 44100.0;
   int mNextVoice = 0;
+
+  void UpdateEnvelopeTimes()
+  {
+    for (auto& voice : mVoices)
+    {
+      voice.env.SetStageTime(ADSREnvelope<T>::kAttack, mAttackMs);
+      voice.env.SetStageTime(ADSREnvelope<T>::kDecay, mDecayMs);
+      voice.env.SetStageTime(ADSREnvelope<T>::kRelease, mReleaseMs);
+    }
+  }
 
   bool HasActiveVoices() const
   {
     for (const auto& voice : mVoices)
     {
-      if (voice.active)
+      if (voice.env.GetBusy())
         return true;
     }
 
@@ -138,7 +175,7 @@ private:
   {
     for (int i = 0; i < kMaxVoices; ++i)
     {
-      if (mVoices[i].active && mVoices[i].noteNumber == noteNumber)
+      if (mVoices[i].env.GetBusy() && mVoices[i].noteNumber == noteNumber)
         return i;
     }
 
@@ -149,7 +186,7 @@ private:
   {
     for (int i = 0; i < kMaxVoices; ++i)
     {
-      if (!mVoices[i].active)
+      if (!mVoices[i].env.GetBusy())
         return i;
     }
 
@@ -168,10 +205,18 @@ private:
     }
 
     auto& voice = mVoices[voiceIndex];
+
+    if (voice.env.GetBusy())
+    {
+      voice.env.Retrigger(level);
+    }
+    else
+    {
+      voice.env.Start(level);
+    }
+
     voice.frequency = frequency;
-    voice.level = level;
     voice.noteNumber = noteNumber;
-    voice.active = true;
     voice.osc.Reset();
   }
 
@@ -182,9 +227,6 @@ private:
     if (voiceIndex < 0)
       return;
 
-    auto& voice = mVoices[voiceIndex];
-    voice.active = false;
-    voice.level = static_cast<T>(0.0);
-    voice.noteNumber = -1;
+    mVoices[voiceIndex].env.Release();
   }
 };

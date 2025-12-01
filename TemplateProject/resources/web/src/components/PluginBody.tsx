@@ -8,6 +8,8 @@
 import React from 'react';
 import { Section } from '@/components/layouts/Section';
 import { Knob } from '@/components/controls/Knob';
+import { Slider } from '@/components/controls/Slider';
+import { Meter } from '@/components/visualizations/Meter';
 import { EParams } from '@/config/runtimeParameters';
 
 export function PluginBody() {
@@ -32,11 +34,26 @@ export function PluginBody() {
         </header>
 
         {/* Control Sections */}
-        <Section title="Master">
-          <div className="flex items-center justify-center h-24">
-            <Knob paramId={EParams.kParamGain} label="Gain" size="lg" />
-          </div>
-        </Section>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Section title="Envelope">
+            <div className="flex flex-col gap-2">
+              <Slider paramId={EParams.kParamAttack} label="Attack" orientation="horizontal" />
+              <Slider paramId={EParams.kParamDecay} label="Decay" orientation="horizontal" />
+              <Slider paramId={EParams.kParamSustain} label="Sustain" orientation="horizontal" />
+              <Slider paramId={EParams.kParamRelease} label="Release" orientation="horizontal" />
+            </div>
+          </Section>
+
+          <Section title="Master">
+            <div className="flex items-center justify-center gap-6">
+              <Knob paramId={EParams.kParamGain} label="Gain" size="lg" />
+              <div className="flex items-end gap-2">
+                <Meter channel={0} />
+                <Meter channel={1} />
+              </div>
+            </div>
+          </Section>
+        </div>
       </div>
     </div>
   );
