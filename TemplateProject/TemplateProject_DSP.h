@@ -152,11 +152,18 @@ private:
 
   void UpdateEnvelopeTimes()
   {
+    // Enforce minimum times to prevent clicks (even if AI sets very short values)
+    constexpr double kMinAttackMs = 2.0;
+    constexpr double kMinReleaseMs = 5.0;
+
+    const double attackMs = std::max(mAttackMs, kMinAttackMs);
+    const double releaseMs = std::max(mReleaseMs, kMinReleaseMs);
+
     for (auto& voice : mVoices)
     {
-      voice.env.SetStageTime(ADSREnvelope<T>::kAttack, mAttackMs);
+      voice.env.SetStageTime(ADSREnvelope<T>::kAttack, attackMs);
       voice.env.SetStageTime(ADSREnvelope<T>::kDecay, mDecayMs);
-      voice.env.SetStageTime(ADSREnvelope<T>::kRelease, mReleaseMs);
+      voice.env.SetStageTime(ADSREnvelope<T>::kRelease, releaseMs);
     }
   }
 
@@ -208,16 +215,18 @@ private:
 
     if (voice.env.GetBusy())
     {
+      // Retrigger: don't reset oscillator phase to avoid click
       voice.env.Retrigger(level);
     }
     else
     {
+      // New voice: reset oscillator to start at zero crossing
+      voice.osc.Reset();
       voice.env.Start(level);
     }
 
     voice.frequency = frequency;
     voice.noteNumber = noteNumber;
-    voice.osc.Reset();
   }
 
   void ReleaseVoice(int noteNumber)
