@@ -13,7 +13,7 @@ import { PianoKeyboard } from '@/components/visualizations/PianoKeyboard';
 
 export function KeyboardSection() {
   return (
-    <div className="bg-gradient-to-b from-stone-800 to-stone-900 border border-orange-700/30 rounded-lg p-2 shadow-lg">
+    <div className="rounded-lg p-2">
       <PianoKeyboard />
     </div>
   );

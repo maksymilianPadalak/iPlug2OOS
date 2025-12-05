@@ -126,14 +126,14 @@ export function PianoKeyboard() {
           <h3 className="text-white text-xs font-mono uppercase tracking-wider">KEYBOARD</h3>
           {/* Active notes display */}
           <div className="flex items-center gap-2">
-            <span className="text-orange-200 text-[10px] font-bold uppercase tracking-wider">Playing:</span>
+            <span className="text-white/70 text-[10px] font-bold uppercase tracking-wider">Playing:</span>
             <div className="flex gap-1">
               {allActiveNotes.size === 0 ? (
-                <span className="text-stone-500 text-sm font-mono">—</span>
+                <span className="text-white/40 text-sm font-mono">—</span>
               ) : (
                 Array.from(allActiveNotes).sort((a, b) => a - b).map((note) => (
-                  <span 
-                    key={note} 
+                  <span
+                    key={note}
                     className="bg-orange-500 text-white text-xs font-bold font-mono px-1.5 py-0.5 rounded"
                   >
                     {noteNumberToName(note)}
@@ -143,7 +143,7 @@ export function PianoKeyboard() {
             </div>
           </div>
         </div>
-        <div className="text-amber-300 text-[10px] font-mono uppercase tracking-wider">
+        <div className="text-white/70 text-[10px] font-mono uppercase tracking-wider">
           OCTAVES 3-5 (Z/X = SHIFT)
         </div>
       </div>

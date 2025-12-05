@@ -16,7 +16,7 @@ export function PluginBody() {
   return (
     <div
       id="plugin-body"
-      className="rounded-2xl border border-orange-900/40 bg-gradient-to-b from-stone-900 via-neutral-950 to-black shadow-[0_20px_60px_rgba(0,0,0,0.6)] p-4"
+      className="rounded-2xl border border-orange-900/40 bg-gradient-to-b from-stone-900 via-neutral-950 to-black p-4"
     >
       <div className="flex flex-col gap-4">
         {/* Plugin Header */}

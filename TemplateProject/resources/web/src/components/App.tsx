@@ -40,7 +40,7 @@ export function App() {
   return (
     <BridgeProvider>
       <div className="min-h-screen w-full bg-[#F5F0E6] py-4 px-2 text-orange-100">
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-3">
+        <div className="flex w-full flex-col gap-3">
           <WebControls audioStatus={audioStatus} />
           <PluginBody />
           <Section title="Keyboard">
