@@ -9,7 +9,7 @@ module.exports = {
     extend: {
       fontFamily: {
         'brutal': ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
-        'sans': ['-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+        'sans': ['"Josefin Sans"', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
       },
       borderWidth: {
         'brutal': '4px',

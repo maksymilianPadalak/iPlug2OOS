@@ -17,7 +17,7 @@ export function Section({ title, description, children }: SectionProps) {
   return (
     <section
       aria-label={title}
-      className="rounded-xl border border-orange-900/40 bg-black/40 p-5"
+      className="rounded-xl border border-orange-900/40 bg-[#1c1917] p-5"
     >
       <header className="mb-4 flex items-center justify-between">
         <h2 className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-400">
