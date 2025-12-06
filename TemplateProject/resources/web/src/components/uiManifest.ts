@@ -1,5 +1,8 @@
 /**
  * UI Manifest - Available components for plugin UI generation
+ *
+ * Used by: src/server/lib/langchain/tools/generateUiPlan/utils/manifestToXml
+ * to generate XML context for the LLM system prompt.
  */
 
 export const controls = {
