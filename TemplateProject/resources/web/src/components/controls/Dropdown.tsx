@@ -2,19 +2,24 @@
  * Dropdown Control Component
  *
  * Selection control for enum parameters (waveform, mode, etc.)
+ * Options are automatically read from runtimeParameters.
  */
 
 import React from 'react';
 import { useParameter } from '@/glue/hooks/useParameter';
+import { runtimeParameters } from '@/config/runtimeParameters';
 
 type DropdownProps = {
   paramId: number;
   label?: string;
-  options: string[];
 };
 
-export function Dropdown({ paramId, label, options }: DropdownProps) {
+export function Dropdown({ paramId, label }: DropdownProps) {
   const { value, setValue, beginChange, endChange } = useParameter(paramId);
+
+  // Get options from runtimeParameters
+  const param = runtimeParameters.find((p) => p.id === paramId);
+  const options = param?.enumValues ?? [];
 
   const normalizedToIndex = (norm: number): number => {
     return Math.round(norm * (options.length - 1));
@@ -30,10 +35,14 @@ export function Dropdown({ paramId, label, options }: DropdownProps) {
     const newIndex = e.target.selectedIndex;
     const normalizedValue = indexToNormalized(newIndex);
 
-    beginChange(); // Signal start of parameter change for automation
+    beginChange();
     setValue(normalizedValue);
-    endChange(); // Signal end of parameter change for automation
+    endChange();
   };
+
+  if (options.length === 0) {
+    return <div className="text-red-500 text-xs">No options for param {paramId}</div>;
+  }
 
   return (
     <div className="flex flex-col items-center gap-1.5">
@@ -46,12 +55,12 @@ export function Dropdown({ paramId, label, options }: DropdownProps) {
         value={selectedIndex}
         onChange={handleChange}
         className="
-          bg-gradient-to-b from-stone-800 to-stone-900 
-          border-2 border-orange-600/40 
-          text-orange-100 px-3 py-1.5 rounded-md 
-          font-bold text-[11px] uppercase tracking-wider 
-          focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 
-          hover:from-stone-700 hover:to-stone-800 
+          bg-gradient-to-b from-stone-800 to-stone-900
+          border-2 border-orange-600/40
+          text-orange-100 px-3 py-1.5 rounded-md
+          font-bold text-[11px] uppercase tracking-wider
+          focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500
+          hover:from-stone-700 hover:to-stone-800
           cursor-pointer transition-all shadow-md
         "
       >

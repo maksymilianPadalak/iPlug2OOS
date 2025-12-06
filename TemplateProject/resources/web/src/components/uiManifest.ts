@@ -16,9 +16,8 @@ export const controls = {
     props: {
       paramId: 'number - EParams enum value',
       label: 'string - optional display label',
-      options: 'string[] - list of option labels',
     },
-    description: 'Selection control for enum parameters.',
+    description: 'Selection control for enum parameters. Options are auto-read from runtimeParameters.',
   },
 };
 
