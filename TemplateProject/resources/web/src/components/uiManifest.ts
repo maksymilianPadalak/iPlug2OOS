@@ -53,3 +53,17 @@ export const visualizations = {
     description: 'Oscilloscope-style waveform display.',
   },
 };
+
+export const displays = {
+  ADSRDisplay: {
+    path: '@/components/displays/ADSRDisplay',
+    props: {
+      attackParam: 'EParams enum value for attack time',
+      decayParam: 'EParams enum value for decay time',
+      sustainParam: 'EParams enum value for sustain level',
+      releaseParam: 'EParams enum value for release time',
+      label: 'Optional label string',
+    },
+    description: 'Visualizes ADSR envelope curve shape based on parameter values.',
+  },
+};
