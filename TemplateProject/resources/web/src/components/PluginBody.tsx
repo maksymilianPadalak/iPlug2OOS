@@ -32,10 +32,10 @@ export function PluginBody() {
         {/* Control Sections */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Section title="Envelope">
-            <Knob paramId={EParams.kParamAttack} label="Attack" />
-            <Knob paramId={EParams.kParamDecay} label="Decay" />
-            <Knob paramId={EParams.kParamSustain} label="Sustain" />
-            <Knob paramId={EParams.kParamRelease} label="Release" />
+            <Knob paramId={EParams.kParamAmpAttack} label="Attack" />
+            <Knob paramId={EParams.kParamAmpDecay} label="Decay" />
+            <Knob paramId={EParams.kParamAmpSustain} label="Sustain" />
+            <Knob paramId={EParams.kParamAmpRelease} label="Release" />
           </Section>
 
           <Section title="Master">
