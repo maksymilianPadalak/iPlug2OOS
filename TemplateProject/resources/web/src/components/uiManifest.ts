@@ -30,11 +30,6 @@ export const visualizations = {
     },
     description: 'Audio level meter with peak/RMS display.',
   },
-  PianoKeyboard: {
-    path: '@/components/visualizations/PianoKeyboard',
-    props: {},
-    description: 'Interactive piano keyboard with MIDI I/O. Self-contained.',
-  },
 };
 
 export const layouts = {

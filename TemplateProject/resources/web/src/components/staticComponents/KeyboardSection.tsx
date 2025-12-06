@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { PianoKeyboard } from '@/components/visualizations/PianoKeyboard';
+import { PianoKeyboard } from '@/components/staticComponents/PianoKeyboard';
 
 export function KeyboardSection() {
   return (
