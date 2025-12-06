@@ -10,21 +10,25 @@
  *
  * Stores updated:
  * - parameterStore: parameter values (SPVFD), state dumps (SSTATE)
- * - meterStore: meter data (SCMFD with kCtrlTagMeter)
+ * - meterStore: meter data (SCMFD with IPeakSender/IPeakAvgSender)
+ * - waveformStore: waveform data (SCMFD with IBufferSender)
  * - arbitraryMessageStore: LFO waveform, spectrum, etc. (SAMFD)
  * - midiStore: MIDI messages (SMMFD)
  * - systemExclusiveStore: System Exclusive messages (SSMFD)
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useParameterBridge } from '@/glue/hooks/useParameterBridge';
 import { parameterStore } from '@/glue/state/parameterStore';
 import { meterStore } from '@/glue/state/realtimeBuffers';
+import { waveformStore } from '@/glue/state/waveformStore';
 import { arbitraryMessageStore } from '@/glue/state/arbitraryMessageStore';
 import { midiStore } from '@/glue/state/midiStore';
 import { systemExclusiveStore } from '@/glue/state/systemExclusiveStore';
 import { requestStateSync } from '@/glue/iplugBridge/iplugBridge';
-import { EControlTags } from '@/config/runtimeParameters';
+import { controlTags } from '@/config/runtimeParameters';
+import { getVisualizationForSenderType } from '@/config/senderTypeMapping';
+import type { SenderType } from '@/config/senderTypeMapping';
 
 /**
  * Parse meter data from SCMFD buffer.
@@ -39,6 +43,16 @@ function parseMeterData(buffer: ArrayBuffer): void {
 
   meterStore.update(0, leftPeak, leftRMS);
   meterStore.update(1, rightPeak, rightRMS);
+}
+
+/**
+ * Parse waveform buffer data from SCMFD buffer (IBufferSender).
+ * Format: [12 bytes header][samples: f32[]]
+ */
+function parseWaveformData(ctrlTag: number, buffer: ArrayBuffer): void {
+  // Skip 12-byte header, rest is float32 samples
+  const samples = new Float32Array(buffer.slice(12));
+  waveformStore.update(ctrlTag, samples);
 }
 
 /**
@@ -64,17 +78,36 @@ function parseStateDump(buffer: ArrayBuffer): void {
   parameterStore.setMany(params);
 }
 
+/** Build a lookup map from control tag ID to sender type for fast routing */
+function buildSenderTypeLookup(): Map<number, SenderType | null> {
+  const lookup = new Map<number, SenderType | null>();
+  for (const tag of controlTags) {
+    lookup.set(tag.id, tag.senderType as SenderType | null);
+  }
+  return lookup;
+}
+
 export function BridgeProvider({ children }: { children: React.ReactNode }) {
+  const senderTypeLookup = useMemo(() => buildSenderTypeLookup(), []);
+
   useParameterBridge({
     onParameterValue: (paramIdx, normalizedValue) => {
       parameterStore.set(paramIdx, normalizedValue);
     },
     onControlMessage: (ctrlTag, _msgTag, _dataSize, data) => {
-      // Route control messages by ctrlTag
-      if (ctrlTag === EControlTags.kCtrlTagMeter) {
-        parseMeterData(data);
+      // Route control messages by visualization component (derived from senderType)
+      const senderType = senderTypeLookup.get(ctrlTag);
+      const visualization = getVisualizationForSenderType(senderType ?? null);
+      if (!visualization) return;
+
+      switch (visualization) {
+        case 'Meter':
+          parseMeterData(data);
+          break;
+        case 'WaveformDisplay':
+          parseWaveformData(ctrlTag, data);
+          break;
       }
-      // Future control message types can be added here
     },
     onArbitraryMessage: (msgTag, _dataSize, data) => {
       // Route ALL arbitrary messages to generic store
