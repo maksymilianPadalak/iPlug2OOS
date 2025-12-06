@@ -1,125 +1,91 @@
 /**
- * UI Manifest - Available building blocks for plugin UI generation
- *
- * This manifest describes what components, hooks, and layouts are available
- * for AI to use when generating plugin UIs.
+ * UI Manifest - Available components for plugin UI generation
  */
 
-/**
- * Available control components
- */
 export const controls = {
   Knob: {
-    path: 'components/controls/Knob',
+    path: '@/components/controls/Knob',
     props: {
       paramId: 'number - EParams enum value',
-      label: 'string - display label',
-      size: "'sm' | 'md' | 'lg' - optional, defaults to 'md'",
+      label: 'string - optional display label',
     },
-    description: 'Rotary knob for continuous parameters (gain, frequency, etc.)',
-  },
-  Slider: {
-    path: 'components/controls/Slider',
-    props: {
-      paramId: 'number - EParams enum value',
-      label: 'string - display label',
-    },
-    description: 'Vertical slider for continuous parameters',
+    description: 'Rotary control for continuous parameters. Drag up/down to change.',
   },
   Dropdown: {
-    path: 'components/controls/Dropdown',
+    path: '@/components/controls/Dropdown',
     props: {
       paramId: 'number - EParams enum value',
-      label: 'string - display label',
+      label: 'string - optional display label',
       options: 'string[] - list of option labels',
     },
-    description: 'Dropdown selector for enum parameters (waveform, mode, etc.)',
-  },
-  Toggle: {
-    path: 'components/controls/Toggle',
-    props: {
-      paramId: 'number - EParams enum value',
-      label: 'string - display label',
-    },
-    description: 'On/off toggle for boolean parameters',
+    description: 'Selection control for enum parameters.',
   },
 };
 
-/**
- * Available visualization components
- */
 export const visualizations = {
   Meter: {
-    path: 'components/visualizations/Meter',
+    path: '@/components/visualizations/Meter',
     props: {
       channel: '0 | 1 - left or right channel',
     },
-    description: 'Audio level meter with peak/RMS display',
+    description: 'Audio level meter with peak/RMS display.',
   },
   PianoKeyboard: {
-    path: 'components/visualizations/PianoKeyboard',
-    props: {
-      startNote: 'number - MIDI note number for first key',
-      endNote: 'number - MIDI note number for last key',
-    },
-    description: 'Interactive piano keyboard with MIDI I/O',
+    path: '@/components/visualizations/PianoKeyboard',
+    props: {},
+    description: 'Interactive piano keyboard with MIDI I/O. Self-contained.',
   },
 };
 
-/**
- * Available layout components
- */
 export const layouts = {
   Section: {
-    path: 'components/layouts/Section',
+    path: '@/components/layouts/Section',
     props: {
       title: 'string - section header',
       description: 'string - optional subtitle',
       children: 'ReactNode - section content',
     },
-    description: 'Styled container for grouping controls',
+    description: 'Container for grouping controls.',
   },
   Tabs: {
-    path: 'components/layouts/Tabs',
+    path: '@/components/layouts/Tabs',
     props: {
       tabs: '{ id: string, label: string, content: ReactNode }[]',
     },
-    description: 'Tabbed container for organizing multiple views',
+    description: 'Tabbed container for organizing multiple views.',
   },
 };
 
-/**
- * Available hooks
- */
 export const hooks = {
   useParameter: {
-    path: 'glue/hooks/useParameter',
-    returns: '{ value: number, setValue: (v: number) => void, beginChange: () => void, endChange: () => void }',
-    description: 'Connect any control to a parameter with DAW automation support',
+    path: '@/glue/hooks/useParameter',
+    signature: 'useParameter(paramIdx: number)',
+    returns: '{ value, setValue, beginChange, endChange }',
+    description: 'Connect control to DSP parameter with DAW automation.',
   },
   useMeter: {
-    path: 'glue/hooks/useMeter',
-    returns: '{ peak: number, rms: number }',
-    description: 'Read audio level data for a channel',
+    path: '@/glue/hooks/useMeter',
+    signature: 'useMeter(channel: 0 | 1)',
+    returns: '{ peak, rms }',
+    description: 'Read audio level data.',
   },
   useMidi: {
-    path: 'glue/hooks/useMidi',
-    returns: '{ activeNotes: Map, isNoteActive: (note: number) => boolean, getNoteVelocity: (note: number) => number }',
-    description: 'Read MIDI note state from DSP',
+    path: '@/glue/hooks/useMidi',
+    signature: 'useMidi()',
+    returns: '{ activeNotes, isNoteActive, getNoteVelocity }',
+    description: 'Read MIDI note state.',
   },
   useArbitraryMessage: {
-    path: 'glue/hooks/useArbitraryMessage',
+    path: '@/glue/hooks/useArbitraryMessage',
+    signature: 'useArbitraryMessage(msgTag: number)',
     returns: '{ data: ArrayBuffer, timestamp: number } | null',
-    description: 'Read raw binary data for custom visualizations (spectrum, oscilloscope, etc.)',
+    description: 'Read raw binary data for custom visualizations (spectrum, oscilloscope).',
   },
 };
 
-/**
- * Required wrapper
- */
 export const requiredWrapper = {
   BridgeProvider: {
-    path: 'glue/BridgeProvider',
-    description: 'Must wrap the entire app - initializes DSP communication',
+    path: '@/glue/BridgeProvider',
+    description: 'Must wrap the entire app - initializes DSP communication.',
   },
 };

@@ -10,9 +10,9 @@ import { initializeWAM, setupMIDIDevices } from '@/audio/wam-controller';
 import { initializeEnvironment } from '@/utils/environment';
 
 import { BridgeProvider } from '@/glue/BridgeProvider';
-import { WebControls } from '@/components/sections/WebControls';
+import { WebControls } from '@/components/staticComponents/WebControls';
 import { Section } from '@/components/layouts/Section';
-import { KeyboardSection } from '@/components/sections/KeyboardSection';
+import { KeyboardSection } from '@/components/staticComponents/KeyboardSection';
 import { PluginBody } from '@/components/PluginBody';
 
 export function App() {

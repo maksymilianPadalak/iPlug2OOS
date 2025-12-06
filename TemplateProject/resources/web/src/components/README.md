@@ -1,15 +1,14 @@
 # Plugin UI Components
 
-Minimal template for AI-generated plugin UIs. Keep it simple.
+Minimal template for AI-generated plugin UIs.
 
 ## Structure
 
 ```
 components/
-├── controls/       # Knob, Slider, Dropdown, Toggle
-├── visualizations/ # Meter, PianoKeyboard
-├── layouts/        # Section, Tabs
-├── sections/       # PluginHeader, WebControls, KeyboardSection
+├── controls/       # Knob, Dropdown
+├── visualizations/ # Meter
+├── layouts/        # Section
 └── App.tsx         # Main app (wrap in BridgeProvider)
 ```
 
@@ -19,29 +18,23 @@ components/
 |------|---------|---------|
 | `useParameter` | `{ value, setValue, beginChange, endChange }` | All parameter controls |
 | `useMeter` | `{ peak, rms }` | Audio level meters |
-| `useMidi` | `{ activeNotes, isNoteActive }` | Piano keyboard, MIDI display |
-| `useArbitraryMessage` | `{ data: ArrayBuffer }` | Custom visualizations (spectrum, scope) |
+| `useMidi` | `{ activeNotes, isNoteActive }` | MIDI display |
 
 ## Controls
 
 All controls take `paramId` from `EParams` enum:
 
 ```tsx
-import { Knob } from './controls/Knob';
-import { EParams } from '../config/runtimeParameters';
+import { Knob } from '@/components/controls/Knob';
+import { Dropdown } from '@/components/controls/Dropdown';
+import { EParams } from '@/config/runtimeParameters';
 
-<Knob paramId={EParams.kParamGain} label="Gain" size="lg" />
+<Knob paramId={EParams.kParamGain} label="Gain" />
+<Dropdown paramId={EParams.kParamWaveform} label="Wave" options={['Sine', 'Saw', 'Square']} />
 ```
-
-## Adding New Parameters
-
-1. Add to C++ `EParams` enum
-2. Add to `runtimeParameters.ts` (auto-generated)
-3. Use in UI with any control component
 
 ## Files Reference
 
 - `config/runtimeParameters.ts` - Parameter definitions (generated from C++)
-- `contracts/integrationPatterns.ts` - Code patterns for AI
 - `uiManifest.ts` - Available components manifest
 - `glue/` - DSP communication layer (don't modify)

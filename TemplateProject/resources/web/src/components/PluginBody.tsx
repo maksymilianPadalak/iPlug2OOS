@@ -5,10 +5,8 @@
  * Modified by the AI code generation pipeline.
  */
 
-import React from 'react';
 import { Section } from '@/components/layouts/Section';
 import { Knob } from '@/components/controls/Knob';
-import { Slider } from '@/components/controls/Slider';
 import { Meter } from '@/components/visualizations/Meter';
 import { EParams } from '@/config/runtimeParameters';
 
@@ -26,32 +24,24 @@ export function PluginBody() {
               TemplateProject
             </span>
           </h1>
-          <div className="flex items-center gap-3">
-            <span className="text-orange-400/60 text-xs font-bold uppercase tracking-wider">
-              v1.0
-            </span>
-          </div>
+          <span className="text-orange-400/60 text-xs font-bold uppercase tracking-wider">
+            v1.0
+          </span>
         </header>
 
         {/* Control Sections */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Section title="Envelope">
-            <div className="flex flex-col gap-2">
-              <Slider paramId={EParams.kParamAttack} label="Attack" orientation="horizontal" />
-              <Slider paramId={EParams.kParamDecay} label="Decay" orientation="horizontal" />
-              <Slider paramId={EParams.kParamSustain} label="Sustain" orientation="horizontal" />
-              <Slider paramId={EParams.kParamRelease} label="Release" orientation="horizontal" />
-            </div>
+            <Knob paramId={EParams.kParamAttack} label="Attack" />
+            <Knob paramId={EParams.kParamDecay} label="Decay" />
+            <Knob paramId={EParams.kParamSustain} label="Sustain" />
+            <Knob paramId={EParams.kParamRelease} label="Release" />
           </Section>
 
           <Section title="Master">
-            <div className="flex items-center justify-center gap-6">
-              <Knob paramId={EParams.kParamGain} label="Gain" size="lg" />
-              <div className="flex items-end gap-2">
-                <Meter channel={0} />
-                <Meter channel={1} />
-              </div>
-            </div>
+            <Knob paramId={EParams.kParamGain} label="Gain" />
+            <Meter channel={0} />
+            <Meter channel={1} />
           </Section>
         </div>
       </div>
