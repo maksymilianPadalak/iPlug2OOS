@@ -70,12 +70,14 @@ export function Knob({ paramId, label }: KnobProps) {
   const stroke = 4;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
-  const progress = circumference * value;
+  // Arc spans 270 degrees (from -135° to +135°), so use 0.75 of circumference
+  const arcLength = circumference * 0.75;
+  const progress = arcLength * value;
 
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="flex flex-col items-center gap-1.5">
       {label && (
-        <label className="text-orange-200 text-[10px] font-bold uppercase tracking-wider">
+        <label className="text-[#1a1a1a] text-[10px] font-bold uppercase tracking-[0.08em]">
           {label}
         </label>
       )}
@@ -84,36 +86,75 @@ export function Knob({ paramId, label }: KnobProps) {
         ref={knobRef}
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
-        className={`cursor-pointer select-none ${isDragging ? 'opacity-80' : ''}`}
+        className={`cursor-pointer select-none transition-transform ${isDragging ? 'scale-105' : 'hover:scale-102'}`}
+        style={{
+          filter: isDragging ? 'drop-shadow(0 4px 8px rgba(184, 134, 11, 0.3))' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
+        }}
       >
         <svg width={size} height={size}>
-          {/* Background track */}
+          {/* Outer ring shadow effect */}
           <circle
             cx={size / 2}
             cy={size / 2}
-            r={radius}
+            r={radius + 2}
             fill="none"
-            stroke="#292524"
-            strokeWidth={stroke}
+            stroke="rgba(0,0,0,0.05)"
+            strokeWidth={1}
           />
-          {/* Progress arc */}
+          {/* Background track - 270 degree arc */}
           <circle
             cx={size / 2}
             cy={size / 2}
             r={radius}
             fill="none"
-            stroke="#fb923c"
+            stroke="#D4C4B0"
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={`${arcLength} ${circumference}`}
+            transform={`rotate(135 ${size / 2} ${size / 2})`}
+          />
+          {/* Progress arc - brass/gold gradient effect */}
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="#B8860B"
             strokeWidth={stroke}
             strokeLinecap="round"
             strokeDasharray={`${progress} ${circumference}`}
-            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            transform={`rotate(135 ${size / 2} ${size / 2})`}
           />
-          {/* Center dot */}
-          <circle cx={size / 2} cy={size / 2} r={6} fill="#1c1917" stroke="#fb923c" strokeWidth={1.5} />
+          {/* Center knob with metallic effect */}
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={8}
+            fill="url(#knobGradient)"
+            stroke="#B8860B"
+            strokeWidth={1}
+          />
+          {/* Indicator line */}
+          <line
+            x1={size / 2}
+            y1={size / 2 - 3}
+            x2={size / 2}
+            y2={size / 2 - 6}
+            stroke="#5D4E37"
+            strokeWidth={1.5}
+            strokeLinecap="round"
+            transform={`rotate(${value * 270 - 135} ${size / 2} ${size / 2})`}
+          />
+          <defs>
+            <radialGradient id="knobGradient" cx="30%" cy="30%">
+              <stop offset="0%" stopColor="#FFF8E7" />
+              <stop offset="100%" stopColor="#E8D4B8" />
+            </radialGradient>
+          </defs>
         </svg>
       </div>
 
-      <div className="text-orange-300 text-[10px] font-bold">
+      <div className="text-[#2a2a2a] text-[11px] font-semibold tabular-nums">
         {normalizedToDisplay(paramId, value)}
       </div>
     </div>
