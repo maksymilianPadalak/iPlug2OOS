@@ -26,10 +26,6 @@ body.wam-mode .wam-only {
 /* Plugin body styling - all vintage Valhalla-style changes scoped to #plugin-body */
 #plugin-body {
   background-color: #1c1917; /* amber-950 */
-}
-
-#plugin-body * {
-  /* Ensure all text inside plugin body is white by default */
-  color: white;
+  color: white; /* Default text color - can be overridden by Tailwind utilities */
 }
 
