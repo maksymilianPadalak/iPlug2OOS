@@ -23,9 +23,7 @@ body.wam-mode .wam-only {
   display: block;
 }
 
-/* Plugin body styling - all vintage Valhalla-style changes scoped to #plugin-body */
-#plugin-body {
-  background-color: #1c1917; /* amber-950 */
-  color: white; /* Default text color - can be overridden by Tailwind utilities */
-}
+/* Plugin body styling - Streamline Moderne theme */
+/* Background and text colors are set via Tailwind classes in PluginBody.tsx */
+/* This section is intentionally minimal to allow Tailwind to control styling */
 
