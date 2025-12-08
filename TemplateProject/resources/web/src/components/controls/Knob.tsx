@@ -8,11 +8,7 @@
 import { useRef, useState, useCallback } from 'react';
 import { normalizedToDisplay } from '@/utils/parameter';
 import { useParameter } from '@/glue/hooks/useParameter';
-
-type KnobProps = {
-  paramId: number;
-  label?: string;
-};
+import type { KnobProps } from '@/components/uiManifest/componentProps';
 
 export function Knob({ paramId, label }: KnobProps) {
   const { value, setValue, beginChange, endChange } = useParameter(paramId);

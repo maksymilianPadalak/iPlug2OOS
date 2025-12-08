@@ -7,12 +7,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { useWaveform } from '@/glue/hooks/useWaveform';
-import { EControlTags } from '@/config/runtimeParameters';
-
-type WaveformDisplayProps = {
-  ctrlTag: keyof typeof EControlTags;
-  label?: string;
-};
+import type { WaveformDisplayProps } from '@/components/uiManifest/componentProps';
 
 const FADE_TIMEOUT_MS = 300;
 
@@ -21,9 +16,7 @@ export function WaveformDisplay({ ctrlTag, label }: WaveformDisplayProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasWidth, setCanvasWidth] = useState(200);
 
-  // Get numeric control tag from string key
-  const ctrlTagNum = EControlTags[ctrlTag];
-  const { samples, timestamp } = useWaveform(ctrlTagNum);
+  const { samples, timestamp } = useWaveform(ctrlTag);
 
   // Track container width
   useEffect(() => {
@@ -58,8 +51,8 @@ export function WaveformDisplay({ ctrlTag, label }: WaveformDisplayProps) {
     const isStale = Date.now() - timestamp > FADE_TIMEOUT_MS;
     const alpha = isStale ? 0.2 : 1;
 
-    // Draw subtle grid
-    ctx.strokeStyle = `rgba(251, 146, 60, ${0.1 * alpha})`;
+    // Draw subtle grid - brass color
+    ctx.strokeStyle = `rgba(184, 134, 11, ${0.15 * alpha})`;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, centerY);
@@ -68,18 +61,18 @@ export function WaveformDisplay({ ctrlTag, label }: WaveformDisplayProps) {
 
     // Draw waveform if we have data
     if (samples.length > 0) {
-      // Glow layers
+      // Glow layers - warm brass tones
       const glowLayers = [
-        { blur: 12, alpha: 0.3 * alpha },
-        { blur: 6, alpha: 0.5 * alpha },
-        { blur: 2, alpha: 0.8 * alpha },
+        { blur: 10, alpha: 0.25 * alpha },
+        { blur: 5, alpha: 0.4 * alpha },
+        { blur: 2, alpha: 0.7 * alpha },
       ];
 
       for (const { blur, alpha: layerAlpha } of glowLayers) {
         ctx.save();
-        ctx.shadowColor = 'rgba(251, 146, 60, 1)';
+        ctx.shadowColor = 'rgba(184, 134, 11, 1)';
         ctx.shadowBlur = blur;
-        ctx.strokeStyle = `rgba(251, 146, 60, ${layerAlpha})`;
+        ctx.strokeStyle = `rgba(184, 134, 11, ${layerAlpha})`;
         ctx.lineWidth = 2;
         ctx.beginPath();
 
@@ -94,8 +87,8 @@ export function WaveformDisplay({ ctrlTag, label }: WaveformDisplayProps) {
         ctx.restore();
       }
 
-      // Main stroke
-      ctx.strokeStyle = `rgba(255, 200, 150, ${alpha})`;
+      // Main stroke - darker brass for contrast
+      ctx.strokeStyle = `rgba(139, 105, 20, ${alpha})`;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
 
@@ -109,34 +102,37 @@ export function WaveformDisplay({ ctrlTag, label }: WaveformDisplayProps) {
       ctx.stroke();
     }
 
-    // Vignette overlay
+    // Soft vignette for depth
     const vignette = ctx.createRadialGradient(
       width / 2, height / 2, 0,
       width / 2, height / 2, width / 1.5
     );
     vignette.addColorStop(0, 'rgba(0,0,0,0)');
-    vignette.addColorStop(1, 'rgba(0,0,0,0.4)');
+    vignette.addColorStop(1, 'rgba(0,0,0,0.15)');
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, width, height);
   }, [samples, timestamp, canvasWidth]);
 
   return (
-    <fieldset className="rounded-lg border border-orange-500/30 px-3 pb-3 pt-1">
-      <legend className="px-2 text-[10px] font-semibold uppercase tracking-wider text-orange-300/70">
+    <fieldset className="w-full col-span-full rounded-xl border border-[#B8860B]/30 px-3 pb-3 pt-1 bg-gradient-to-br from-white/50 to-white/20">
+      <legend className="px-2 text-[10px] font-bold uppercase tracking-wider text-[#1a1a1a]">
         <span
           className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full"
           style={{
             backgroundColor:
               Date.now() - timestamp < FADE_TIMEOUT_MS
-                ? 'rgb(251, 146, 60)'
-                : 'rgb(120, 113, 108)',
+                ? 'rgb(184, 134, 11)'
+                : 'rgb(180, 170, 155)',
           }}
         />
         {label}
       </legend>
       <div
         ref={containerRef}
-        className="relative overflow-hidden rounded-md border border-orange-900/50 bg-gradient-to-b from-stone-950 via-neutral-950 to-black"
+        className="relative overflow-hidden rounded-lg border border-[#B8860B]/20 bg-gradient-to-b from-[#1a1816] via-[#0f0e0d] to-[#0a0908]"
+        style={{
+          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)',
+        }}
       >
         <canvas
           ref={canvasRef}

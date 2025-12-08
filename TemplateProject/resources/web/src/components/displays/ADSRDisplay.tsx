@@ -7,14 +7,7 @@
 
 import { useMemo } from 'react';
 import { useParameter } from '@/glue/hooks/useParameter';
-
-type ADSRDisplayProps = {
-  attackParam: number;
-  decayParam: number;
-  sustainParam: number;
-  releaseParam: number;
-  label?: string;
-};
+import type { ADSRDisplayProps } from '@/components/uiManifest/componentProps';
 
 export function ADSRDisplay({
   attackParam,
@@ -103,19 +96,25 @@ export function ADSRDisplay({
   );
 
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="flex flex-col gap-1.5 w-full col-span-full">
       {label && (
-        <label className="text-orange-200 text-[10px] font-bold uppercase tracking-wider">
+        <label className="text-[#1a1a1a] text-[11px] font-black uppercase tracking-[0.1em] text-center">
           {label}
         </label>
       )}
 
-      <div className="relative bg-gradient-to-br from-stone-900/80 to-black/80 border border-orange-700/30 rounded-xl overflow-hidden shadow-lg">
+      <div
+        className="relative w-full bg-gradient-to-br from-white/70 to-white/40 border border-[#B8860B]/25 rounded-xl overflow-hidden"
+        style={{
+          boxShadow: 'inset 0 1px 3px rgba(255,255,255,0.9), 0 4px 12px rgba(0,0,0,0.08)',
+        }}
+      >
         {/* Subtle grid lines */}
         <svg
-          width={width}
-          height={height}
-          className="absolute inset-0 opacity-20"
+          viewBox={`0 0 ${width} ${height}`}
+          className="absolute inset-0 w-full h-full opacity-30"
+          preserveAspectRatio="none"
+          style={{ height: '80px' }}
         >
           {/* Horizontal grid lines */}
           {[0.25, 0.5, 0.75].map((y) => (
@@ -125,7 +124,7 @@ export function ADSRDisplay({
               y1={padding.top + graphHeight * y}
               x2={width - padding.right}
               y2={padding.top + graphHeight * y}
-              stroke="#fb923c"
+              stroke="#B8860B"
               strokeWidth="0.5"
               strokeDasharray="2,4"
             />
@@ -138,7 +137,7 @@ export function ADSRDisplay({
               y1={padding.top}
               x2={padding.left + graphWidth * x}
               y2={height - padding.bottom}
-              stroke="#fb923c"
+              stroke="#B8860B"
               strokeWidth="0.5"
               strokeDasharray="2,4"
             />
@@ -146,17 +145,17 @@ export function ADSRDisplay({
         </svg>
 
         {/* Main envelope SVG */}
-        <svg width={width} height={height}>
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ height: '80px' }} preserveAspectRatio="none">
           <defs>
-            {/* Gradient fill */}
+            {/* Gradient fill - warm brass tones */}
             <linearGradient id={gradientId} x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#fb923c" stopOpacity="0.4" />
-              <stop offset="50%" stopColor="#ea580c" stopOpacity="0.2" />
-              <stop offset="100%" stopColor="#9a3412" stopOpacity="0.05" />
+              <stop offset="0%" stopColor="#B8860B" stopOpacity="0.35" />
+              <stop offset="50%" stopColor="#DAA520" stopOpacity="0.15" />
+              <stop offset="100%" stopColor="#F5E6D3" stopOpacity="0.05" />
             </linearGradient>
-            {/* Glow filter */}
-            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="2" result="blur" />
+            {/* Subtle glow filter */}
+            <filter id="adsrGlow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="1.5" result="blur" />
               <feMerge>
                 <feMergeNode in="blur" />
                 <feMergeNode in="SourceGraphic" />
@@ -171,18 +170,18 @@ export function ADSRDisplay({
           <path
             d={path}
             fill="none"
-            stroke="#fb923c"
-            strokeWidth="2.5"
+            stroke="#B8860B"
+            strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            filter="url(#glow)"
+            filter="url(#adsrGlow)"
           />
 
           {/* Crisp envelope curve on top */}
           <path
             d={path}
             fill="none"
-            stroke="#fdba74"
+            stroke="#8B6914"
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -190,27 +189,27 @@ export function ADSRDisplay({
 
           {/* Corner accents - Streamline Moderne style */}
           <path
-            d={`M ${padding.left} ${padding.top + 12} L ${padding.left} ${padding.top} L ${padding.left + 12} ${padding.top}`}
+            d={`M ${padding.left} ${padding.top + 10} L ${padding.left} ${padding.top} L ${padding.left + 10} ${padding.top}`}
             fill="none"
-            stroke="#fb923c"
+            stroke="#B8860B"
             strokeWidth="1"
-            strokeOpacity="0.5"
+            strokeOpacity="0.4"
           />
           <path
-            d={`M ${width - padding.right - 12} ${padding.top} L ${width - padding.right} ${padding.top} L ${width - padding.right} ${padding.top + 12}`}
+            d={`M ${width - padding.right - 10} ${padding.top} L ${width - padding.right} ${padding.top} L ${width - padding.right} ${padding.top + 10}`}
             fill="none"
-            stroke="#fb923c"
+            stroke="#B8860B"
             strokeWidth="1"
-            strokeOpacity="0.5"
+            strokeOpacity="0.4"
           />
         </svg>
 
         {/* ADSR labels at bottom */}
         <div className="absolute bottom-1 left-0 right-0 flex justify-around px-2">
-          <span className="text-[8px] font-bold text-orange-500/60 uppercase">A</span>
-          <span className="text-[8px] font-bold text-orange-500/60 uppercase">D</span>
-          <span className="text-[8px] font-bold text-orange-500/60 uppercase">S</span>
-          <span className="text-[8px] font-bold text-orange-500/60 uppercase">R</span>
+          <span className="text-[9px] font-black text-[#2a2a2a] uppercase">A</span>
+          <span className="text-[9px] font-black text-[#2a2a2a] uppercase">D</span>
+          <span className="text-[9px] font-black text-[#2a2a2a] uppercase">S</span>
+          <span className="text-[9px] font-black text-[#2a2a2a] uppercase">R</span>
         </div>
       </div>
     </div>

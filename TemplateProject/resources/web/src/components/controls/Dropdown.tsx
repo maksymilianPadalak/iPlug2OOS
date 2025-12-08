@@ -8,11 +8,7 @@
 import React from 'react';
 import { useParameter } from '@/glue/hooks/useParameter';
 import { runtimeParameters } from '@/config/runtimeParameters';
-
-type DropdownProps = {
-  paramId: number;
-  label?: string;
-};
+import type { DropdownProps } from '@/components/uiManifest/componentProps';
 
 export function Dropdown({ paramId, label }: DropdownProps) {
   const { value, setValue, beginChange, endChange } = useParameter(paramId);
@@ -45,9 +41,9 @@ export function Dropdown({ paramId, label }: DropdownProps) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-1.5">
+    <div className="flex flex-col items-center gap-1.5 min-w-0">
       {label && (
-        <label className="text-orange-200 text-[10px] font-bold uppercase tracking-wider">
+        <label className="text-[#1a1a1a] text-[10px] font-bold uppercase tracking-[0.08em]">
           {label}
         </label>
       )}
@@ -55,17 +51,21 @@ export function Dropdown({ paramId, label }: DropdownProps) {
         value={selectedIndex}
         onChange={handleChange}
         className="
-          bg-gradient-to-b from-stone-800 to-stone-900
-          border-2 border-orange-600/40
-          text-orange-100 px-3 py-1.5 rounded-md
+          w-full max-w-[200px]
+          bg-gradient-to-b from-[#F8F4EF] to-[#EDE5DA]
+          border border-[#B8860B]/40
+          text-[#1a1a1a] px-3 py-1.5 rounded-lg
           font-bold text-[11px] uppercase tracking-wider
-          focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500
-          hover:from-stone-700 hover:to-stone-800
-          cursor-pointer transition-all shadow-md
+          focus:outline-none focus:ring-2 focus:ring-[#B8860B]/30 focus:border-[#B8860B]
+          hover:from-white hover:to-[#F5EDE2]
+          cursor-pointer transition-all truncate
         "
+        style={{
+          boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.08)',
+        }}
       >
         {options.map((option, index) => (
-          <option key={index} value={index} className="bg-stone-900 text-orange-100">
+          <option key={index} value={index} className="bg-[#F5EDE2] text-[#1a1a1a]">
             {option}
           </option>
         ))}
