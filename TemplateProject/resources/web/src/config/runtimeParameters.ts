@@ -36,6 +36,8 @@ export type RuntimeParameter = {
 export type ControlTag = {
   id: number;
   key: string;
+  senderType: 'ISender' | 'IPeakSender' | 'IPeakAvgSender' | 'IBufferSender' | 'ISpectrumSender' | null;
+  channels: number | null;
 };
 
 export type MsgTag = {
@@ -54,7 +56,7 @@ export const runtimeParameters: RuntimeParameter[] = [
 
 // Control tags (for SCMFD - meters, etc.)
 export const controlTags: ControlTag[] = [
-  { id: 0, key: "kCtrlTagMeter" },
+  { id: 0, key: "kCtrlTagMeter", senderType: "IPeakAvgSender", channels: 2 },
 ];
 
 // Message tags (for SAMFD - visualizations)
