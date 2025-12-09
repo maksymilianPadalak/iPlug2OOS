@@ -4,10 +4,16 @@
 #include <cmath>
 #include <cstring>
 
-#include "ADSREnvelope.h"
-#include "Oscillator.h"
-
 using namespace iplug;
+
+enum EWaveform
+{
+  kWaveformSine = 0,
+  kWaveformSaw,
+  kWaveformSquare,
+  kWaveformTriangle,
+  kNumWaveforms
+};
 
 template<typename T>
 class TemplateProjectDSP
@@ -26,7 +32,7 @@ public:
       return;
 
     const T gain = mGain;
-    const T sustainLevel = mSustain;
+    const int waveform = mWaveform;
 
     for (int s = 0; s < nFrames; ++s)
     {
@@ -34,12 +40,11 @@ public:
 
       for (auto& voice : mVoices)
       {
-        if (!voice.env.GetBusy())
+        if (!voice.active)
           continue;
 
-        const T envValue = voice.env.Process(sustainLevel);
-        const T oscValue = static_cast<T>(voice.osc.Process(voice.frequency));
-        sample += oscValue * envValue;
+        const T oscValue = ProcessOscillator(voice, waveform);
+        sample += oscValue * voice.level;
       }
 
       // Scale down for polyphony (1/sqrt(maxVoices) preserves perceived loudness)
@@ -57,14 +62,12 @@ public:
   {
     for (auto& voice : mVoices)
     {
-      voice.Reset(sampleRate);
+      voice.Reset();
     }
 
     mSampleRate = sampleRate;
     mGain = static_cast<T>(0.8);
     mNextVoice = 0;
-
-    UpdateEnvelopeTimes();
   }
 
   void ProcessMidiMsg(const IMidiMsg& msg)
@@ -101,20 +104,8 @@ public:
       case kParamGain:
         mGain = static_cast<T>(value / 100.0);
         break;
-      case kParamAttack:
-        mAttackMs = value;
-        UpdateEnvelopeTimes();
-        break;
-      case kParamDecay:
-        mDecayMs = value;
-        UpdateEnvelopeTimes();
-        break;
-      case kParamSustain:
-        mSustain = static_cast<T>(value / 100.0);
-        break;
-      case kParamRelease:
-        mReleaseMs = value;
-        UpdateEnvelopeTimes();
+      case kParamWaveform:
+        mWaveform = static_cast<int>(value);
         break;
       default:
         break;
@@ -126,52 +117,64 @@ private:
 
   struct Voice
   {
-    ADSREnvelope<T> env;
-    FastSinOscillator<T> osc;
+    double phase = 0.0;
     double frequency = 0.0;
     int noteNumber = -1;
+    T level = static_cast<T>(0.0);
+    bool active = false;
 
-    void Reset(double sampleRate)
+    void Reset()
     {
-      env.SetSampleRate(sampleRate);
-      osc.SetSampleRate(sampleRate);
-      osc.Reset();
+      phase = 0.0;
       frequency = 0.0;
       noteNumber = -1;
+      level = static_cast<T>(0.0);
+      active = false;
     }
   };
 
+  T ProcessOscillator(Voice& voice, int waveform)
+  {
+    const double phaseIncr = voice.frequency / mSampleRate;
+    voice.phase += phaseIncr;
+    if (voice.phase >= 1.0)
+      voice.phase -= 1.0;
+
+    const double phase = voice.phase;
+    T output = static_cast<T>(0.0);
+
+    switch (waveform)
+    {
+      case kWaveformSine:
+        output = static_cast<T>(std::sin(phase * 2.0 * 3.14159265358979323846));
+        break;
+      case kWaveformSaw:
+        output = static_cast<T>(2.0 * phase - 1.0);
+        break;
+      case kWaveformSquare:
+        output = static_cast<T>(phase < 0.5 ? 1.0 : -1.0);
+        break;
+      case kWaveformTriangle:
+        output = static_cast<T>(phase < 0.5 ? (4.0 * phase - 1.0) : (3.0 - 4.0 * phase));
+        break;
+      default:
+        break;
+    }
+
+    return output;
+  }
+
   std::array<Voice, kMaxVoices> mVoices;
   T mGain = static_cast<T>(0.8);
-  T mSustain = static_cast<T>(0.7);
-  double mAttackMs = 10.0;
-  double mDecayMs = 100.0;
-  double mReleaseMs = 200.0;
+  int mWaveform = kWaveformSine;
   double mSampleRate = 44100.0;
   int mNextVoice = 0;
-
-  void UpdateEnvelopeTimes()
-  {
-    // Enforce minimum times to prevent clicks (even if AI sets very short values)
-    constexpr double kMinAttackMs = 2.0;
-    constexpr double kMinReleaseMs = 5.0;
-
-    const double attackMs = std::max(mAttackMs, kMinAttackMs);
-    const double releaseMs = std::max(mReleaseMs, kMinReleaseMs);
-
-    for (auto& voice : mVoices)
-    {
-      voice.env.SetStageTime(ADSREnvelope<T>::kAttack, attackMs);
-      voice.env.SetStageTime(ADSREnvelope<T>::kDecay, mDecayMs);
-      voice.env.SetStageTime(ADSREnvelope<T>::kRelease, releaseMs);
-    }
-  }
 
   bool HasActiveVoices() const
   {
     for (const auto& voice : mVoices)
     {
-      if (voice.env.GetBusy())
+      if (voice.active)
         return true;
     }
 
@@ -182,7 +185,7 @@ private:
   {
     for (int i = 0; i < kMaxVoices; ++i)
     {
-      if (mVoices[i].env.GetBusy() && mVoices[i].noteNumber == noteNumber)
+      if (mVoices[i].active && mVoices[i].noteNumber == noteNumber)
         return i;
     }
 
@@ -193,7 +196,7 @@ private:
   {
     for (int i = 0; i < kMaxVoices; ++i)
     {
-      if (!mVoices[i].env.GetBusy())
+      if (!mVoices[i].active)
         return i;
     }
 
@@ -212,21 +215,11 @@ private:
     }
 
     auto& voice = mVoices[voiceIndex];
-
-    if (voice.env.GetBusy())
-    {
-      // Retrigger: don't reset oscillator phase to avoid click
-      voice.env.Retrigger(level);
-    }
-    else
-    {
-      // New voice: reset oscillator to start at zero crossing
-      voice.osc.Reset();
-      voice.env.Start(level);
-    }
-
+    voice.phase = 0.0;
     voice.frequency = frequency;
     voice.noteNumber = noteNumber;
+    voice.level = level;
+    voice.active = true;
   }
 
   void ReleaseVoice(int noteNumber)
@@ -236,6 +229,6 @@ private:
     if (voiceIndex < 0)
       return;
 
-    mVoices[voiceIndex].env.Release();
+    mVoices[voiceIndex].active = false;
   }
 };

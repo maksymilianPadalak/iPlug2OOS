@@ -11,10 +11,7 @@ const int kNumPresets = 1;
 enum EParams
 {
   kParamGain = 0,
-  kParamAttack,
-  kParamDecay,
-  kParamSustain,
-  kParamRelease,
+  kParamWaveform,
   kNumParams
 };
 
@@ -25,6 +22,7 @@ enum EParams
 enum EControlTags
 {
   kCtrlTagMeter = 0,
+  kCtrlTagWaveform,
   kNumCtrlTags
 };
 
@@ -51,5 +49,6 @@ public:
 private:
   TemplateProjectDSP<sample> mDSP;
   IPeakAvgSender<2> mMeterSender;
+  IBufferSender<1> mWaveformSender;
 #endif
 };

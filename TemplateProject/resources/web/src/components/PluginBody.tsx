@@ -7,8 +7,10 @@
 
 import { Section } from '@/components/layouts/Section';
 import { Knob } from '@/components/controls/Knob';
+import { Dropdown } from '@/components/controls/Dropdown';
 import { Meter } from '@/components/visualizations/Meter';
-import { EParams } from '@/config/runtimeParameters';
+import { WaveformDisplay } from '@/components/visualizations/WaveformDisplay';
+import { EParams, EControlTags } from '@/config/runtimeParameters';
 
 export function PluginBody() {
   return (
@@ -59,11 +61,9 @@ export function PluginBody() {
 
         {/* Control Sections */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Section title="Envelope">
-            <Knob paramId={EParams.kParamAttack} label="Attack" />
-            <Knob paramId={EParams.kParamDecay} label="Decay" />
-            <Knob paramId={EParams.kParamSustain} label="Sustain" />
-            <Knob paramId={EParams.kParamRelease} label="Release" />
+          <Section title="Oscillator">
+            <Dropdown paramId={EParams.kParamWaveform} label="Waveform" />
+            <WaveformDisplay ctrlTag={EControlTags.kCtrlTagWaveform} label="Output" />
           </Section>
 
           <Section title="Master">

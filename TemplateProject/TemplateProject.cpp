@@ -5,10 +5,7 @@ TemplateProject::TemplateProject(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
 {
   GetParam(kParamGain)->InitDouble("Gain", 80., 0., 100.0, 0.01, "%");
-  GetParam(kParamAttack)->InitDouble("Attack", 10., 1., 2000., 0.1, "ms");
-  GetParam(kParamDecay)->InitDouble("Decay", 100., 1., 2000., 0.1, "ms");
-  GetParam(kParamSustain)->InitDouble("Sustain", 70., 0., 100., 0.1, "%");
-  GetParam(kParamRelease)->InitDouble("Release", 200., 1., 5000., 0.1, "ms");
+  GetParam(kParamWaveform)->InitEnum("Waveform", 0, 4, "", IParam::kFlagsNone, "", "Sine", "Saw", "Square", "Triangle");
 
 #if IPLUG_EDITOR
 #if defined(WEBVIEW_EDITOR_DELEGATE)
@@ -28,11 +25,13 @@ void TemplateProject::ProcessBlock(sample** inputs, sample** outputs, int nFrame
 {
   mDSP.ProcessBlock(nullptr, outputs, 2, nFrames);
   mMeterSender.ProcessBlock(outputs, nFrames, kCtrlTagMeter);
+  mWaveformSender.ProcessBlock(outputs, nFrames, kCtrlTagWaveform, 1, 0);
 }
 
 void TemplateProject::OnIdle()
 {
   mMeterSender.TransmitData(*this);
+  mWaveformSender.TransmitData(*this);
 }
 
 void TemplateProject::OnReset()
