@@ -13,7 +13,7 @@ import { PianoKeyboard } from '@/components/staticComponents/PianoKeyboard';
 
 export function KeyboardSection() {
   return (
-    <div className="rounded-lg p-2">
+    <div className="mt-4">
       <PianoKeyboard />
     </div>
   );

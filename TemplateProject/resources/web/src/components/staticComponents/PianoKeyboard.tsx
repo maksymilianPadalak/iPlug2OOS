@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { sendNoteOff, sendNoteOn } from '@/glue/iplugBridge/iplugBridge';
 import { useMidi } from '@/glue/hooks/useMidi';
 
@@ -21,92 +21,83 @@ const QWERTY_TO_NOTE: Record<string, number> = {
 };
 
 export function PianoKeyboard() {
-  const [baseOctave, setBaseOctave] = useState(3);
+  const [baseOctave, setBaseOctave] = useState(4);
   const [pressedKeys, setPressedKeys] = useState<Set<number>>(new Set());
-  
+  // Track which keyboard key is playing which note (to handle octave changes)
+  const keyToNoteMap = useRef<Map<string, number>>(new Map());
+
   // Get active notes from processor (MIDI echo from DSP)
   const { activeNotes } = useMidi();
 
   const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   const isBlack = [false, true, false, true, false, false, true, false, true, false, true, false];
-  
+
   // Combine locally pressed keys with processor-echoed active notes
   const isKeyActive = useCallback((noteNum: number): boolean => {
     return pressedKeys.has(noteNum) || activeNotes.has(noteNum);
   }, [pressedKeys, activeNotes]);
-  
-  // Get all active notes (local + echoed) for display
-  const allActiveNotes = new Set([...pressedKeys, ...activeNotes.keys()]);
-  
-  // Convert note number to name
-  const noteNumberToName = (noteNumber: number): string => {
-    const octave = Math.floor(noteNumber / 12) - 1;
-    const noteName = NOTE_NAMES[noteNumber % 12];
-    return `${noteName}${octave}`;
-  };
 
-  // Always display octaves 3, 4, 5 (fixed display)
-  const displayOctaves = [3, 4, 5];
+  // Always display octaves 3, 4, 5, 6 (4 octaves)
+  const displayOctaves = [3, 4, 5, 6];
 
-  const playNote = useCallback((octave: number, noteOffset: number) => {
-    const noteNum = octave * 12 + noteOffset;
-    if (pressedKeys.has(noteNum)) return;
-
-    setPressedKeys(prev => new Set(prev).add(noteNum));
-    sendNoteOn(noteNum, 127);
-  }, [pressedKeys]);
-
-  const releaseNote = useCallback((octave: number, noteOffset: number) => {
-    const noteNum = octave * 12 + noteOffset;
-    if (!pressedKeys.has(noteNum)) return;
-
+  const playNoteNum = useCallback((noteNum: number) => {
     setPressedKeys(prev => {
+      if (prev.has(noteNum)) return prev;
+      sendNoteOn(noteNum, 127);
+      return new Set(prev).add(noteNum);
+    });
+  }, []);
+
+  const releaseNoteNum = useCallback((noteNum: number) => {
+    setPressedKeys(prev => {
+      if (!prev.has(noteNum)) return prev;
+      sendNoteOff(noteNum, 0);
       const next = new Set(prev);
       next.delete(noteNum);
       return next;
     });
-    sendNoteOff(noteNum, 0);
-  }, [pressedKeys]);
+  }, []);
+
+  // For mouse/touch on visual keyboard
+  const playNote = useCallback((octave: number, noteOffset: number) => {
+    playNoteNum(octave * 12 + noteOffset);
+  }, [playNoteNum]);
+
+  const releaseNote = useCallback((octave: number, noteOffset: number) => {
+    releaseNoteNum(octave * 12 + noteOffset);
+  }, [releaseNoteNum]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+      if (e.repeat) return;
 
       if (e.code === 'KeyZ') {
         setBaseOctave(prev => Math.max(0, prev - 1));
-        // Release all notes when changing octave
-        pressedKeys.forEach(noteNum => {
-          sendNoteOff(noteNum, 0);
-        });
-        setPressedKeys(new Set());
         return;
       }
       if (e.code === 'KeyX') {
         setBaseOctave(prev => Math.min(7, prev + 1));
-        // Release all notes when changing octave
-        pressedKeys.forEach(noteNum => {
-          sendNoteOff(noteNum, 0);
-        });
-        setPressedKeys(new Set());
         return;
       }
 
       const noteOffset = QWERTY_TO_NOTE[e.code];
-      if (noteOffset !== undefined) {
+      if (noteOffset !== undefined && !keyToNoteMap.current.has(e.code)) {
         e.preventDefault();
-        // Play in the current baseOctave
-        playNote(baseOctave, noteOffset);
+        const noteNum = baseOctave * 12 + noteOffset;
+        keyToNoteMap.current.set(e.code, noteNum);
+        playNoteNum(noteNum);
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
 
-      const noteOffset = QWERTY_TO_NOTE[e.code];
-      if (noteOffset !== undefined) {
+      const noteNum = keyToNoteMap.current.get(e.code);
+      if (noteNum !== undefined) {
         e.preventDefault();
-        // Release from the current baseOctave
-        releaseNote(baseOctave, noteOffset);
+        keyToNoteMap.current.delete(e.code);
+        releaseNoteNum(noteNum);
       }
     };
 
@@ -117,41 +108,36 @@ export function PianoKeyboard() {
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('keyup', handleKeyUp);
     };
-  }, [baseOctave, playNote, releaseNote, pressedKeys]);
+  }, [baseOctave, playNoteNum, releaseNoteNum]);
+
+  // Key dimensions calculated to fit 4 octaves (28 white keys) within plugin width
+  // Plugin body is ~1052px wide (1100 - padding), keyboard container has 32px padding + 16px inner padding
+  // Available width: ~1004px, 28 white keys + gaps = (28 * width) + (27 * 2) = 1004 => width ≈ 34px
+  const WHITE_KEY_WIDTH = 34;
+  const BLACK_KEY_WIDTH = 20;
+  const KEY_GAP = 2;
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-2">
-        <div className="flex items-center gap-3">
-          <h3 className="text-white text-xs font-mono uppercase tracking-wider">KEYBOARD</h3>
-          {/* Active notes display */}
-          <div className="flex items-center gap-2">
-            <span className="text-white/70 text-[10px] font-bold uppercase tracking-wider">Playing:</span>
-            <div className="flex gap-1">
-              {allActiveNotes.size === 0 ? (
-                <span className="text-white/40 text-sm font-mono">—</span>
-              ) : (
-                Array.from(allActiveNotes).sort((a, b) => a - b).map((note) => (
-                  <span
-                    key={note}
-                    className="bg-orange-500 text-white text-xs font-bold font-mono px-1.5 py-0.5 rounded"
-                  >
-                    {noteNumberToName(note)}
-                  </span>
-                ))
-              )}
-            </div>
+    <div className="bg-gradient-to-b from-[#2a2a2a] to-[#1a1a1a] rounded-2xl p-4 border border-[#B8860B]/30">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-3">
+        <div className="flex items-center gap-4">
+          {/* Art Deco accent */}
+          <div className="flex gap-0.5">
+            <div className="w-0.5 h-4 bg-gradient-to-b from-[#B8860B] to-[#8B6914] rounded-full" />
+            <div className="w-0.5 h-3 bg-gradient-to-b from-[#B8860B] to-[#8B6914] rounded-full mt-0.5" />
           </div>
+          <h3 className="text-[#E8D4B8] text-xs font-bold uppercase tracking-[0.2em]">Keyboard</h3>
         </div>
-        <div className="text-white/70 text-[10px] font-mono uppercase tracking-wider">
-          OCTAVES 3-5 (Z/X = SHIFT)
+        <div className="text-[#B8860B]/60 text-[10px] font-mono uppercase tracking-wider">
+          Z/X Shift Octave
         </div>
       </div>
 
-      {/* Render all 3 octaves in one continuous line */}
-      <div className="relative h-16">
+      {/* Piano keys container */}
+      <div className="relative h-24 bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] rounded-xl p-2 border border-[#B8860B]/20 overflow-hidden">
         {/* Render all white keys first */}
-        <div className="flex">
+        <div className="flex h-full">
           {displayOctaves.map((octave) => (
             NOTE_NAMES.map((note, index) => {
               if (!isBlack[index]) {
@@ -166,15 +152,52 @@ export function PianoKeyboard() {
                     onMouseLeave={() => releaseNote(octave, noteOffset)}
                     onTouchStart={(e) => { e.preventDefault(); playNote(octave, noteOffset); }}
                     onTouchEnd={(e) => { e.preventDefault(); releaseNote(octave, noteOffset); }}
-                    className={`w-10 h-16 border-2 border-amber-800 cursor-pointer select-none ${
-                      isPressed ? 'bg-amber-200' : 'bg-amber-50'
-                    }`}
+                    className={`relative h-full cursor-pointer select-none rounded-b-md flex-shrink-0
+                      ${isPressed
+                        ? 'bg-gradient-to-b from-[#B8860B] to-[#8B6914]'
+                        : 'bg-gradient-to-b from-[#F5F0E6] to-[#E8DCC8]'
+                      }
+                    `}
+                    style={{
+                      width: `${WHITE_KEY_WIDTH}px`,
+                      boxShadow: isPressed
+                        ? 'inset 0 2px 4px rgba(0,0,0,0.3)'
+                        : 'inset 0 -4px 8px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.3)',
+                      marginRight: '2px',
+                    }}
                   />
                 );
               }
               return null;
             })
           ))}
+          {/* Final high C (C7) */}
+          {(() => {
+            const noteNum = 7 * 12; // C7
+            const isPressed = isKeyActive(noteNum);
+            return (
+              <div
+                key="white-7-0"
+                onMouseDown={() => playNote(7, 0)}
+                onMouseUp={() => releaseNote(7, 0)}
+                onMouseLeave={() => releaseNote(7, 0)}
+                onTouchStart={(e) => { e.preventDefault(); playNote(7, 0); }}
+                onTouchEnd={(e) => { e.preventDefault(); releaseNote(7, 0); }}
+                className={`relative h-full cursor-pointer select-none rounded-b-md flex-shrink-0
+                  ${isPressed
+                    ? 'bg-gradient-to-b from-[#B8860B] to-[#8B6914]'
+                    : 'bg-gradient-to-b from-[#F5F0E6] to-[#E8DCC8]'
+                  }
+                `}
+                style={{
+                  width: `${WHITE_KEY_WIDTH}px`,
+                  boxShadow: isPressed
+                    ? 'inset 0 2px 4px rgba(0,0,0,0.3)'
+                    : 'inset 0 -4px 8px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.3)',
+                }}
+              />
+            );
+          })()}
         </div>
 
         {/* Render all black keys absolutely positioned */}
@@ -185,10 +208,9 @@ export function PianoKeyboard() {
               const noteOffset = index;
               const noteNum = octave * 12 + noteOffset;
               const isPressed = isKeyActive(noteNum);
-              // Calculate position: octave offset (octave - 3) * 7 white keys * 40px + white key index * 40px - 10px
-              const octaveOffset = (octave - 3) * 7 * 40;
-              const keyOffset = whiteKeyIndex * 40 - 10;
-              const totalOffset = octaveOffset + keyOffset;
+              const octaveOffset = (octave - 3) * 7 * (WHITE_KEY_WIDTH + KEY_GAP);
+              const keyOffset = whiteKeyIndex * (WHITE_KEY_WIDTH + KEY_GAP) - (BLACK_KEY_WIDTH / 2);
+              const totalOffset = octaveOffset + keyOffset + 8; // +8 for container padding
 
               return (
                 <div
@@ -198,10 +220,19 @@ export function PianoKeyboard() {
                   onMouseLeave={() => releaseNote(octave, noteOffset)}
                   onTouchStart={(e) => { e.preventDefault(); playNote(octave, noteOffset); }}
                   onTouchEnd={(e) => { e.preventDefault(); releaseNote(octave, noteOffset); }}
-                  className={`absolute top-0 w-5 h-12 border-2 border-amber-600 cursor-pointer z-10 select-none ${
-                    isPressed ? 'bg-amber-800' : 'bg-amber-950'
-                  }`}
-                  style={{ left: `${totalOffset}px` }}
+                  className={`absolute top-2 h-14 cursor-pointer z-10 select-none rounded-b-md
+                    ${isPressed
+                      ? 'bg-gradient-to-b from-[#B8860B] to-[#5a4510]'
+                      : 'bg-gradient-to-b from-[#2a2a2a] to-[#1a1a1a]'
+                    }
+                  `}
+                  style={{
+                    width: `${BLACK_KEY_WIDTH}px`,
+                    left: `${totalOffset}px`,
+                    boxShadow: isPressed
+                      ? 'inset 0 2px 4px rgba(0,0,0,0.5)'
+                      : '0 4px 8px rgba(0,0,0,0.5), inset 0 -2px 4px rgba(255,255,255,0.05)',
+                  }}
                 />
               );
             } else {

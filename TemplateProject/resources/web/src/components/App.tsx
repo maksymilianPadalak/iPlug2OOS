@@ -11,7 +11,6 @@ import { initializeEnvironment } from '@/utils/environment';
 
 import { BridgeProvider } from '@/glue/BridgeProvider';
 import { WebControls } from '@/components/staticComponents/WebControls';
-import { Section } from '@/components/layouts/Section';
 import { KeyboardSection } from '@/components/staticComponents/KeyboardSection';
 import { PluginBody } from '@/components/PluginBody';
 
@@ -43,9 +42,7 @@ export function App() {
         <div className="flex w-full flex-col gap-3">
           <WebControls audioStatus={audioStatus} />
           <PluginBody />
-          <Section title="Keyboard">
-            <KeyboardSection />
-          </Section>
+          <KeyboardSection />
         </div>
       </div>
     </BridgeProvider>
