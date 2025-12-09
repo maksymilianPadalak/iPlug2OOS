@@ -14,9 +14,9 @@ export function PluginBody() {
   return (
     <div
       id="plugin-body"
-      className="relative rounded-3xl bg-gradient-to-br from-[#F5E6D3] via-[#EDE0CC] to-[#E8D4B8] p-6 shadow-2xl"
+      className="relative rounded-3xl bg-gradient-to-br from-[#F5E6D3] via-[#EDE0CC] to-[#E8D4B8] p-6"
       style={{
-        boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -2px 4px rgba(0,0,0,0.1), 0 25px 50px -12px rgba(0,0,0,0.4)',
+        boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -2px 4px rgba(0,0,0,0.1)',
       }}
     >
       {/* Decorative corner accents */}
