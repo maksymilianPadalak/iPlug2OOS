@@ -31,64 +31,64 @@ export function WebControls({ audioStatus }: WebControlsProps) {
   return (
     <>
       {/* Web Controls - Only visible in WAM mode */}
-      <div className="wam-only mb-6 max-w-7xl mx-auto">
+      <div className="wam-only max-w-7xl mx-auto">
         <div className="grid grid-cols-3 items-center">
           {/* Audio Status - Right aligned */}
           <div className="flex justify-end">
             {audioStatus && (
-              <div className="flex flex-col items-center gap-2">
-                <label className="text-[#1a1a1a]/70 text-sm font-semibold uppercase tracking-wider">
-                  AUDIO
-                </label>
-                <p className={`text-sm font-bold uppercase tracking-[0.2em] ${
+              <div className="flex items-center gap-2">
+                <span className="text-[#1a1a1a]/70 text-xs font-semibold uppercase tracking-wider">
+                  Audio
+                </span>
+                <span className={`text-xs font-bold uppercase tracking-wider ${
                   audioStatus === 'working' ? 'text-emerald-600' : 'text-rose-600'
                 }`}>
-                  {audioStatus === 'working' ? '✓ WORKING' : '✗ NOT WORKING'}
-                </p>
+                  {audioStatus === 'working' ? '✓' : '✗'}
+                </span>
               </div>
             )}
           </div>
 
           {/* Vertical Divider - Centered */}
           <div className="flex justify-center">
-            <div className="w-px h-12 bg-[#1a1a1a]/30"></div>
+            <div className="w-px h-6 bg-[#1a1a1a]/20"></div>
           </div>
 
           {/* MIDI Controls - Left aligned */}
           <div className="flex justify-start">
             {hasMidiDevices ? (
-              <div className="flex items-center gap-8">
-                <div className="flex flex-col items-center gap-2">
-                  <label htmlFor="midiInSelect" className="text-[#1a1a1a]/70 text-sm font-semibold uppercase tracking-wider">
-                    MIDI INPUT
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <label htmlFor="midiInSelect" className="text-[#1a1a1a]/70 text-xs font-semibold uppercase tracking-wider">
+                    In
                   </label>
                   <select
                     id="midiInSelect"
-                    className="bg-[#1a1a1a] border-2 border-[#1a1a1a] text-[#F5F0E6] px-5 py-2.5 rounded-lg font-semibold text-sm uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-[#E8D4B8] cursor-pointer transition-all min-w-[180px]"
+                    className="bg-[#1a1a1a] text-[#F5F0E6] px-2 py-1 rounded text-xs focus:outline-none cursor-pointer min-w-[100px]"
                   >
-                    <option value="default">SELECT</option>
+                    <option value="default">Select</option>
                   </select>
                 </div>
-                <div className="flex flex-col items-center gap-2">
-                  <label htmlFor="midiOutSelect" className="text-[#1a1a1a]/70 text-sm font-semibold uppercase tracking-wider">
-                    MIDI OUTPUT
+                <div className="flex items-center gap-2">
+                  <label htmlFor="midiOutSelect" className="text-[#1a1a1a]/70 text-xs font-semibold uppercase tracking-wider">
+                    Out
                   </label>
                   <select
                     id="midiOutSelect"
-                    className="bg-[#1a1a1a] border-2 border-[#1a1a1a] text-[#F5F0E6] px-5 py-2.5 rounded-lg font-semibold text-sm uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-[#E8D4B8] cursor-pointer transition-all min-w-[180px]"
+                    className="bg-[#1a1a1a] text-[#F5F0E6] px-2 py-1 rounded text-xs focus:outline-none cursor-pointer min-w-[100px]"
                   >
-                    <option value="default">SELECT</option>
+                    <option value="default">Select</option>
                   </select>
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-2">
-                <label className="text-[#1a1a1a]/70 text-sm font-semibold uppercase tracking-wider">
+              <div className="flex items-center gap-2">
+                <span className="text-[#1a1a1a]/70 text-xs font-semibold uppercase tracking-wider">
                   MIDI
-                </label>
-                <p className="text-[#1a1a1a]/50 text-sm font-medium uppercase tracking-wider whitespace-nowrap">
-                  Connect a MIDI device.
-                </p>
+                </span>
+                <span className="text-[#1a1a1a]/40 text-xs">
+                  No device
+                </span>
               </div>
             )}
           </div>
@@ -96,7 +96,7 @@ export function WebControls({ audioStatus }: WebControlsProps) {
       </div>
 
       {/* Horizontal Separator - Only visible in WAM mode */}
-      <div className="wam-only border-t-4 border-[#1a1a1a] mb-4 max-w-7xl mx-auto"></div>
+      <div className="wam-only border-t-2 border-[#1a1a1a]/20 mt-2 max-w-7xl mx-auto"></div>
     </>
   );
 }

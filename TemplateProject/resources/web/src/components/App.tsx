@@ -38,11 +38,24 @@ export function App() {
 
   return (
     <BridgeProvider>
-      <div className="min-h-screen w-full bg-[#F5F0E6] py-4 px-2 text-orange-100">
-        <div className="flex w-full flex-col gap-3">
+      <div className="h-screen w-full bg-[#F5F0E6] flex flex-col overflow-hidden text-orange-100">
+        {/* Fixed header */}
+        <div className="flex-shrink-0 px-2 pt-2">
           <WebControls audioStatus={audioStatus} />
-          <PluginBody />
-          <KeyboardSection />
+        </div>
+
+        {/* Scrollable plugin body - fixed width, no horizontal scroll */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-3 moderne-scroll">
+          <div className="w-[1100px] max-w-full mx-auto">
+            <PluginBody />
+          </div>
+        </div>
+
+        {/* Fixed keyboard at bottom */}
+        <div className="flex-shrink-0 px-2 pb-2">
+          <div className="w-[1100px] max-w-full mx-auto">
+            <KeyboardSection />
+          </div>
         </div>
       </div>
     </BridgeProvider>
