@@ -1,0 +1,80 @@
+/**
+ * Component Registry - Single source of truth for available UI components
+ *
+ * Defines all components the LLM can use when generating plugin UIs:
+ * - controls: Knob, Dropdown (user-interactive parameter controls)
+ * - visualizations: Meter, WaveformDisplay (DSP data displays)
+ * - displays: ADSRDisplay (parameter-driven visualizations)
+ * - layouts: Section, SubGroup (structural containers)
+ *
+ * Each component includes:
+ * - path: import path for the React component
+ * - propsSchema: Zod schema from planSchemas.ts (for LLM output validation)
+ * - description: usage guidance shown to the LLM
+ * - senderTypes: (visualizations only) which DSP sender types provide data
+ *
+ * Used by server-side tools (buildSchemasFromManifest, buildComponentDescriptions).
+ */
+
+import { getSenderTypesFor } from './getSenderTypesFor';
+import {
+  KnobPlanSchema,
+  DropdownPlanSchema,
+  MeterPlanSchema,
+  WaveformDisplayPlanSchema,
+  ADSRDisplayPlanSchema,
+  SectionPlanSchema,
+  SubGroupPlanSchema,
+} from './planSchemas';
+
+export const controls = {
+  Knob: {
+    path: '@/components/controls/Knob',
+    propsSchema: KnobPlanSchema,
+    description: 'Rotary control for continuous parameters.',
+  },
+  Dropdown: {
+    path: '@/components/controls/Dropdown',
+    propsSchema: DropdownPlanSchema,
+    description: 'Selection control for enum parameters.',
+  },
+} as const;
+
+export const visualizations = {
+  Meter: {
+    path: '@/components/visualizations/Meter',
+    senderTypes: getSenderTypesFor('Meter'),
+    propsSchema: MeterPlanSchema,
+    description: 'Audio level meter with peak/RMS display.',
+  },
+  WaveformDisplay: {
+    path: '@/components/visualizations/WaveformDisplay',
+    senderTypes: getSenderTypesFor('WaveformDisplay'),
+    propsSchema: WaveformDisplayPlanSchema,
+    description:
+      'Oscilloscope-style waveform display. Auto-spans full width in grid layouts (col-span-full).',
+  },
+} as const;
+
+export const displays = {
+  ADSRDisplay: {
+    path: '@/components/displays/ADSRDisplay',
+    propsSchema: ADSRDisplayPlanSchema,
+    description:
+      'Visualizes ADSR envelope curve. Use when 4 ADSR params exist (Attack/Decay/Sustain/Release pattern in names). Place in grid-4 SubGroup with ADSR knobs.',
+  },
+} as const;
+
+export const layouts = {
+  Section: {
+    path: '@/components/layouts/Section',
+    propsSchema: SectionPlanSchema,
+    description: 'Groups related controls. Sizes: compact=1col, wide=2cols, full=4cols.',
+  },
+  SubGroup: {
+    path: '@/components/layouts/SubGroup',
+    propsSchema: SubGroupPlanSchema,
+    description:
+      'Groups controls within Section. Use grid-4 for ADSR, grid-2 for stereo pairs/meters, row for default.',
+  },
+} as const;

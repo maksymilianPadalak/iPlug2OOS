@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build outputs - exclude all compiled JS files recursively
+scripts/**/*.js
+scripts/**/*.js.map
+scripts/**/*.bundle.js
+# But keep these original JS files that aren't compiled from TypeScript
+!scripts/webview-wam-adapter.js
+!scripts/audioworklet.js
+
+# Processed CSS files (generated from style.source.css via PostCSS/Tailwind)
+styles/*.processed.css
+
+# TypeScript
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build distribution folder (runtime files only, generated during build)
+dist/
+
+
+*storybook.log
+storybook-static
