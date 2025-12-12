@@ -10,6 +10,11 @@ WAM_SRC += $(IPLUG_EXTRAS_PATH)/Synth/*.cpp
 
 WAM_CFLAGS += -I$(IPLUG_SYNTH_PATH)
 
+# Q DSP Library include paths
+Q_LIB_PATH = $(PROJECT_ROOT)/q_lib/q_lib
+WAM_CFLAGS += -I$(Q_LIB_PATH)/include -I$(Q_LIB_PATH)/infra/include
+WEB_CFLAGS += -I$(Q_LIB_PATH)/include -I$(Q_LIB_PATH)/infra/include
+
 WEB_CFLAGS += -DIGRAPHICS_NANOVG -DIGRAPHICS_GLES2
 
 WAM_LDFLAGS += -O3 -s ASSERTIONS=0

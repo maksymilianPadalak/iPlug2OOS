@@ -1,5 +1,5 @@
 /**
- * Runtime Parameters (Effect Template)
+ * Runtime Parameters (Reverb + Delay Effect)
  *
  * Single source of truth for plugin parameters.
  * Must match C++ EParams enum in EffectTemplate.h
@@ -45,9 +45,16 @@ export type MsgTag = {
   key: string;
 };
 
-// Parameters
+// Parameters - must match C++ EParams enum order
 export const runtimeParameters: RuntimeParameter[] = [
-  { id: 0, name: "Gain", type: "float", min: 0, max: 100, default: 80, step: 0.01, unit: "%", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamGain" },
+  { id: 0, name: "Gain", type: "float", min: 0, max: 200, default: 100, step: 0.01, unit: "%", group: "Output", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamGain" },
+  { id: 1, name: "Mix", type: "float", min: 0, max: 100, default: 50, step: 0.1, unit: "%", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamMix" },
+  { id: 2, name: "Delay Time", type: "float", min: 0, max: 1000, default: 250, step: 1, unit: "ms", group: "Delay", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamDelayTime" },
+  { id: 3, name: "Feedback", type: "float", min: 0, max: 100, default: 30, step: 0.1, unit: "%", group: "Delay", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamDelayFeedback" },
+  { id: 4, name: "Room Size", type: "float", min: 0, max: 100, default: 50, step: 0.1, unit: "%", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamReverbSize" },
+  { id: 5, name: "Damping", type: "float", min: 0, max: 100, default: 50, step: 0.1, unit: "%", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamReverbDamping" },
+  { id: 6, name: "Width", type: "float", min: 0, max: 100, default: 100, step: 0.1, unit: "%", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamReverbWidth" },
+  { id: 7, name: "Bypass", type: "bool", min: 0, max: 1, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamBypass" },
 ];
 
 // Control tags (for SCMFD - meters, etc.)
@@ -61,6 +68,13 @@ export const msgTags: MsgTag[] = [];
 // Convenience lookups (must match C++ enums)
 export const EParams = {
   kParamGain: 0,
+  kParamMix: 1,
+  kParamDelayTime: 2,
+  kParamDelayFeedback: 3,
+  kParamReverbSize: 4,
+  kParamReverbDamping: 5,
+  kParamReverbWidth: 6,
+  kParamBypass: 7,
 } as const;
 
 export const EControlTags = {

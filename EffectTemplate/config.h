@@ -1,15 +1,15 @@
-#define PLUG_NAME "EffectTemplate"
+#define PLUG_NAME "ReverbDelay"
 #define PLUG_MFR "AcmeInc"
-#define PLUG_VERSION_HEX 0x00000000
-#define PLUG_VERSION_STR "0.0.0"
-#define PLUG_UNIQUE_ID 'EfTp'
+#define PLUG_VERSION_HEX 0x00010000
+#define PLUG_VERSION_STR "1.0.0"
+#define PLUG_UNIQUE_ID 'RvDl'
 #define PLUG_MFR_ID 'Acme'
 #define PLUG_URL_STR "https://iplug2.github.io"
 #define PLUG_EMAIL_STR "spam@me.com"
 #define PLUG_COPYRIGHT_STR "Copyright 2025 Acme Inc"
 #define PLUG_CLASS_NAME EffectTemplate
 
-#define BUNDLE_NAME "EffectTemplate"
+#define BUNDLE_NAME "ReverbDelay"
 #define BUNDLE_MFR "AcmeInc"
 #define BUNDLE_DOMAIN "com"
 
@@ -51,8 +51,8 @@
 
 #define CLAP_MANUAL_URL "https://iplug2.github.io/manuals/example_manual.pdf"
 #define CLAP_SUPPORT_URL "https://github.com/iPlug2/iPlug2/wiki"
-#define CLAP_DESCRIPTION "A simple audio effect for modifying gain"
-#define CLAP_FEATURES "audio-effect"
+#define CLAP_DESCRIPTION "Reverb and Delay effect using Q DSP library"
+#define CLAP_FEATURES "audio-effect", "reverb", "delay"
 
 #define APP_NUM_CHANNELS 2
 #define APP_N_VECTOR_WAIT 0

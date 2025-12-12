@@ -6,6 +6,11 @@ include ../../common-web.mk
 
 SRC += $(PROJECT_ROOT)/EffectTemplate.cpp
 
+# Q DSP Library paths
+Q_LIB_PATH = $(PROJECT_ROOT)/q_lib/q_lib
+WAM_CFLAGS += -I$(Q_LIB_PATH)/include -I$(Q_LIB_PATH)/infra/include
+WEB_CFLAGS += -I$(Q_LIB_PATH)/include -I$(Q_LIB_PATH)/infra/include
+
 WEB_CFLAGS += -DIGRAPHICS_NANOVG -DIGRAPHICS_GLES2
 
 WAM_LDFLAGS += -O3 -s ASSERTIONS=0

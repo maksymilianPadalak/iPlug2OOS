@@ -11,6 +11,13 @@ const int kNumPresets = 1;
 enum EParams
 {
   kParamGain = 0,
+  kParamMix,            // Dry/Wet mix 0-100%
+  kParamDelayTime,      // Delay time in ms (0-1000)
+  kParamDelayFeedback,  // Delay feedback 0-100%
+  kParamReverbSize,     // Reverb room size 0-100%
+  kParamReverbDamping,  // Reverb damping/tone 0-100%
+  kParamReverbWidth,    // Stereo width 0-100%
+  kParamBypass,         // Bypass effect
   kNumParams
 };
 

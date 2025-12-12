@@ -5,7 +5,6 @@ TemplateProject::TemplateProject(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
 {
   GetParam(kParamGain)->InitDouble("Gain", 80., 0., 100.0, 0.01, "%");
-  GetParam(kParamWaveform)->InitEnum("Waveform", 0, 4, "", IParam::kFlagsNone, "", "Sine", "Saw", "Square", "Triangle");
 
 #if IPLUG_EDITOR
 #if defined(WEBVIEW_EDITOR_DELEGATE)

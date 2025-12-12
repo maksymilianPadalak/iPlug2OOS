@@ -7,7 +7,6 @@
 
 import { Section } from '@/components/layouts/Section';
 import { Knob } from '@/components/controls/Knob';
-import { Dropdown } from '@/components/controls/Dropdown';
 import { Meter } from '@/components/visualizations/Meter';
 import { WaveformDisplay } from '@/components/visualizations/WaveformDisplay';
 import { EParams, EControlTags } from '@/config/runtimeParameters';
@@ -61,9 +60,11 @@ export function PluginBody() {
 
         {/* Control Sections */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Section title="Oscillator">
-            <Dropdown paramId={EParams.kParamWaveform} label="Waveform" />
+          <Section title="Synth">
             <WaveformDisplay ctrlTag={EControlTags.kCtrlTagWaveform} label="Output" />
+            <div className="text-center text-[#2a2a2a] text-xs font-semibold uppercase tracking-[0.1em]">
+              Q Library Sine Oscillator
+            </div>
           </Section>
 
           <Section title="Master">

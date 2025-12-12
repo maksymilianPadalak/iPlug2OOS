@@ -48,7 +48,6 @@ export type MsgTag = {
 // Parameters
 export const runtimeParameters: RuntimeParameter[] = [
   { id: 0, name: "Gain", type: "float", min: 0, max: 100, default: 80, step: 0.01, unit: "%", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamGain" },
-  { id: 1, name: "Waveform", type: "enum", min: 0, max: 3, default: 0, step: 1, unit: "", group: "Oscillator", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Sine", "Saw", "Square", "Triangle"], automatable: true, key: "kParamWaveform" },
 ];
 
 // Control tags (for SCMFD - meters, etc.)
@@ -63,7 +62,6 @@ export const msgTags: MsgTag[] = [];
 // Convenience lookups (must match C++ enums)
 export const EParams = {
   kParamGain: 0,
-  kParamWaveform: 1,
 } as const;
 
 export const EControlTags = {
