@@ -1,47 +1,13 @@
 /**
- * Plugin Body - Reverb + Delay Effect
+ * Plugin Body - Gain Effect
  *
- * Stereo reverb and delay effect with Freeverb-style algorithm.
- * Features: Delay time/feedback, Reverb size/damping/width, Dry/Wet mix.
+ * Simple stereo gain effect with smoothed parameter control.
  */
 
 import { Section } from '@/components/layouts/Section';
 import { Knob } from '@/components/controls/Knob';
 import { Meter } from '@/components/visualizations/Meter';
 import { EParams } from '@/config/runtimeParameters';
-import { useParameter } from '@/glue/hooks/useParameter';
-
-function BypassButton() {
-  const { value, setValue, beginChange, endChange } = useParameter(EParams.kParamBypass);
-  const isBypassed = value > 0.5;
-
-  const handleClick = () => {
-    beginChange();
-    setValue(isBypassed ? 0 : 1);
-    endChange();
-  };
-
-  return (
-    <button
-      onClick={handleClick}
-      className={`
-        px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider
-        transition-all duration-150
-        ${isBypassed
-          ? 'bg-gradient-to-b from-red-500 to-red-600 text-white shadow-lg shadow-red-500/30'
-          : 'bg-gradient-to-b from-[#F8F4EF] to-[#EDE5DA] text-[#1a1a1a] border border-[#B8860B]/40'
-        }
-      `}
-      style={{
-        boxShadow: isBypassed
-          ? '0 4px 12px rgba(239, 68, 68, 0.3)'
-          : 'inset 0 1px 2px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.08)',
-      }}
-    >
-      {isBypassed ? 'BYPASSED' : 'BYPASS'}
-    </button>
-  );
-}
 
 export function PluginBody() {
   return (
@@ -74,46 +40,24 @@ export function PluginBody() {
             </div>
             <h1 className="text-2xl font-black uppercase tracking-tight">
               <span className="bg-gradient-to-r from-[#1a1a1a] via-[#3a3a3a] to-[#1a1a1a] text-transparent bg-clip-text">
-                ReverbDelay
+                Gain
               </span>
             </h1>
           </div>
-          <div className="flex items-center gap-4">
-            <BypassButton />
-            <div className="flex items-center gap-3">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 rounded-full bg-[#B8860B]/60" />
-                <div className="w-2 h-2 rounded-full bg-[#B8860B]/40" />
-                <div className="w-2 h-2 rounded-full bg-[#B8860B]/20" />
-              </div>
-              <span className="text-[#2a2a2a] text-xs font-bold uppercase tracking-[0.2em]">
-                v1.0
-              </span>
+          <div className="flex items-center gap-3">
+            <div className="flex gap-1">
+              <div className="w-2 h-2 rounded-full bg-[#B8860B]/60" />
+              <div className="w-2 h-2 rounded-full bg-[#B8860B]/40" />
+              <div className="w-2 h-2 rounded-full bg-[#B8860B]/20" />
             </div>
+            <span className="text-[#2a2a2a] text-xs font-bold uppercase tracking-[0.2em]">
+              v1.0
+            </span>
           </div>
         </header>
 
-        {/* Control Sections */}
-        <div className="flex gap-4 justify-center flex-wrap">
-          {/* Mix Section */}
-          <Section title="Mix">
-            <Knob paramId={EParams.kParamMix} label="Dry/Wet" />
-          </Section>
-
-          {/* Delay Section */}
-          <Section title="Delay">
-            <Knob paramId={EParams.kParamDelayTime} label="Time" />
-            <Knob paramId={EParams.kParamDelayFeedback} label="Feedback" />
-          </Section>
-
-          {/* Reverb Section */}
-          <Section title="Reverb">
-            <Knob paramId={EParams.kParamReverbSize} label="Size" />
-            <Knob paramId={EParams.kParamReverbDamping} label="Damping" />
-            <Knob paramId={EParams.kParamReverbWidth} label="Width" />
-          </Section>
-
-          {/* Output Section */}
+        {/* Control Section */}
+        <div className="flex gap-4 justify-center">
           <Section title="Output">
             <Knob paramId={EParams.kParamGain} label="Gain" />
             <Meter channel={0} />
