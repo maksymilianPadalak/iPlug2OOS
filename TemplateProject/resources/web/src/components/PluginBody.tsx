@@ -40,9 +40,9 @@ export function PluginBody() {
               <div className="w-1 h-6 bg-gradient-to-b from-[#B8860B] to-[#8B6914] rounded-full mt-1" />
               <div className="w-1 h-4 bg-gradient-to-b from-[#B8860B] to-[#8B6914] rounded-full mt-2" />
             </div>
-            <h1 className="text-2xl font-black uppercase tracking-tight">
+                        <h1 className="text-2xl font-black uppercase tracking-tight">
               <span className="bg-gradient-to-r from-[#1a1a1a] via-[#3a3a3a] to-[#1a1a1a] text-transparent bg-clip-text">
-                TemplateProject
+                Gold Delay
               </span>
             </h1>
           </div>
@@ -52,25 +52,24 @@ export function PluginBody() {
               <div className="w-2 h-2 rounded-full bg-[#B8860B]/40" />
               <div className="w-2 h-2 rounded-full bg-[#B8860B]/20" />
             </div>
-            <span className="text-[#2a2a2a] text-xs font-bold uppercase tracking-[0.2em]">
-              v1.0
+                        <span className="text-[#2a2a2a] text-xs font-bold uppercase tracking-[0.2em]">
+              .delay v1.0
             </span>
           </div>
         </header>
 
-        {/* Control Sections */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Section title="Synth">
-            <WaveformDisplay ctrlTag={EControlTags.kCtrlTagWaveform} label="Output" />
-            <div className="text-center text-[#2a2a2a] text-xs font-semibold uppercase tracking-[0.1em]">
-              Q Library Sine Oscillator
+                {/* Control Sections */}
+        <div className="grid grid-cols-4 gap-4 [grid-auto-flow:dense]">
+          <Section title="Delay" size="wide">
+            <div className="flex flex-row gap-4" data-sub-group-id="delay-controls">
+              <Knob paramId={EParams.kParamDelayTime} label="Time" />
+              <Knob paramId={EParams.kParamDelayFeedback} label="Feedback" />
+              <Knob paramId={EParams.kParamDelayMix} label="Mix" />
             </div>
-          </Section>
-
-          <Section title="Master">
-            <Knob paramId={EParams.kParamGain} label="Gain" />
-            <Meter channel={0} />
-            <Meter channel={1} />
+            <div className="grid grid-cols-2 gap-2" data-sub-group-id="delay-meters">
+              <Meter channel={0} compact />
+              <Meter channel={1} compact />
+            </div>
           </Section>
         </div>
       </div>

@@ -4,7 +4,9 @@
 TemplateProject::TemplateProject(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
 {
-  GetParam(kParamGain)->InitDouble("Gain", 80., 0., 100.0, 0.01, "%");
+    GetParam(kParamDelayTime)->InitDouble("Delay Time", 300., 10., 1000., 0.1, "ms");
+  GetParam(kParamDelayFeedback)->InitDouble("Feedback", 40., 0., 95., 0.1, "%");
+  GetParam(kParamDelayMix)->InitDouble("Mix", 50., 0., 100., 0.1, "%");
 
 #if IPLUG_EDITOR
 #if defined(WEBVIEW_EDITOR_DELEGATE)
@@ -22,7 +24,7 @@ TemplateProject::TemplateProject(const InstanceInfo& info)
 #if IPLUG_DSP
 void TemplateProject::ProcessBlock(sample** inputs, sample** outputs, int nFrames)
 {
-  mDSP.ProcessBlock(nullptr, outputs, 2, nFrames);
+  mDSP.ProcessBlock(inputs, outputs, 2, nFrames);
   mMeterSender.ProcessBlock(outputs, nFrames, kCtrlTagMeter);
   mWaveformSender.ProcessBlock(outputs, nFrames, kCtrlTagWaveform, 1, 0);
 }
@@ -42,24 +44,8 @@ void TemplateProject::OnReset()
 void TemplateProject::ProcessMidiMsg(const IMidiMsg& msg)
 {
   TRACE;
-
-  const int status = msg.StatusMsg();
-
-  switch (status)
-  {
-    case IMidiMsg::kNoteOn:
-    case IMidiMsg::kNoteOff:
-    case IMidiMsg::kPolyAftertouch:
-    case IMidiMsg::kControlChange:
-    case IMidiMsg::kProgramChange:
-    case IMidiMsg::kChannelAftertouch:
-    case IMidiMsg::kPitchWheel:
-      mDSP.ProcessMidiMsg(msg);
-      SendMidiMsg(msg);
-      break;
-    default:
-      break;
-  }
+  // Effect plugin - just pass MIDI through
+  SendMidiMsg(msg);
 }
 
 void TemplateProject::OnParamChange(int paramIdx)

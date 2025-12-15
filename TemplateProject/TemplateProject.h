@@ -10,7 +10,9 @@ const int kNumPresets = 1;
 
 enum EParams
 {
-  kParamGain = 0,
+  kParamDelayTime = 0,
+  kParamDelayFeedback,
+  kParamDelayMix,
   kNumParams
 };
 
