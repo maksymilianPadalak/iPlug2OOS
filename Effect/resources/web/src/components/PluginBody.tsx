@@ -4,7 +4,7 @@
  * Simple stereo gain effect with smoothed parameter control.
  */
 
-import { Section, Knob, Meter, useParameter } from 'sharedUi';
+import { Section, Knob, Meter, useParameter, FuturisticTitle } from 'sharedUi';
 import { EParams } from '@/config/runtimeParameters';
 import { normalizedToDisplay } from '@/utils/parameter';
 
@@ -30,31 +30,7 @@ export function PluginBody() {
 
       <div className="flex flex-col gap-5">
         {/* Plugin Header */}
-        <header className="flex items-center justify-between pb-4 border-b-2 border-[#B8860B]/20">
-          <div className="flex items-center gap-4">
-            {/* Art Deco geometric accent */}
-            <div className="flex gap-1">
-              <div className="w-1 h-8 bg-gradient-to-b from-[#B8860B] to-[#8B6914] rounded-full" />
-              <div className="w-1 h-6 bg-gradient-to-b from-[#B8860B] to-[#8B6914] rounded-full mt-1" />
-              <div className="w-1 h-4 bg-gradient-to-b from-[#B8860B] to-[#8B6914] rounded-full mt-2" />
-            </div>
-            <h1 className="text-2xl font-black uppercase tracking-tight">
-              <span className="bg-gradient-to-r from-[#1a1a1a] via-[#3a3a3a] to-[#1a1a1a] text-transparent bg-clip-text">
-                Gain
-              </span>
-            </h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex gap-1">
-              <div className="w-2 h-2 rounded-full bg-[#B8860B]/60" />
-              <div className="w-2 h-2 rounded-full bg-[#B8860B]/40" />
-              <div className="w-2 h-2 rounded-full bg-[#B8860B]/20" />
-            </div>
-            <span className="text-[#2a2a2a] text-xs font-bold uppercase tracking-[0.2em]">
-              v1.0
-            </span>
-          </div>
-        </header>
+        <FuturisticTitle title="Gain" version="1.0" color="cyan" />
 
         {/* Control Section */}
         <div className="flex gap-4 justify-center">

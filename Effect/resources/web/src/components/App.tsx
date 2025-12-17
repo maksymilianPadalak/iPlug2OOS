@@ -85,14 +85,14 @@ export function App() {
           <WebControls audioStatus={audioStatus} />
         </div>
 
-        {/* Scrollable plugin body - fixed width, no horizontal scroll */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-3 moderne-scroll">
-          <div className="w-[1100px] max-w-full mx-auto">
+        {/* Scrollable plugin body - constrained to 400x700 */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-3 moderne-scroll flex justify-center">
+          <div className="w-[400px] h-[700px] flex-shrink-0">
             <PluginBody />
           </div>
         </div>
 
-        {/* Audio file input at bottom (instead of keyboard) */}
+        {/* Audio file input at bottom */}
         <div className="flex-shrink-0 px-2 pb-4">
           <div className="w-[1100px] max-w-full mx-auto">
             <div className="bg-gradient-to-br from-[#F5E6D3] via-[#EDE0CC] to-[#E8D4B8] rounded-2xl p-4 shadow-md">
