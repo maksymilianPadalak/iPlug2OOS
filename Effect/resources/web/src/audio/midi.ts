@@ -2,7 +2,7 @@
  * MIDI keyboard handling
  */
 
-import { sendNoteOff, sendNoteOn } from 'sharedUi';
+import { sendNoteOn, sendNoteOff } from 'sharedUi/bridge';
 
 /**
  * QWERTY to note mapping (C major scale starting from C)

@@ -10,7 +10,9 @@ import React from 'react';
 import { initializeWAM, loadAudioFile, playLoadedAudioFile, stopAudioFile } from '@/audio/wam-controller';
 import { initializeEnvironment } from '@/utils/environment';
 
-import { BridgeProvider, WebControls, AudioFileInput } from 'sharedUi';
+import { BridgeProvider } from 'sharedUi/BridgeProvider';
+import { WebControls } from 'sharedUi/components/WebControls';
+import { AudioFileInput } from 'sharedUi/components/AudioFileInput';
 import { controlTags } from '@/config/runtimeParameters';
 import { PluginBody } from '@/components/PluginBody';
 

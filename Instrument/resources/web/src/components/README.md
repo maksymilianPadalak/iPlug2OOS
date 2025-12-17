@@ -25,7 +25,8 @@ components/
 All controls take `paramId` from `EParams` enum:
 
 ```tsx
-import { Knob, Dropdown } from 'sharedUi';
+import { Knob } from 'sharedUi/components/Knob';
+import { Dropdown } from 'sharedUi/components/Dropdown';
 import { EParams } from '@/config/runtimeParameters';
 
 <Knob paramId={EParams.kParamGain} label="Gain" />

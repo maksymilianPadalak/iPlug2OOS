@@ -5,15 +5,13 @@
  * Modified by the AI code generation pipeline.
  */
 
-import {
-  Section,
-  Knob,
-  Dropdown,
-  Meter,
-  WaveformDisplay,
-  useParameter,
-  useWaveform,
-} from 'sharedUi';
+import { Section } from 'sharedUi/components/Section';
+import { Knob } from 'sharedUi/components/Knob';
+import { Dropdown } from 'sharedUi/components/Dropdown';
+import { Meter } from 'sharedUi/components/Meter';
+import { WaveformDisplay } from 'sharedUi/components/WaveformDisplay';
+import { useParameter } from 'sharedUi/hooks/useParameter';
+import { useWaveform } from 'sharedUi/hooks/useWaveform';
 import { EParams, EControlTags, runtimeParameters } from '@/config/runtimeParameters';
 import { normalizedToDisplay } from '@/utils/parameter';
 

@@ -9,14 +9,11 @@ import React from 'react';
 import { initializeWAM, setupMIDIDevices } from '@/audio/wam-controller';
 import { initializeEnvironment } from '@/utils/environment';
 
-import {
-  BridgeProvider,
-  WebControls,
-  KeyboardSection,
-  useMidi,
-  sendNoteOn,
-  sendNoteOff,
-} from 'sharedUi';
+import { BridgeProvider } from 'sharedUi/BridgeProvider';
+import { WebControls } from 'sharedUi/components/WebControls';
+import { KeyboardSection } from 'sharedUi/components/KeyboardSection';
+import { useMidi } from 'sharedUi/hooks/useMidi';
+import { sendNoteOn, sendNoteOff } from 'sharedUi/bridge';
 import { controlTags } from '@/config/runtimeParameters';
 import { PluginBody } from '@/components/PluginBody';
 

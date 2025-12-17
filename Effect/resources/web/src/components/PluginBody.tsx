@@ -5,7 +5,10 @@
  * Cyberpunk style with futuristic meters.
  */
 
-import { FuturisticKnob, useParameter, FuturisticTitle, FuturisticMeter } from 'sharedUi';
+import { FuturisticKnob } from 'sharedUi/components/FuturisticKnob';
+import { FuturisticMeter } from 'sharedUi/components/FuturisticMeter';
+import { FuturisticTitle } from 'sharedUi/components/FuturisticTitle';
+import { useParameter } from 'sharedUi/hooks/useParameter';
 import { EParams } from '@/config/runtimeParameters';
 import { normalizedToDisplay } from '@/utils/parameter';
 

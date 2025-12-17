@@ -29,12 +29,12 @@ import {
 
 export const controls = {
   Knob: {
-    path: 'sharedUi',
+    path: 'sharedUi/components/Knob',
     propsSchema: KnobPlanSchema,
     description: 'Rotary control for continuous parameters.',
   },
   Dropdown: {
-    path: 'sharedUi',
+    path: 'sharedUi/components/Dropdown',
     propsSchema: DropdownPlanSchema,
     description: 'Selection control for enum parameters.',
   },
@@ -42,13 +42,13 @@ export const controls = {
 
 export const visualizations = {
   Meter: {
-    path: 'sharedUi',
+    path: 'sharedUi/components/Meter',
     senderTypes: getSenderTypesFor('Meter'),
     propsSchema: MeterPlanSchema,
     description: 'Audio level meter with peak/RMS display.',
   },
   WaveformDisplay: {
-    path: 'sharedUi',
+    path: 'sharedUi/components/WaveformDisplay',
     senderTypes: getSenderTypesFor('WaveformDisplay'),
     propsSchema: WaveformDisplayPlanSchema,
     description:
@@ -58,7 +58,7 @@ export const visualizations = {
 
 export const displays = {
   ADSRDisplay: {
-    path: 'sharedUi',
+    path: 'sharedUi/components/ADSRDisplay',
     propsSchema: ADSRDisplayPlanSchema,
     description:
       'Visualizes ADSR envelope curve. Use when 4 ADSR params exist (Attack/Decay/Sustain/Release pattern in names). Place in grid-4 SubGroup with ADSR knobs.',
@@ -67,12 +67,12 @@ export const displays = {
 
 export const layouts = {
   Section: {
-    path: 'sharedUi',
+    path: 'sharedUi/components/Section',
     propsSchema: SectionPlanSchema,
     description: 'Groups related controls. Sizes: compact=1col, wide=2cols, full=4cols.',
   },
   SubGroup: {
-    path: 'sharedUi',
+    path: 'sharedUi/components/SubGroup',
     propsSchema: SubGroupPlanSchema,
     description:
       'Groups controls within Section. Use grid-4 for ADSR, grid-2 for stereo pairs/meters, row for default.',

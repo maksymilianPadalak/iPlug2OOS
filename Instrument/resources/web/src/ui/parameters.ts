@@ -2,7 +2,8 @@
  * Parameter UI management
  */
 
-import { sendParameterEnum, sendParameterValue, isUpdatingFromProcessor } from 'sharedUi';
+import { sendParameterEnum, sendParameterValue } from 'sharedUi/bridge';
+import { isUpdatingFromProcessor } from 'sharedUi/processorCallbacks';
 import { normalizedToDisplay, getParamValueId } from '@/utils/parameter';
 
 /**

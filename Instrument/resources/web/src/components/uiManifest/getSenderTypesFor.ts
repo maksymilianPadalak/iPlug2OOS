@@ -5,7 +5,7 @@
  * with the DSP sender types that provide their data (kSenderTypeMeter, kSenderTypeWaveform).
  */
 
-import { SENDER_TO_VISUALIZATION, type SenderType, type VisualizationComponent } from 'sharedUi';
+import { SENDER_TO_VISUALIZATION, type SenderType, type VisualizationComponent } from 'sharedUi/config/senderTypeMapping';
 
 /** Get all sender types that map to a given visualization component */
 export function getSenderTypesFor(component: VisualizationComponent): SenderType[] {
