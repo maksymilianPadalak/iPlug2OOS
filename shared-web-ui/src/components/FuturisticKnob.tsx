@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * FuturisticKnob Control Component
  *
