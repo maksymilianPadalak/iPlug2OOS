@@ -1,5 +1,4 @@
 // Components
-export { HelloWorld } from "./components/HelloWorld";
 export { Knob, type KnobProps } from "./components/Knob";
 export { Section, ControlRow, type SectionProps, type ControlRowProps } from "./components/Section";
 export { Meter, type MeterProps } from "./components/Meter";
