@@ -5,23 +5,23 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleExecutable</key>
-	<string>TemplateProject</string>
+	<string>Effect</string>
 	<key>CFBundleGetInfoString</key>
-	<string>TemplateProject v0.0.0 Copyright 2025 Acme Inc</string>
+	<string>Effect v1.0.0 Copyright 2025 Acme Inc</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.AcmeInc.vst3.TemplateProject</string>
+	<string>com.AcmeInc.vst.Effect</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>TemplateProject</string>
+	<string>Effect</string>
 	<key>CFBundlePackageType</key>
 	<string>BNDL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.0.0</string>
+	<string>1.0.0</string>
 	<key>CFBundleSignature</key>
-	<string>9c0G</string>
+	<string>RvDl</string>
 	<key>CFBundleVersion</key>
-	<string>0.0.0</string>
+	<string>1.0.0</string>
 	<key>CSResourcesFileMapped</key>
 	<true/>
 	<key>LSMinimumSystemVersion</key>

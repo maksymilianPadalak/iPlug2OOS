@@ -4,7 +4,7 @@
 
 import plistlib, os, sys, shutil
 
-IPLUG2_ROOT = "../../iPlug2"
+IPLUG2_ROOT = "../iPlug2"
 
 scriptpath = os.path.dirname(os.path.realpath(__file__))
 projectpath = os.path.abspath(os.path.join(scriptpath, os.pardir))
@@ -14,13 +14,13 @@ kAudioUnitType_MusicEffect      = "aumf"
 kAudioUnitType_Effect           = "aufx"
 kAudioUnitType_MIDIProcessor    = "aumi"
 
-sys.path.insert(0, os.path.join(os.getcwd(), IPLUG2_ROOT + '/Scripts'))
+sys.path.insert(0, os.path.join(projectpath, IPLUG2_ROOT + '/Scripts'))
 
 from parse_config import parse_config, parse_xcconfig
 
 def main():
   config = parse_config(projectpath)
-  xcconfig = parse_xcconfig(os.path.join(os.getcwd(), IPLUG2_ROOT +  '/../common-mac.xcconfig'))
+  xcconfig = parse_xcconfig(os.path.join(projectpath, IPLUG2_ROOT +  '/../common-mac.xcconfig'))
 
   CFBundleGetInfoString = config['BUNDLE_NAME'] + " v" + config['FULL_VER_STR'] + " " + config['PLUG_COPYRIGHT_STR']
   CFBundleVersion = config['FULL_VER_STR']

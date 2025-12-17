@@ -1,7 +1,7 @@
 #define PLUG_NAME "Instrument"
 #define PLUG_MFR "AcmeInc"
-#define PLUG_VERSION_HEX 0x00000000
-#define PLUG_VERSION_STR "0.0.0"
+#define PLUG_VERSION_HEX 0x00010000
+#define PLUG_VERSION_STR "1.0.0"
 #define PLUG_UNIQUE_ID '9c0G'
 #define PLUG_MFR_ID 'Acme'
 #define PLUG_URL_STR "https://iplug2.github.io"
@@ -34,11 +34,13 @@
 #define PLUG_MAX_WIDTH 8192
 #define PLUG_MAX_HEIGHT 8192
 
-#define AUV2_ENTRY PluginInstance_Entry
-#define AUV2_ENTRY_STR "PluginInstance_Entry"
-#define AUV2_FACTORY PluginInstance_Factory
-#define AUV2_VIEW_CLASS PluginInstance_View
-#define AUV2_VIEW_CLASS_STR "PluginInstance_View"
+// AUV2_* defines MUST be unique per plugin to avoid Objective-C class name collisions
+// when multiple plugins are loaded simultaneously in a host (e.g. Logic Pro)
+#define AUV2_ENTRY Instrument_Entry
+#define AUV2_ENTRY_STR "Instrument_Entry"
+#define AUV2_FACTORY Instrument_Factory
+#define AUV2_VIEW_CLASS Instrument_View
+#define AUV2_VIEW_CLASS_STR "Instrument_View"
 
 #define AAX_TYPE_IDS 'ITP1'
 #define AAX_TYPE_IDS_AUDIOSUITE 'ITA1'

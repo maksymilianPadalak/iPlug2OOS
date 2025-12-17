@@ -12,3 +12,4 @@ mkcert*
 
 # user-generated project workspaces
 TemplateProject-*/
+__pycache__/

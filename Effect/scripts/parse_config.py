@@ -1,0 +1,1 @@
+../../iPlug2/Scripts/parse_config.py

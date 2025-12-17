@@ -34,11 +34,13 @@
 #define PLUG_MAX_WIDTH 8192
 #define PLUG_MAX_HEIGHT 8192
 
-#define AUV2_ENTRY PluginInstance_Entry
-#define AUV2_ENTRY_STR "PluginInstance_Entry"
-#define AUV2_FACTORY PluginInstance_Factory
-#define AUV2_VIEW_CLASS PluginInstance_View
-#define AUV2_VIEW_CLASS_STR "PluginInstance_View"
+// AUV2_* defines MUST be unique per plugin to avoid Objective-C class name collisions
+// when multiple plugins are loaded simultaneously in a host (e.g. Logic Pro)
+#define AUV2_ENTRY Effect_Entry
+#define AUV2_ENTRY_STR "Effect_Entry"
+#define AUV2_FACTORY Effect_Factory
+#define AUV2_VIEW_CLASS Effect_View
+#define AUV2_VIEW_CLASS_STR "Effect_View"
 
 #define AAX_TYPE_IDS 'EfT1'
 #define AAX_TYPE_IDS_AUDIOSUITE 'EfA1'

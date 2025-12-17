@@ -11,13 +11,13 @@ IPLUG2_ROOT = ../../iPlug2
 // Global build settings
 
 // the basename of the vst, vst3, app, component, aaxplugin
-BINARY_NAME = Instrument
+BINARY_NAME = Effect
 
 // ------------------------------
 // HEADER AND LIBRARY SEARCH PATHS
 // Q DSP library includes
 EXTRA_INC_PATHS = ../q_lib/q_lib/include ../q_lib/q_lib/infra/include
-EXTRA_LIB_PATHS = 
+EXTRA_LIB_PATHS =
 EXTRA_LNK_FLAGS = -framework WebKit -framework Accelerate
 
 // EXTRA_APP_DEFS =
@@ -25,7 +25,7 @@ EXTRA_LNK_FLAGS = -framework WebKit -framework Accelerate
 
 //------------------------------
 // PREPROCESSOR MACROS
-EXTRA_ALL_DEFS = OBJC_PREFIX=vInstrument SWELL_APP_PREFIX=Swell_vInstrument WEBVIEW_EDITOR_DELEGATE NO_IGRAPHICS IDLE_TIMER_RATE=50
+EXTRA_ALL_DEFS = OBJC_PREFIX=vEffect SWELL_APP_PREFIX=Swell_vEffect WEBVIEW_EDITOR_DELEGATE NO_IGRAPHICS IDLE_TIMER_RATE=50
 //EXTRA_DEBUG_DEFS =
 //EXTRA_RELEASE_DEFS =
 //EXTRA_TRACER_DEFS =
