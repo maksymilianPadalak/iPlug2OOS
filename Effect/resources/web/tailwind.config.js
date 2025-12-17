@@ -1,9 +1,13 @@
+const sharedPreset = require('../../../shared-web-ui/tailwind.preset.js');
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  presets: [sharedPreset],
   content: [
     "./src/**/*.{js,jsx,ts,tsx}",
     "./scripts/**/*.{js,jsx}",
     "./index.html",
+    "../../../shared-web-ui/src/**/*.{js,jsx,ts,tsx}",
   ],
   theme: {
     extend: {

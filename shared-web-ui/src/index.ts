@@ -11,6 +11,7 @@ export { PianoKeyboard, type PianoKeyboardProps } from "./components/PianoKeyboa
 export { KeyboardSection, type KeyboardSectionProps } from "./components/KeyboardSection";
 export { WebControls, type WebControlsProps } from "./components/WebControls";
 export { PluginHeader, type PluginHeaderProps } from "./components/PluginHeader";
+export { FuturisticTitle, type FuturisticTitleProps } from "./components/FuturisticTitle";
 export { TestToneButton, type TestToneButtonProps } from "./components/TestToneButton";
 export { AudioFileInput, type AudioFileInputProps } from "./components/AudioFileInput";
 export { WAMControls, type WAMControlsProps } from "./components/WAMControls";
