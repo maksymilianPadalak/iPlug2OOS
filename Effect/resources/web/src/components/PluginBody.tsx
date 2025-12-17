@@ -4,12 +4,12 @@
  * Simple stereo gain effect with smoothed parameter control.
  */
 
-import { Section } from '@/components/layouts/Section';
-import { Knob } from '@/components/controls/Knob';
-import { Meter } from '@/components/visualizations/Meter';
+import { Section, Knob, Meter, useParameter } from 'sharedUi';
 import { EParams } from '@/config/runtimeParameters';
+import { normalizedToDisplay } from '@/utils/parameter';
 
 export function PluginBody() {
+  const gainParam = useParameter(EParams.kParamGain);
   return (
     <div
       id="plugin-body"
@@ -59,7 +59,14 @@ export function PluginBody() {
         {/* Control Section */}
         <div className="flex gap-4 justify-center">
           <Section title="Output">
-            <Knob paramId={EParams.kParamGain} label="Gain" />
+            <Knob
+              value={gainParam.value}
+              onChange={gainParam.setValue}
+              onBeginChange={gainParam.beginChange}
+              onEndChange={gainParam.endChange}
+              label="Gain"
+              displayValue={normalizedToDisplay(EParams.kParamGain, gainParam.value)}
+            />
             <Meter channel={0} />
             <Meter channel={1} />
           </Section>

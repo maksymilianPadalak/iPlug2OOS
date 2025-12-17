@@ -5,14 +5,29 @@
  * Modified by the AI code generation pipeline.
  */
 
-import { Section } from '@/components/layouts/Section';
-import { Knob } from '@/components/controls/Knob';
-import { Dropdown } from '@/components/controls/Dropdown';
-import { Meter } from '@/components/visualizations/Meter';
-import { WaveformDisplay } from '@/components/visualizations/WaveformDisplay';
-import { EParams, EControlTags } from '@/config/runtimeParameters';
+import {
+  Section,
+  Knob,
+  Dropdown,
+  Meter,
+  WaveformDisplay,
+  useParameter,
+  useWaveform,
+} from 'sharedUi';
+import { EParams, EControlTags, runtimeParameters } from '@/config/runtimeParameters';
+import { normalizedToDisplay } from '@/utils/parameter';
 
 export function PluginBody() {
+  // Parameter hooks
+  const gainParam = useParameter(EParams.kParamGain);
+  const waveformParam = useParameter(EParams.kParamWaveform);
+
+  // Waveform display data
+  const waveformData = useWaveform(EControlTags.kCtrlTagWaveform);
+
+  // Get waveform options from runtimeParameters
+  const waveformOptions = runtimeParameters.find(p => p.id === EParams.kParamWaveform)?.enumValues ?? [];
+
   return (
     <div
       id="plugin-body"
@@ -62,12 +77,30 @@ export function PluginBody() {
         {/* Control Sections */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Section title="Oscillator">
-            <Dropdown paramId={EParams.kParamWaveform} label="Waveform" />
-            <WaveformDisplay ctrlTag={EControlTags.kCtrlTagWaveform} label="Output" />
+            <Dropdown
+              value={waveformParam.value}
+              options={waveformOptions}
+              onChange={waveformParam.setValue}
+              onBeginChange={waveformParam.beginChange}
+              onEndChange={waveformParam.endChange}
+              label="Waveform"
+            />
+            <WaveformDisplay
+              samples={waveformData.samples}
+              timestamp={waveformData.timestamp}
+              label="Output"
+            />
           </Section>
 
           <Section title="Master">
-            <Knob paramId={EParams.kParamGain} label="Gain" />
+            <Knob
+              value={gainParam.value}
+              onChange={gainParam.setValue}
+              onBeginChange={gainParam.beginChange}
+              onEndChange={gainParam.endChange}
+              label="Gain"
+              displayValue={normalizedToDisplay(EParams.kParamGain, gainParam.value)}
+            />
             <Meter channel={0} />
             <Meter channel={1} />
           </Section>

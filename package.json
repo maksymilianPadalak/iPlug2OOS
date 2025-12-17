@@ -1,0 +1,8 @@
+{
+  "name": "iplug2oos-workspace",
+  "private": true,
+  "scripts": {
+    "build:effect": "pnpm --filter plugin-web-ui --filter-prod @bmi/plugin-ui run build",
+    "build:instrument": "pnpm --filter plugin-web-ui --filter-prod @bmi/plugin-ui run build"
+  }
+}

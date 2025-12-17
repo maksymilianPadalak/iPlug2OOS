@@ -13,3 +13,6 @@ mkcert*
 # user-generated project workspaces
 TemplateProject-*/
 __pycache__/
+
+# Node.js
+node_modules/

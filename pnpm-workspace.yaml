@@ -1,0 +1,7 @@
+packages:
+  - shared-web-ui
+  - Effect/resources/web
+  - Instrument/resources/web
+
+ignoredBuiltDependencies:
+  - esbuild

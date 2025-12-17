@@ -2,7 +2,7 @@
  * MIDI keyboard handling
  */
 
-import { sendNoteOff, sendNoteOn } from '@/glue/iplugBridge/iplugBridge';
+import { sendNoteOff, sendNoteOn } from 'sharedUi';
 
 /**
  * QWERTY to note mapping (C major scale starting from C)

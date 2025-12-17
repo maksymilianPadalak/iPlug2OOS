@@ -2,8 +2,7 @@
  * Parameter UI management
  */
 
-import { sendParameterEnum, sendParameterValue } from '@/glue/iplugBridge/iplugBridge';
-import { isUpdatingFromProcessor } from '@/glue/processorCallbacks/processorCallbacks';
+import { sendParameterEnum, sendParameterValue, isUpdatingFromProcessor } from 'sharedUi';
 import { normalizedToDisplay, getParamValueId } from '@/utils/parameter';
 
 /**

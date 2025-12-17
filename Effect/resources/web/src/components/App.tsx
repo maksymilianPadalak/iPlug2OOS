@@ -10,10 +10,9 @@ import React from 'react';
 import { initializeWAM, loadAudioFile, playLoadedAudioFile, stopAudioFile } from '@/audio/wam-controller';
 import { initializeEnvironment } from '@/utils/environment';
 
-import { BridgeProvider } from '@/glue/BridgeProvider';
-import { WebControls } from '@/components/staticComponents/WebControls';
+import { BridgeProvider, WebControls, AudioFileInput } from 'sharedUi';
+import { controlTags } from '@/config/runtimeParameters';
 import { PluginBody } from '@/components/PluginBody';
-import { AudioFileInput } from '@/components/inputs/AudioFileInput';
 
 export function App() {
   const [audioStatus, setAudioStatus] = React.useState<'working' | 'not-working' | null>(null);
@@ -79,7 +78,7 @@ export function App() {
   }, []);
 
   return (
-    <BridgeProvider>
+    <BridgeProvider controlTags={controlTags}>
       <div className="h-screen w-full bg-[#F5F0E6] flex flex-col overflow-hidden text-orange-100">
         {/* Fixed header */}
         <div className="flex-shrink-0 px-2 pt-2">

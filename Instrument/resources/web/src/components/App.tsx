@@ -9,10 +9,27 @@ import React from 'react';
 import { initializeWAM, setupMIDIDevices } from '@/audio/wam-controller';
 import { initializeEnvironment } from '@/utils/environment';
 
-import { BridgeProvider } from '@/glue/BridgeProvider';
-import { WebControls } from '@/components/staticComponents/WebControls';
-import { KeyboardSection } from '@/components/staticComponents/KeyboardSection';
+import {
+  BridgeProvider,
+  WebControls,
+  KeyboardSection,
+  useMidi,
+  sendNoteOn,
+  sendNoteOff,
+} from 'sharedUi';
+import { controlTags } from '@/config/runtimeParameters';
 import { PluginBody } from '@/components/PluginBody';
+
+function KeyboardWrapper() {
+  const { activeNotes } = useMidi();
+  return (
+    <KeyboardSection
+      activeNotes={activeNotes}
+      onNoteOn={sendNoteOn}
+      onNoteOff={sendNoteOff}
+    />
+  );
+}
 
 export function App() {
   const [audioStatus, setAudioStatus] = React.useState<'working' | 'not-working' | null>(null);
@@ -37,7 +54,7 @@ export function App() {
   }, []);
 
   return (
-    <BridgeProvider>
+    <BridgeProvider controlTags={controlTags}>
       <div className="h-screen w-full bg-[#F5F0E6] flex flex-col overflow-hidden text-orange-100">
         {/* Fixed header */}
         <div className="flex-shrink-0 px-2 pt-2">
@@ -54,7 +71,7 @@ export function App() {
         {/* Fixed keyboard at bottom */}
         <div className="flex-shrink-0 px-2 pb-2">
           <div className="w-[1100px] max-w-full mx-auto">
-            <KeyboardSection />
+            <KeyboardWrapper />
           </div>
         </div>
       </div>
