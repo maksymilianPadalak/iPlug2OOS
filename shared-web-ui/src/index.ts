@@ -1,7 +1,9 @@
 // Components
 export { Knob, type KnobProps } from "./components/Knob";
+export { FuturisticKnob, type FuturisticKnobProps } from "./components/FuturisticKnob";
 export { Section, ControlRow, type SectionProps, type ControlRowProps } from "./components/Section";
 export { Meter, type MeterProps } from "./components/Meter";
+export { FuturisticMeter, type FuturisticMeterProps } from "./components/FuturisticMeter";
 export { SubGroup, type SubGroupProps } from "./components/SubGroup";
 export { Tab, TabContainer, type TabProps, type TabContainerProps } from "./components/Tabs";
 export { WaveformDisplay, type WaveformDisplayProps } from "./components/WaveformDisplay";
