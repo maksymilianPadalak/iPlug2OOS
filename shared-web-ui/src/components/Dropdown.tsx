@@ -2,21 +2,29 @@
  * Dropdown Control Component
  *
  * Selection control for enum parameters (waveform, mode, etc.)
- * Presentational component - accepts options and value as props.
+ * Takes paramId and uses useParameter internally.
+ * Options are read from RuntimeParametersProvider context.
  */
 
 import React from 'react';
+import { useParameter } from '../glue/hooks/useParameter';
+import { useRuntimeParameters } from '../glue/RuntimeParametersProvider';
 
 export type DropdownProps = {
-  value: number;
-  options: string[];
-  onChange: (normalizedValue: number) => void;
-  onBeginChange?: () => void;
-  onEndChange?: () => void;
+  /** Parameter ID from EParams enum */
+  paramId: number;
+  /** Label displayed above the dropdown */
   label?: string;
 };
 
-export function Dropdown({ value, options, onChange, onBeginChange, onEndChange, label }: DropdownProps) {
+export function Dropdown({ paramId, label }: DropdownProps) {
+  const { value, setValue, beginChange, endChange } = useParameter(paramId);
+  const runtimeParameters = useRuntimeParameters();
+
+  // Get options from runtimeParameters
+  const param = runtimeParameters.find((p) => p.id === paramId);
+  const options = param?.enumValues || [];
+
   const normalizedToIndex = (norm: number): number => {
     return Math.round(norm * (options.length - 1));
   };
@@ -31,13 +39,13 @@ export function Dropdown({ value, options, onChange, onBeginChange, onEndChange,
     const newIndex = e.target.selectedIndex;
     const normalizedValue = indexToNormalized(newIndex);
 
-    onBeginChange?.();
-    onChange(normalizedValue);
-    onEndChange?.();
+    beginChange();
+    setValue(normalizedValue);
+    endChange();
   };
 
   if (options.length === 0) {
-    return <div className="text-red-500 text-xs">No options provided</div>;
+    return <div className="text-red-500 text-xs">No options for param {paramId}</div>;
   }
 
   return (

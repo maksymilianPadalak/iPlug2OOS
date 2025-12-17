@@ -10,21 +10,12 @@ import { Knob } from 'sharedUi/components/Knob';
 import { Dropdown } from 'sharedUi/components/Dropdown';
 import { Meter } from 'sharedUi/components/Meter';
 import { WaveformDisplay } from 'sharedUi/components/WaveformDisplay';
-import { useParameter } from 'sharedUi/hooks/useParameter';
 import { useWaveform } from 'sharedUi/hooks/useWaveform';
-import { EParams, EControlTags, runtimeParameters } from '@/config/runtimeParameters';
-import { normalizedToDisplay } from '@/utils/parameter';
+import { EParams, EControlTags } from '@/config/runtimeParameters';
 
 export function PluginBody() {
-  // Parameter hooks
-  const gainParam = useParameter(EParams.kParamGain);
-  const waveformParam = useParameter(EParams.kParamWaveform);
-
   // Waveform display data
   const waveformData = useWaveform(EControlTags.kCtrlTagWaveform);
-
-  // Get waveform options from runtimeParameters
-  const waveformOptions = runtimeParameters.find(p => p.id === EParams.kParamWaveform)?.enumValues ?? [];
 
   return (
     <div
@@ -76,11 +67,7 @@ export function PluginBody() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Section title="Oscillator">
             <Dropdown
-              value={waveformParam.value}
-              options={waveformOptions}
-              onChange={waveformParam.setValue}
-              onBeginChange={waveformParam.beginChange}
-              onEndChange={waveformParam.endChange}
+              paramId={EParams.kParamWaveform}
               label="Waveform"
             />
             <WaveformDisplay
@@ -91,14 +78,7 @@ export function PluginBody() {
           </Section>
 
           <Section title="Master">
-            <Knob
-              value={gainParam.value}
-              onChange={gainParam.setValue}
-              onBeginChange={gainParam.beginChange}
-              onEndChange={gainParam.endChange}
-              label="Gain"
-              displayValue={normalizedToDisplay(EParams.kParamGain, gainParam.value)}
-            />
+            <Knob paramId={EParams.kParamGain} label="Gain" />
             <Meter channel={0} />
             <Meter channel={1} />
           </Section>

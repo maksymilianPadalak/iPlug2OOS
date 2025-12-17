@@ -23,6 +23,7 @@
     "./components/AudioFileInput": "./src/components/AudioFileInput.tsx",
     "./components/WAMControls": "./src/components/WAMControls.tsx",
     "./BridgeProvider": "./src/glue/BridgeProvider.tsx",
+    "./RuntimeParametersProvider": "./src/glue/RuntimeParametersProvider.tsx",
     "./hooks/useParameter": "./src/glue/hooks/useParameter.ts",
     "./hooks/useParameterBridge": "./src/glue/hooks/useParameterBridge.ts",
     "./hooks/useMeter": "./src/glue/hooks/useMeter.ts",

@@ -8,12 +8,10 @@
 import { FuturisticKnob } from 'sharedUi/components/FuturisticKnob';
 import { FuturisticMeter } from 'sharedUi/components/FuturisticMeter';
 import { FuturisticTitle } from 'sharedUi/components/FuturisticTitle';
-import { useParameter } from 'sharedUi/hooks/useParameter';
+import { Knob } from 'sharedUi/components/Knob';
 import { EParams } from '@/config/runtimeParameters';
-import { normalizedToDisplay } from '@/utils/parameter';
 
 export function PluginBody() {
-  const gainParam = useParameter(EParams.kParamGain);
   return (
     <div
       id="plugin-body"
@@ -40,19 +38,24 @@ export function PluginBody() {
 
         {/* Main control - centered knob */}
         <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-2">
-            <FuturisticKnob
-              value={gainParam.value}
-              onChange={gainParam.setValue}
-              onBeginChange={gainParam.beginChange}
-              onEndChange={gainParam.endChange}
-              label="Gain"
-              displayValue={normalizedToDisplay(EParams.kParamGain, gainParam.value)}
-              color="cyan"
-              size="large"
-            />
+
+        </div>
+
+        {/* Effects Section - Delay */}
+        <div className="mt-4">
+          <div className="mb-2 text-xs font-semibold tracking-wide text-cyan-300 uppercase/relaxed">
+            Effects
+          </div>
+          <div className="rounded-md border border-cyan-500/20 bg-slate-900/40 p-3">
+            <div className="mb-2 text-[10px] font-medium tracking-[0.2em] text-cyan-400 uppercase">
+              Delay
+            </div>
+            <div className="flex flex-row gap-3">
+              <Knob paramId={EParams.kParamGain} label="Time" />
+            </div>
           </div>
         </div>
+
       </div>
     </div>
   );

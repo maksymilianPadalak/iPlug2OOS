@@ -11,9 +11,10 @@ import { initializeWAM, loadAudioFile, playLoadedAudioFile, stopAudioFile } from
 import { initializeEnvironment } from '@/utils/environment';
 
 import { BridgeProvider } from 'sharedUi/BridgeProvider';
+import { RuntimeParametersProvider } from 'sharedUi/RuntimeParametersProvider';
 import { WebControls } from 'sharedUi/components/WebControls';
 import { AudioFileInput } from 'sharedUi/components/AudioFileInput';
-import { controlTags } from '@/config/runtimeParameters';
+import { controlTags, runtimeParameters } from '@/config/runtimeParameters';
 import { PluginBody } from '@/components/PluginBody';
 
 export function App() {
@@ -80,46 +81,48 @@ export function App() {
   }, []);
 
   return (
-    <BridgeProvider controlTags={controlTags}>
-      <div className="h-screen w-full bg-[#F5F0E6] flex flex-col overflow-hidden text-orange-100">
-        {/* Fixed header */}
-        <div className="flex-shrink-0 px-2 pt-2">
-          <WebControls audioStatus={audioStatus} />
-        </div>
-
-        {/* Scrollable plugin body - constrained to 400x700 */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-3 moderne-scroll flex justify-center">
-          <div className="w-[400px] h-[700px] flex-shrink-0">
-            <PluginBody />
+    <RuntimeParametersProvider parameters={runtimeParameters}>
+      <BridgeProvider controlTags={controlTags}>
+        <div className="h-screen w-full bg-[#F5F0E6] flex flex-col overflow-hidden text-orange-100">
+          {/* Fixed header */}
+          <div className="flex-shrink-0 px-2 pt-2">
+            <WebControls audioStatus={audioStatus} />
           </div>
-        </div>
 
-        {/* Audio file input at bottom */}
-        <div className="flex-shrink-0 px-2 pb-4">
-          <div className="w-[1100px] max-w-full mx-auto">
-            <div className="bg-gradient-to-br from-[#F5E6D3] via-[#EDE0CC] to-[#E8D4B8] rounded-2xl p-4 shadow-md">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-[#2a2a2a] text-xs font-bold uppercase tracking-wider">
-                    Audio Input
-                  </span>
-                  <span className="text-[#666] text-[10px] uppercase tracking-wider">
-                    Load an audio file to test the effect
-                  </span>
+          {/* Scrollable plugin body - constrained to 400x700 */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-3 moderne-scroll flex justify-center">
+            <div className="w-[400px] h-[700px] flex-shrink-0">
+              <PluginBody />
+            </div>
+          </div>
+
+          {/* Audio file input at bottom */}
+          <div className="flex-shrink-0 px-2 pb-4">
+            <div className="w-[1100px] max-w-full mx-auto">
+              <div className="bg-gradient-to-br from-[#F5E6D3] via-[#EDE0CC] to-[#E8D4B8] rounded-2xl p-4 shadow-md">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[#2a2a2a] text-xs font-bold uppercase tracking-wider">
+                      Audio Input
+                    </span>
+                    <span className="text-[#666] text-[10px] uppercase tracking-wider">
+                      Load an audio file to test the effect
+                    </span>
+                  </div>
+                  <AudioFileInput
+                    onFileSelected={handleFileSelected}
+                    onPlay={handlePlayAudioFile}
+                    onStop={handleStopAudioFile}
+                    isPlaying={audioFilePlaying}
+                    hasFile={hasFile}
+                    currentFileName={currentFileName}
+                  />
                 </div>
-                <AudioFileInput
-                  onFileSelected={handleFileSelected}
-                  onPlay={handlePlayAudioFile}
-                  onStop={handleStopAudioFile}
-                  isPlaying={audioFilePlaying}
-                  hasFile={hasFile}
-                  currentFileName={currentFileName}
-                />
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </BridgeProvider>
+      </BridgeProvider>
+    </RuntimeParametersProvider>
   );
 }

@@ -1,38 +1,23 @@
 /**
- * Knob Control Component (Presentational)
+ * Knob Control Component
  *
  * Rotary control for continuous parameters.
+ * Takes paramId and uses useParameter internally.
  * Drag up/down to change value.
- *
- * This is a presentational component - it receives all data via props.
- * Plugin-specific hooks should be used in a wrapper component.
  */
 
 import { useRef, useState, useCallback } from 'react';
+import { useParameter } from '../glue/hooks/useParameter';
 
 export type KnobProps = {
-  /** Normalized value (0-1) */
-  value: number;
-  /** Called during drag with new normalized value */
-  onChange: (value: number) => void;
-  /** Called when drag starts (for DAW automation) */
-  onBeginChange?: () => void;
-  /** Called when drag ends (for DAW automation) */
-  onEndChange?: () => void;
+  /** Parameter ID from EParams enum */
+  paramId: number;
   /** Label displayed above the knob */
   label?: string;
-  /** Formatted display value shown below the knob */
-  displayValue?: string;
 };
 
-export const Knob = ({
-  value,
-  onChange,
-  onBeginChange,
-  onEndChange,
-  label,
-  displayValue,
-}: KnobProps) => {
+export function Knob({ paramId, label }: KnobProps) {
+  const { value, setValue, beginChange, endChange } = useParameter(paramId);
   const [isDragging, setIsDragging] = useState(false);
   const knobRef = useRef<HTMLDivElement>(null);
 
@@ -41,11 +26,11 @@ export const Knob = ({
   const startDrag = useCallback(
     (startY: number, startValue: number) => {
       setIsDragging(true);
-      onBeginChange?.();
+      beginChange();
 
       const onMove = (y: number) => {
         const delta = (startY - y) * 0.005;
-        onChange(clamp(startValue + delta));
+        setValue(clamp(startValue + delta));
       };
 
       const onMouseMove = (e: MouseEvent) => {
@@ -59,7 +44,7 @@ export const Knob = ({
       };
 
       const onEnd = () => {
-        onEndChange?.();
+        endChange();
         setIsDragging(false);
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onEnd);
@@ -72,7 +57,7 @@ export const Knob = ({
       document.addEventListener('touchmove', onTouchMove, { passive: false });
       document.addEventListener('touchend', onEnd);
     },
-    [onChange, onBeginChange, onEndChange]
+    [setValue, beginChange, endChange]
   );
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -176,11 +161,9 @@ export const Knob = ({
         </svg>
       </div>
 
-      {displayValue && (
-        <div className="text-[#2a2a2a] text-[11px] font-semibold tabular-nums">
-          {displayValue}
-        </div>
-      )}
+      <div className="text-[#2a2a2a] text-[11px] font-semibold tabular-nums">
+        {Math.round(value * 100)}%
+      </div>
     </div>
   );
-};
+}

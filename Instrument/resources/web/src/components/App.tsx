@@ -10,11 +10,12 @@ import { initializeWAM, setupMIDIDevices } from '@/audio/wam-controller';
 import { initializeEnvironment } from '@/utils/environment';
 
 import { BridgeProvider } from 'sharedUi/BridgeProvider';
+import { RuntimeParametersProvider } from 'sharedUi/RuntimeParametersProvider';
 import { WebControls } from 'sharedUi/components/WebControls';
 import { KeyboardSection } from 'sharedUi/components/KeyboardSection';
 import { useMidi } from 'sharedUi/hooks/useMidi';
 import { sendNoteOn, sendNoteOff } from 'sharedUi/bridge';
-import { controlTags } from '@/config/runtimeParameters';
+import { controlTags, runtimeParameters } from '@/config/runtimeParameters';
 import { PluginBody } from '@/components/PluginBody';
 
 function KeyboardWrapper() {
@@ -51,27 +52,29 @@ export function App() {
   }, []);
 
   return (
-    <BridgeProvider controlTags={controlTags}>
-      <div className="h-screen w-full bg-[#F5F0E6] flex flex-col overflow-hidden text-orange-100">
-        {/* Fixed header */}
-        <div className="flex-shrink-0 px-2 pt-2">
-          <WebControls audioStatus={audioStatus} />
-        </div>
+    <RuntimeParametersProvider parameters={runtimeParameters}>
+      <BridgeProvider controlTags={controlTags}>
+        <div className="h-screen w-full bg-[#F5F0E6] flex flex-col overflow-hidden text-orange-100">
+          {/* Fixed header */}
+          <div className="flex-shrink-0 px-2 pt-2">
+            <WebControls audioStatus={audioStatus} />
+          </div>
 
-        {/* Scrollable plugin body - fixed width, no horizontal scroll */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-3 moderne-scroll">
-          <div className="w-[1100px] max-w-full mx-auto">
-            <PluginBody />
+          {/* Scrollable plugin body - fixed width, no horizontal scroll */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-3 moderne-scroll">
+            <div className="w-[1100px] max-w-full mx-auto">
+              <PluginBody />
+            </div>
+          </div>
+
+          {/* Fixed keyboard at bottom */}
+          <div className="flex-shrink-0 px-2 pb-2">
+            <div className="w-[1100px] max-w-full mx-auto">
+              <KeyboardWrapper />
+            </div>
           </div>
         </div>
-
-        {/* Fixed keyboard at bottom */}
-        <div className="flex-shrink-0 px-2 pb-2">
-          <div className="w-[1100px] max-w-full mx-auto">
-            <KeyboardWrapper />
-          </div>
-        </div>
-      </div>
-    </BridgeProvider>
+      </BridgeProvider>
+    </RuntimeParametersProvider>
   );
 }
