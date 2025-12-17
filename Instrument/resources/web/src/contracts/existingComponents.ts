@@ -7,12 +7,12 @@
 export const existingComponents = {
   controls: {
     Knob: {
-      import: "import { Knob } from '@/components/controls/Knob'",
+      import: "import { Knob } from 'sharedUi'",
       props: 'paramId: number, label?: string',
       description: 'Rotary control for continuous parameters',
     },
     Dropdown: {
-      import: "import { Dropdown } from '@/components/controls/Dropdown'",
+      import: "import { Dropdown } from 'sharedUi'",
       props: 'paramId: number, label?: string, options: string[]',
       description: 'Selection control for enum parameters',
     },
@@ -20,7 +20,7 @@ export const existingComponents = {
 
   visualizations: {
     Meter: {
-      import: "import { Meter } from '@/components/visualizations/Meter'",
+      import: "import { Meter } from 'sharedUi'",
       props: 'channel: 0 | 1',
       description: 'Audio level meter',
     },
@@ -28,7 +28,7 @@ export const existingComponents = {
 
   layouts: {
     Section: {
-      import: "import { Section } from '@/components/layouts/Section'",
+      import: "import { Section } from 'sharedUi'",
       props: 'title: string, description?: string, children: ReactNode',
       description: 'Container for grouping controls',
     },

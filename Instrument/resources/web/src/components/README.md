@@ -25,8 +25,7 @@ components/
 All controls take `paramId` from `EParams` enum:
 
 ```tsx
-import { Knob } from '@/components/controls/Knob';
-import { Dropdown } from '@/components/controls/Dropdown';
+import { Knob, Dropdown } from 'sharedUi';
 import { EParams } from '@/config/runtimeParameters';
 
 <Knob paramId={EParams.kParamGain} label="Gain" />
@@ -37,4 +36,4 @@ import { EParams } from '@/config/runtimeParameters';
 
 - `config/runtimeParameters.ts` - Parameter definitions (generated from C++)
 - `uiManifest.ts` - Available components manifest
-- `glue/` - DSP communication layer (don't modify)
+- `sharedUi` - Shared components and DSP communication layer
