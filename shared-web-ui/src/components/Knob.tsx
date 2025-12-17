@@ -1,12 +1,12 @@
 /**
  * Knob Control Component
  *
- * Rotary control for continuous parameters.
+ * Futuristic HUD-style rotary control with chaotic rotating ovals.
  * Takes paramId and uses useParameter internally.
  * Drag up/down to change value.
  */
 
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { useParameter } from '../glue/hooks/useParameter';
 
 export type KnobProps = {
@@ -14,18 +14,106 @@ export type KnobProps = {
   paramId: number;
   /** Label displayed above the knob */
   label?: string;
+  /** Color theme */
+  color?: 'cyan' | 'magenta' | 'green' | 'orange';
+  /** Size variant */
+  size?: 'small' | 'medium' | 'large';
 };
 
-export function Knob({ paramId, label }: KnobProps) {
+const colorConfig = {
+  cyan: {
+    primary: '#00ffff',
+    glow: 'rgba(0, 255, 255, 0.8)',
+    dim: 'rgba(0, 255, 255, 0.3)',
+    track: 'rgba(0, 255, 255, 0.15)',
+  },
+  magenta: {
+    primary: '#ff00ff',
+    glow: 'rgba(255, 0, 255, 0.8)',
+    dim: 'rgba(255, 0, 255, 0.3)',
+    track: 'rgba(255, 0, 255, 0.15)',
+  },
+  green: {
+    primary: '#00ff88',
+    glow: 'rgba(0, 255, 136, 0.8)',
+    dim: 'rgba(0, 255, 136, 0.3)',
+    track: 'rgba(0, 255, 136, 0.15)',
+  },
+  orange: {
+    primary: '#ff8800',
+    glow: 'rgba(255, 136, 0, 0.8)',
+    dim: 'rgba(255, 136, 0, 0.3)',
+    track: 'rgba(255, 136, 0, 0.15)',
+  },
+};
+
+const sizeConfig = {
+  small: { size: 70 },
+  medium: { size: 90 },
+  large: { size: 120 },
+};
+
+// Oval configurations - static to avoid recreating
+const ovalConfigs = [
+  { rxRatio: 0.92, ryRatio: 0.72, speed: 45, direction: 1, opacity: 0.5, strokeWidth: 1.2, startAngle: 23 },
+  { rxRatio: 0.68, ryRatio: 0.88, speed: 30, direction: -1, opacity: 0.4, strokeWidth: 1, startAngle: 156 },
+  { rxRatio: 0.85, ryRatio: 0.60, speed: 60, direction: 1, opacity: 0.6, strokeWidth: 1.5, startAngle: 89 },
+  { rxRatio: 0.75, ryRatio: 0.95, speed: 24, direction: -1, opacity: 0.35, strokeWidth: 0.8, startAngle: 267 },
+  { rxRatio: 0.98, ryRatio: 0.78, speed: 36, direction: 1, opacity: 0.45, strokeWidth: 1.1, startAngle: 312 },
+  { rxRatio: 0.62, ryRatio: 0.82, speed: 20, direction: -1, opacity: 0.3, strokeWidth: 0.7, startAngle: 45 },
+  { rxRatio: 0.80, ryRatio: 0.65, speed: 51, direction: 1, opacity: 0.55, strokeWidth: 1.3, startAngle: 198 },
+  { rxRatio: 0.70, ryRatio: 0.90, speed: 26, direction: -1, opacity: 0.38, strokeWidth: 0.9, startAngle: 134 },
+  { rxRatio: 0.88, ryRatio: 0.58, speed: 40, direction: 1, opacity: 0.48, strokeWidth: 1.0, startAngle: 278 },
+];
+
+export function Knob({ paramId, label, color = 'cyan', size = 'medium' }: KnobProps) {
   const { value, setValue, beginChange, endChange } = useParameter(paramId);
   const [isDragging, setIsDragging] = useState(false);
+  const [rotations, setRotations] = useState(() => ovalConfigs.map(c => c.startAngle));
   const knobRef = useRef<HTMLDivElement>(null);
+  const animationRef = useRef<number>();
+  const lastTimeRef = useRef<number>(0);
+  const isDraggingRef = useRef(false);
+
+  const colors = colorConfig[color];
+  const sizes = sizeConfig[size];
+
+  // Animation loop
+  useEffect(() => {
+    const animate = (time: number) => {
+      if (lastTimeRef.current === 0) {
+        lastTimeRef.current = time;
+      }
+      const delta = (time - lastTimeRef.current) / 1000; // seconds
+      lastTimeRef.current = time;
+
+      const speedMultiplier = isDraggingRef.current ? 2.5 : 1;
+
+      setRotations(prev =>
+        prev.map((rotation, i) => {
+          const config = ovalConfigs[i];
+          return rotation + config.speed * config.direction * delta * speedMultiplier;
+        })
+      );
+
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, []);
 
   const clamp = (v: number) => Math.max(0, Math.min(1, v));
 
   const startDrag = useCallback(
     (startY: number, startValue: number) => {
       setIsDragging(true);
+      isDraggingRef.current = true;
       beginChange();
 
       const onMove = (y: number) => {
@@ -46,6 +134,7 @@ export function Knob({ paramId, label }: KnobProps) {
       const onEnd = () => {
         endChange();
         setIsDragging(false);
+        isDraggingRef.current = false;
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onEnd);
         document.removeEventListener('touchmove', onTouchMove);
@@ -70,19 +159,26 @@ export function Knob({ paramId, label }: KnobProps) {
     if (e.touches[0]) startDrag(e.touches[0].clientY, value);
   };
 
-  // Arc calculation
-  const size = 48;
-  const stroke = 4;
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  // Arc spans 270 degrees (from -135° to +135°), so use 0.75 of circumference
+  const { size: svgSize } = sizes;
+  const centerX = svgSize / 2;
+  const centerY = svgSize / 2;
+  const maxR = svgSize / 2 - 2;
+
+  // Knob core
+  const coreRadius = maxR * 0.32;
+
+  // Progress arc
+  const progressRadius = maxR * 0.55;
+  const circumference = 2 * Math.PI * progressRadius;
   const arcLength = circumference * 0.75;
-  const progress = arcLength * value;
 
   return (
-    <div className="flex flex-col items-center gap-1.5">
+    <div className="flex flex-col items-center gap-2">
       {label && (
-        <label className="text-[#1a1a1a] text-[10px] font-bold uppercase tracking-[0.08em]">
+        <label
+          className="text-[10px] font-bold uppercase tracking-[0.15em]"
+          style={{ color: colors.primary, textShadow: `0 0 8px ${colors.glow}` }}
+        >
           {label}
         </label>
       )}
@@ -91,77 +187,104 @@ export function Knob({ paramId, label }: KnobProps) {
         ref={knobRef}
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
-        className={`cursor-pointer select-none transition-transform ${isDragging ? 'scale-105' : 'hover:scale-102'}`}
+        className="cursor-pointer select-none"
         style={{
-          filter: isDragging
-            ? 'drop-shadow(0 4px 8px rgba(184, 134, 11, 0.3))'
-            : 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
+          filter: `drop-shadow(0 0 ${isDragging ? 12 : 8}px ${colors.glow})`,
+          transition: 'filter 0.2s ease',
         }}
       >
-        <svg width={size} height={size}>
-          {/* Outer ring shadow effect */}
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius + 2}
-            fill="none"
-            stroke="rgba(0,0,0,0.05)"
-            strokeWidth={1}
-          />
-          {/* Background track - 270 degree arc */}
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke="#D4C4B0"
-            strokeWidth={stroke}
-            strokeLinecap="round"
-            strokeDasharray={`${arcLength} ${circumference}`}
-            transform={`rotate(135 ${size / 2} ${size / 2})`}
-          />
-          {/* Progress arc - brass/gold gradient effect */}
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke="#B8860B"
-            strokeWidth={stroke}
-            strokeLinecap="round"
-            strokeDasharray={`${progress} ${circumference}`}
-            transform={`rotate(135 ${size / 2} ${size / 2})`}
-          />
-          {/* Center knob with metallic effect */}
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={8}
-            fill="url(#knobGradient)"
-            stroke="#B8860B"
-            strokeWidth={1}
-          />
-          {/* Indicator line */}
-          <line
-            x1={size / 2}
-            y1={size / 2 - 3}
-            x2={size / 2}
-            y2={size / 2 - 6}
-            stroke="#5D4E37"
-            strokeWidth={1.5}
-            strokeLinecap="round"
-            transform={`rotate(${value * 270 - 135} ${size / 2} ${size / 2})`}
-          />
+        <svg width={svgSize} height={svgSize}>
           <defs>
-            <radialGradient id="knobGradient" cx="30%" cy="30%">
-              <stop offset="0%" stopColor="#FFF8E7" />
-              <stop offset="100%" stopColor="#E8D4B8" />
+            <radialGradient id={`knobGrad-${paramId}`} cx="35%" cy="35%">
+              <stop offset="0%" stopColor="#252540" />
+              <stop offset="100%" stopColor="#0a0a14" />
             </radialGradient>
           </defs>
+
+          {/* Chaotic rotating ovals */}
+          {ovalConfigs.map((oval, idx) => (
+            <ellipse
+              key={`oval-${idx}`}
+              cx={centerX}
+              cy={centerY}
+              rx={maxR * oval.rxRatio}
+              ry={maxR * oval.ryRatio}
+              fill="none"
+              stroke={colors.primary}
+              strokeWidth={oval.strokeWidth}
+              opacity={oval.opacity}
+              transform={`rotate(${rotations[idx]} ${centerX} ${centerY})`}
+            />
+          ))}
+
+          {/* Progress arc background */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={progressRadius}
+            fill="none"
+            stroke={colors.track}
+            strokeWidth={3}
+            strokeDasharray={`${arcLength} ${circumference}`}
+            transform={`rotate(135 ${centerX} ${centerY})`}
+          />
+
+          {/* Progress arc */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={progressRadius}
+            fill="none"
+            stroke={colors.primary}
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeDasharray={`${arcLength * value} ${circumference}`}
+            transform={`rotate(135 ${centerX} ${centerY})`}
+            style={{
+              filter: `drop-shadow(0 0 4px ${colors.glow})`,
+              transition: isDragging ? 'none' : 'stroke-dasharray 0.1s ease',
+            }}
+          />
+
+          {/* Center knob */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={coreRadius}
+            fill={`url(#knobGrad-${paramId})`}
+            stroke={colors.dim}
+            strokeWidth={1.5}
+          />
+
+          {/* Inner ring */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={coreRadius - 4}
+            fill="none"
+            stroke={colors.primary}
+            strokeWidth={0.5}
+            opacity={0.3}
+          />
+
+          {/* Center dot */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={3}
+            fill={isDragging ? colors.primary : colors.dim}
+            style={{
+              filter: isDragging ? `drop-shadow(0 0 6px ${colors.glow})` : 'none',
+              transition: 'fill 0.15s ease',
+            }}
+          />
         </svg>
       </div>
 
-      <div className="text-[#2a2a2a] text-[11px] font-semibold tabular-nums">
+      <div
+        className="text-[11px] font-bold tabular-nums tracking-wider"
+        style={{ color: colors.primary, textShadow: `0 0 6px ${colors.dim}` }}
+      >
         {Math.round(value * 100)}%
       </div>
     </div>

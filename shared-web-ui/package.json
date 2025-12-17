@@ -5,7 +5,6 @@
   "type": "module",
   "exports": {
     "./components/Knob": "./src/components/Knob.tsx",
-    "./components/FuturisticKnob": "./src/components/FuturisticKnob.tsx",
     "./components/Section": "./src/components/Section.tsx",
     "./components/Meter": "./src/components/Meter.tsx",
     "./components/FuturisticMeter": "./src/components/FuturisticMeter.tsx",
