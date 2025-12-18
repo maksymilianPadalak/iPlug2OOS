@@ -32,17 +32,21 @@ export type XYPadProps = z.infer<typeof XYPadPropsSchema>;
 
 export const MeterPropsSchema = z.object({
   channel: z.union([z.literal(0), z.literal(1)]),
-  compact: z.boolean().optional(),
-});
-export type MeterProps = z.infer<typeof MeterPropsSchema>;
-
-export const FuturisticMeterPropsSchema = z.object({
-  channel: z.union([z.literal(0), z.literal(1)]),
   label: z.string().optional(),
   color: z.enum(['cyan', 'magenta', 'green', 'orange']).optional(),
   showDb: z.boolean().optional(),
 });
-export type FuturisticMeterProps = z.infer<typeof FuturisticMeterPropsSchema>;
+export type MeterProps = z.infer<typeof MeterPropsSchema>;
+
+/**
+ * VintageMeter - VU-style analog meter with needle display.
+ * NOTE: Kept for potential future use but not in LLM component registry.
+ */
+export const VintageMeterPropsSchema = z.object({
+  channel: z.union([z.literal(0), z.literal(1)]),
+  compact: z.boolean().optional(),
+});
+export type VintageMeterProps = z.infer<typeof VintageMeterPropsSchema>;
 
 export const WaveformDisplayPropsSchema = z.object({
   ctrlTag: z.number(),
@@ -76,3 +80,10 @@ export const SubGroupPropsSchema = z.object({
 export type SubGroupProps = z.infer<typeof SubGroupPropsSchema> & {
   children: React.ReactNode;
 };
+
+export const TitlePropsSchema = z.object({
+  title: z.string(),
+  version: z.string().optional(),
+  color: z.enum(['cyan', 'magenta', 'green', 'orange']).optional(),
+});
+export type TitleProps = z.infer<typeof TitlePropsSchema>;

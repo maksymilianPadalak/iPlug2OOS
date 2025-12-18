@@ -32,11 +32,6 @@ export const XYPadPlanSchema = z.object({
 
 export const MeterPlanSchema = z.object({
   channel: z.number().describe('0=left, 1=right'),
-  compact: z.boolean().nullable().describe('Compact mode'),
-});
-
-export const FuturisticMeterPlanSchema = z.object({
-  channel: z.number().describe('0=left, 1=right'),
   label: z.string().nullable().describe('Optional label'),
   color: z.enum(['cyan', 'magenta', 'green', 'orange']).nullable().describe('Meter color theme'),
 });

@@ -13,7 +13,6 @@ import { Dropdown } from 'sharedUi/components/Dropdown';
 
 // Visualizations
 import { Meter } from 'sharedUi/components/Meter';
-import { FuturisticMeter } from 'sharedUi/components/FuturisticMeter';
 import { WaveformDisplay } from 'sharedUi/components/WaveformDisplay';
 
 // Layouts
@@ -21,7 +20,7 @@ import { Section } from 'sharedUi/components/Section';
 import { SubGroup } from 'sharedUi/components/SubGroup';
 
 // Titles
-import { FuturisticTitle } from 'sharedUi/components/FuturisticTitle';
+import { Title } from 'sharedUi/components/Title';
 ```
 
 ## Hooks

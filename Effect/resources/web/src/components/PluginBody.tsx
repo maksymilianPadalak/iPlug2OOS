@@ -2,11 +2,10 @@
  * Plugin Body - Gain Effect
  *
  * Simple stereo gain effect with smoothed parameter control.
- * Cyberpunk style with futuristic meters.
  */
 
-import { FuturisticMeter } from 'sharedUi/components/FuturisticMeter';
-import { FuturisticTitle } from 'sharedUi/components/FuturisticTitle';
+import { Meter } from 'sharedUi/components/Meter';
+import { Title } from 'sharedUi/components/Title';
 import { Knob } from 'sharedUi/components/Knob';
 import { EParams } from '@/config/runtimeParameters';
 
@@ -33,15 +32,15 @@ export function PluginBody() {
 
       <div className="flex flex-col gap-4 h-full">
         {/* Header */}
-        <FuturisticTitle title="Gain" version="1.0" color="cyan" />
+        <Title title="Gain" version="1.0" color="cyan" />
 
         {/* Meters + Gain knob */}
-        <div className="flex items-center justify-center gap-6">
-          <div className="flex flex-col gap-2">
-            <FuturisticMeter channel={0} label="L" color="cyan" />
-            <FuturisticMeter channel={1} label="R" color="cyan" />
+        <div className="flex items-center gap-4">
+          <div className="flex-1 flex flex-col gap-2">
+            <Meter channel={0} label="L" color="cyan" />
+            <Meter channel={1} label="R" color="cyan" />
           </div>
-          <Knob paramId={EParams.kParamGain} label="Gain" size="large" color="cyan" />
+          <Knob paramId={EParams.kParamGain} label="Gain" size="small" color="cyan" />
         </div>
       </div>
     </div>
