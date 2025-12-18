@@ -6,14 +6,9 @@
  */
 
 import React from 'react';
+import type { SectionProps } from './componentProps';
 
-export type SectionProps = {
-  title: string;
-  description?: string;
-  size?: 'compact' | 'wide' | 'full';
-  variant?: 'dark' | 'light';
-  children: React.ReactNode;
-};
+export type { SectionProps };
 
 export function Section({ title, description, children, variant = 'light', size = 'compact' }: SectionProps) {
   const isDark = variant === 'dark';

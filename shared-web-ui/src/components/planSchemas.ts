@@ -15,6 +15,7 @@ import { z } from 'zod';
 export const KnobPlanSchema = z.object({
   paramId: z.string().describe('EParams key like kParamGain'),
   label: z.string().nullable().describe('Optional label'),
+  color: z.enum(['cyan', 'magenta', 'green', 'orange']).nullable().describe('Knob color theme'),
 });
 
 export const DropdownPlanSchema = z.object({
@@ -32,6 +33,12 @@ export const XYPadPlanSchema = z.object({
 export const MeterPlanSchema = z.object({
   channel: z.number().describe('0=left, 1=right'),
   compact: z.boolean().nullable().describe('Compact mode'),
+});
+
+export const FuturisticMeterPlanSchema = z.object({
+  channel: z.number().describe('0=left, 1=right'),
+  label: z.string().nullable().describe('Optional label'),
+  color: z.enum(['cyan', 'magenta', 'green', 'orange']).nullable().describe('Meter color theme'),
 });
 
 export const WaveformDisplayPlanSchema = z.object({

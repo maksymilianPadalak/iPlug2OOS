@@ -3,27 +3,26 @@
  *
  * Visualizes an ADSR envelope curve based on parameter values.
  * Streamline Moderne style with smooth curves and gradient fills.
- *
- * Presentational component - accepts normalized ADSR values (0-1) as props.
+ * Takes paramIds and uses useParameter internally.
  */
 
 import { useMemo } from 'react';
+import { useParameter } from '../glue/hooks/useParameter';
+import type { ADSRDisplayProps } from './componentProps';
 
-export type ADSRDisplayProps = {
-  attack: number;
-  decay: number;
-  sustain: number;
-  release: number;
-  label?: string;
-};
+export type { ADSRDisplayProps };
 
 export function ADSRDisplay({
-  attack,
-  decay,
-  sustain,
-  release,
+  attackParam,
+  decayParam,
+  sustainParam,
+  releaseParam,
   label,
 }: ADSRDisplayProps) {
+  const { value: attack } = useParameter(attackParam);
+  const { value: decay } = useParameter(decayParam);
+  const { value: sustain } = useParameter(sustainParam);
+  const { value: release } = useParameter(releaseParam);
   // SVG dimensions
   const width = 200;
   const height = 80;

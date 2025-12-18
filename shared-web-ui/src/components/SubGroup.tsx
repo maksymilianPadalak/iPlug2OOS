@@ -7,12 +7,9 @@
  */
 
 import React from 'react';
+import type { SubGroupProps } from './componentProps';
 
-export type SubGroupProps = {
-  title?: string;
-  layout?: 'row' | 'grid-2' | 'grid-3' | 'grid-4';
-  children: React.ReactNode;
-};
+export type { SubGroupProps };
 
 export function SubGroup({ title, layout = 'row', children }: SubGroupProps) {
   const layoutClass = {

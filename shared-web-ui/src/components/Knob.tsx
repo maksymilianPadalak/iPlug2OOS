@@ -6,19 +6,12 @@
  * Drag up/down to change value.
  */
 
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useParameter } from '../glue/hooks/useParameter';
+import { useRuntimeParameters, fromNormalized } from '../glue/RuntimeParametersProvider';
+import type { KnobProps } from './componentProps';
 
-export type KnobProps = {
-  /** Parameter ID from EParams enum */
-  paramId: number;
-  /** Label displayed above the knob */
-  label?: string;
-  /** Color theme */
-  color?: 'cyan' | 'magenta' | 'green' | 'orange';
-  /** Size variant */
-  size?: 'small' | 'medium' | 'large';
-};
+export type { KnobProps };
 
 const colorConfig = {
   cyan: {
@@ -68,6 +61,7 @@ const ovalConfigs = [
 
 export function Knob({ paramId, label, color = 'cyan', size = 'medium' }: KnobProps) {
   const { value, setValue, beginChange, endChange } = useParameter(paramId);
+  const runtimeParameters = useRuntimeParameters();
   const [isDragging, setIsDragging] = useState(false);
   const [rotations, setRotations] = useState(() => ovalConfigs.map(c => c.startAngle));
   const knobRef = useRef<HTMLDivElement>(null);
@@ -77,6 +71,30 @@ export function Knob({ paramId, label, color = 'cyan', size = 'medium' }: KnobPr
 
   const colors = colorConfig[color];
   const sizes = sizeConfig[size];
+
+  // Get parameter metadata for formatting
+  const paramMeta = useMemo(
+    () => runtimeParameters.find(p => p.id === paramId),
+    [runtimeParameters, paramId]
+  );
+
+  // Format display value using min/max/unit/shape
+  const displayValue = useMemo(() => {
+    if (!paramMeta || paramMeta.min === undefined || paramMeta.max === undefined) {
+      return `${Math.round(value * 100)}%`;
+    }
+    const actualValue = fromNormalized(
+      value,
+      paramMeta.min,
+      paramMeta.max,
+      paramMeta.shape,
+      paramMeta.shapeParameter
+    );
+    const unit = paramMeta.unit || '';
+    // Round appropriately based on range
+    const rounded = actualValue >= 100 ? Math.round(actualValue) : Math.round(actualValue * 10) / 10;
+    return `${rounded}${unit}`;
+  }, [value, paramMeta]);
 
   // Animation loop
   useEffect(() => {
@@ -217,31 +235,65 @@ export function Knob({ paramId, label, color = 'cyan', size = 'medium' }: KnobPr
             />
           ))}
 
-          {/* Progress arc background */}
+          {/* Progress arc background - more visible track */}
           <circle
             cx={centerX}
             cy={centerY}
             r={progressRadius}
             fill="none"
-            stroke={colors.track}
-            strokeWidth={3}
+            stroke={colors.dim}
+            strokeWidth={4}
             strokeDasharray={`${arcLength} ${circumference}`}
             transform={`rotate(135 ${centerX} ${centerY})`}
+            opacity={0.6}
           />
 
-          {/* Progress arc */}
+          {/* Outer glow layer - intense */}
           <circle
             cx={centerX}
             cy={centerY}
             r={progressRadius}
             fill="none"
             stroke={colors.primary}
-            strokeWidth={3}
+            strokeWidth={8}
+            strokeLinecap="round"
+            strokeDasharray={`${arcLength * value} ${circumference}`}
+            transform={`rotate(135 ${centerX} ${centerY})`}
+            opacity={0.5}
+            style={{
+              filter: `blur(4px)`,
+              transition: isDragging ? 'none' : 'stroke-dasharray 0.1s ease',
+            }}
+          />
+          {/* Mid glow layer */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={progressRadius}
+            fill="none"
+            stroke={colors.primary}
+            strokeWidth={4}
             strokeLinecap="round"
             strokeDasharray={`${arcLength * value} ${circumference}`}
             transform={`rotate(135 ${centerX} ${centerY})`}
             style={{
-              filter: `drop-shadow(0 0 4px ${colors.glow})`,
+              filter: `drop-shadow(0 0 6px ${colors.glow}) drop-shadow(0 0 12px ${colors.glow})`,
+              transition: isDragging ? 'none' : 'stroke-dasharray 0.1s ease',
+            }}
+          />
+          {/* Progress arc - white hot core */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={progressRadius}
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeDasharray={`${arcLength * value} ${circumference}`}
+            transform={`rotate(135 ${centerX} ${centerY})`}
+            style={{
+              filter: `drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff) drop-shadow(0 0 6px ${colors.primary})`,
               transition: isDragging ? 'none' : 'stroke-dasharray 0.1s ease',
             }}
           />
@@ -285,7 +337,7 @@ export function Knob({ paramId, label, color = 'cyan', size = 'medium' }: KnobPr
         className="text-[11px] font-bold tabular-nums tracking-wider"
         style={{ color: colors.primary, textShadow: `0 0 6px ${colors.dim}` }}
       >
-        {Math.round(value * 100)}%
+        {displayValue}
       </div>
     </div>
   );

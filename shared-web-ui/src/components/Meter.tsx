@@ -6,11 +6,9 @@
  */
 
 import { useMeter } from '../glue/hooks/useMeter';
+import type { MeterProps } from './componentProps';
 
-export type MeterProps = {
-  channel: 0 | 1;
-  compact?: boolean;
-};
+export type { MeterProps };
 
 export function Meter({ channel, compact = false }: MeterProps) {
   const meter = useMeter(channel);

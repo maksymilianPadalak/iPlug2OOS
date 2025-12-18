@@ -1,15 +1,8 @@
 /**
- * Component Props - TypeScript types for React components
+ * Component Props - Single source of truth for all component prop types
  *
- * These are the actual prop types used by React components at runtime.
- * They use NUMBER values (paramId: number) because that's what the DSP bridge expects.
- *
- * Compare with planSchemas.ts which uses STRING keys for LLM output:
- *   planSchemas: paramId: "kParamGain" (string for LLM)
- *   componentProps: paramId: 0 (number for React/DSP)
- *
- * Types are derived from Zod schemas using z.infer<> for single source of truth.
- * React components import types from here (e.g., KnobProps, MeterProps).
+ * All shared UI components import their prop types from here.
+ * These use NUMBER values for paramId because that's what the DSP bridge expects.
  */
 
 import { z } from 'zod';
@@ -17,6 +10,8 @@ import { z } from 'zod';
 export const KnobPropsSchema = z.object({
   paramId: z.number(),
   label: z.string().optional(),
+  color: z.enum(['cyan', 'magenta', 'green', 'orange']).optional(),
+  size: z.enum(['small', 'medium', 'large']).optional(),
 });
 export type KnobProps = z.infer<typeof KnobPropsSchema>;
 
@@ -26,11 +21,28 @@ export const DropdownPropsSchema = z.object({
 });
 export type DropdownProps = z.infer<typeof DropdownPropsSchema>;
 
+export const XYPadPropsSchema = z.object({
+  paramIdX: z.number(),
+  paramIdY: z.number(),
+  labelX: z.string().optional(),
+  labelY: z.string().optional(),
+  size: z.number().optional(),
+});
+export type XYPadProps = z.infer<typeof XYPadPropsSchema>;
+
 export const MeterPropsSchema = z.object({
   channel: z.union([z.literal(0), z.literal(1)]),
   compact: z.boolean().optional(),
 });
 export type MeterProps = z.infer<typeof MeterPropsSchema>;
+
+export const FuturisticMeterPropsSchema = z.object({
+  channel: z.union([z.literal(0), z.literal(1)]),
+  label: z.string().optional(),
+  color: z.enum(['cyan', 'magenta', 'green', 'orange']).optional(),
+  showDb: z.boolean().optional(),
+});
+export type FuturisticMeterProps = z.infer<typeof FuturisticMeterPropsSchema>;
 
 export const WaveformDisplayPropsSchema = z.object({
   ctrlTag: z.number(),
@@ -52,13 +64,15 @@ export const SectionPropsSchema = z.object({
   description: z.string().optional(),
   size: z.enum(['compact', 'wide', 'full']).optional(),
   variant: z.enum(['dark', 'light']).optional(),
-  children: z.custom<React.ReactNode>(),
 });
-export type SectionProps = z.infer<typeof SectionPropsSchema>;
+export type SectionProps = z.infer<typeof SectionPropsSchema> & {
+  children: React.ReactNode;
+};
 
 export const SubGroupPropsSchema = z.object({
   title: z.string().optional(),
   layout: z.enum(['row', 'grid-2', 'grid-3', 'grid-4']).optional(),
-  children: z.custom<React.ReactNode>(),
 });
-export type SubGroupProps = z.infer<typeof SubGroupPropsSchema>;
+export type SubGroupProps = z.infer<typeof SubGroupPropsSchema> & {
+  children: React.ReactNode;
+};

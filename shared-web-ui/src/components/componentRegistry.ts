@@ -2,8 +2,8 @@
  * Component Registry - Single source of truth for available UI components
  *
  * Defines all components the LLM can use when generating plugin UIs:
- * - controls: Knob, Dropdown (user-interactive parameter controls)
- * - visualizations: Meter, WaveformDisplay (DSP data displays)
+ * - controls: Knob, Dropdown, XYPad (user-interactive parameter controls)
+ * - visualizations: Meter, FuturisticMeter, WaveformDisplay (DSP data displays)
  * - displays: ADSRDisplay (parameter-driven visualizations)
  * - layouts: Section, SubGroup (structural containers)
  *
@@ -22,6 +22,7 @@ import {
   DropdownPlanSchema,
   XYPadPlanSchema,
   MeterPlanSchema,
+  FuturisticMeterPlanSchema,
   WaveformDisplayPlanSchema,
   ADSRDisplayPlanSchema,
   SectionPlanSchema,
@@ -52,6 +53,12 @@ export const visualizations = {
     senderTypes: getSenderTypesFor('Meter'),
     propsSchema: MeterPlanSchema,
     description: 'Audio level meter with peak/RMS display.',
+  },
+  FuturisticMeter: {
+    path: 'sharedUi/components/FuturisticMeter',
+    senderTypes: getSenderTypesFor('Meter'),
+    propsSchema: FuturisticMeterPlanSchema,
+    description: 'Cyberpunk-style meter with glow effects. Supports color themes.',
   },
   WaveformDisplay: {
     path: 'sharedUi/components/WaveformDisplay',

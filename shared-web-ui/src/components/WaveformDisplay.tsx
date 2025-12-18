@@ -3,22 +3,19 @@
  *
  * Displays real-time waveform data from DSP via control tags.
  * Auto-fades when no data is received.
- *
- * Presentational component - accepts samples and timestamp as props.
- * Use with useWaveform hook for data binding.
+ * Takes ctrlTag and uses useWaveform internally.
  */
 
 import { useRef, useEffect, useState } from 'react';
+import { useWaveform } from '../glue/hooks/useWaveform';
+import type { WaveformDisplayProps } from './componentProps';
+
+export type { WaveformDisplayProps };
 
 const FADE_TIMEOUT_MS = 300;
 
-export type WaveformDisplayProps = {
-  samples: Float32Array | number[];
-  timestamp: number;
-  label?: string;
-};
-
-export function WaveformDisplay({ samples, timestamp, label }: WaveformDisplayProps) {
+export function WaveformDisplay({ ctrlTag, label }: WaveformDisplayProps) {
+  const { samples, timestamp } = useWaveform(ctrlTag);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasWidth, setCanvasWidth] = useState(200);

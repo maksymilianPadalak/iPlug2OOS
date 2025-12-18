@@ -9,13 +9,9 @@
 import React from 'react';
 import { useParameter } from '../glue/hooks/useParameter';
 import { useRuntimeParameters } from '../glue/RuntimeParametersProvider';
+import type { DropdownProps } from './componentProps';
 
-export type DropdownProps = {
-  /** Parameter ID from EParams enum */
-  paramId: number;
-  /** Label displayed above the dropdown */
-  label?: string;
-};
+export type { DropdownProps };
 
 export function Dropdown({ paramId, label }: DropdownProps) {
   const { value, setValue, beginChange, endChange } = useParameter(paramId);
