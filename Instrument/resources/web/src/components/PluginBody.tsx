@@ -10,12 +10,9 @@ import { Knob } from 'sharedUi/components/Knob';
 import { Dropdown } from 'sharedUi/components/Dropdown';
 import { Meter } from 'sharedUi/components/Meter';
 import { WaveformDisplay } from 'sharedUi/components/WaveformDisplay';
-import { useWaveform } from 'sharedUi/hooks/useWaveform';
 import { EParams, EControlTags } from '@/config/runtimeParameters';
 
 export function PluginBody() {
-  // Waveform display data
-  const waveformData = useWaveform(EControlTags.kCtrlTagWaveform);
 
   return (
     <div
@@ -71,8 +68,7 @@ export function PluginBody() {
               label="Waveform"
             />
             <WaveformDisplay
-              samples={waveformData.samples}
-              timestamp={waveformData.timestamp}
+              ctrlTag={EControlTags.kCtrlTagWaveform}
               label="Output"
             />
           </Section>
