@@ -22,6 +22,13 @@ export const DropdownPlanSchema = z.object({
   label: z.string().nullable().describe('Optional label'),
 });
 
+export const XYPadPlanSchema = z.object({
+  paramIdX: z.string().describe('EParams key for X axis'),
+  paramIdY: z.string().describe('EParams key for Y axis'),
+  labelX: z.string().nullable().describe('Optional X axis label'),
+  labelY: z.string().nullable().describe('Optional Y axis label'),
+});
+
 export const MeterPlanSchema = z.object({
   channel: z.number().describe('0=left, 1=right'),
   compact: z.boolean().nullable().describe('Compact mode'),

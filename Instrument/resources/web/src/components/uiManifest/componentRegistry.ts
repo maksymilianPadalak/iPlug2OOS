@@ -20,6 +20,7 @@ import { getSenderTypesFor } from './getSenderTypesFor';
 import {
   KnobPlanSchema,
   DropdownPlanSchema,
+  XYPadPlanSchema,
   MeterPlanSchema,
   WaveformDisplayPlanSchema,
   ADSRDisplayPlanSchema,
@@ -37,6 +38,11 @@ export const controls = {
     path: 'sharedUi/components/Dropdown',
     propsSchema: DropdownPlanSchema,
     description: 'Selection control for enum parameters.',
+  },
+  XYPad: {
+    path: 'sharedUi/components/XYPad',
+    propsSchema: XYPadPlanSchema,
+    description: '2D controller for two related parameters (e.g., delay time/feedback, filter cutoff/resonance). Use when user mentions "xy pad" or two parameters commonly adjusted together.',
   },
 } as const;
 
