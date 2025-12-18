@@ -89,9 +89,9 @@ export function App() {
             <WebControls audioStatus={audioStatus} />
           </div>
 
-          {/* Scrollable plugin body - constrained to 400x700 */}
+          {/* Scrollable plugin body - constrained to 500x700 */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-3 moderne-scroll flex justify-center">
-            <div className="w-[400px] h-[700px] flex-shrink-0">
+            <div className="w-[500px] h-[700px] flex-shrink-0">
               <PluginBody />
             </div>
           </div>
