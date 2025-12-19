@@ -6,7 +6,7 @@
  * Drag up/down to change value.
  */
 
-import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import { useRef, useState, useCallback, useMemo } from 'react';
 import { useParameter } from '../glue/hooks/useParameter';
 import { useRuntimeParameters, fromNormalized } from '../glue/RuntimeParametersProvider';
 import type { KnobProps } from './componentProps';
@@ -42,28 +42,25 @@ const colorConfig = {
 
 const KNOB_SIZE = 90;
 
-// Oval configurations - static to avoid recreating
+// Oval configurations for CSS animation
+// speed is degrees/second, duration = 360/speed
 const ovalConfigs = [
-  { rxRatio: 0.92, ryRatio: 0.72, speed: 45, direction: 1, opacity: 0.5, strokeWidth: 1.2, startAngle: 23 },
-  { rxRatio: 0.68, ryRatio: 0.88, speed: 30, direction: -1, opacity: 0.4, strokeWidth: 1, startAngle: 156 },
-  { rxRatio: 0.85, ryRatio: 0.60, speed: 60, direction: 1, opacity: 0.6, strokeWidth: 1.5, startAngle: 89 },
-  { rxRatio: 0.75, ryRatio: 0.95, speed: 24, direction: -1, opacity: 0.35, strokeWidth: 0.8, startAngle: 267 },
-  { rxRatio: 0.98, ryRatio: 0.78, speed: 36, direction: 1, opacity: 0.45, strokeWidth: 1.1, startAngle: 312 },
-  { rxRatio: 0.62, ryRatio: 0.82, speed: 20, direction: -1, opacity: 0.3, strokeWidth: 0.7, startAngle: 45 },
-  { rxRatio: 0.80, ryRatio: 0.65, speed: 51, direction: 1, opacity: 0.55, strokeWidth: 1.3, startAngle: 198 },
-  { rxRatio: 0.70, ryRatio: 0.90, speed: 26, direction: -1, opacity: 0.38, strokeWidth: 0.9, startAngle: 134 },
-  { rxRatio: 0.88, ryRatio: 0.58, speed: 40, direction: 1, opacity: 0.48, strokeWidth: 1.0, startAngle: 278 },
+  { rxRatio: 0.92, ryRatio: 0.72, duration: 8, direction: 'normal', opacity: 0.5, strokeWidth: 1.2, startAngle: 23 },
+  { rxRatio: 0.68, ryRatio: 0.88, duration: 12, direction: 'reverse', opacity: 0.4, strokeWidth: 1, startAngle: 156 },
+  { rxRatio: 0.85, ryRatio: 0.60, duration: 6, direction: 'normal', opacity: 0.6, strokeWidth: 1.5, startAngle: 89 },
+  { rxRatio: 0.75, ryRatio: 0.95, duration: 15, direction: 'reverse', opacity: 0.35, strokeWidth: 0.8, startAngle: 267 },
+  { rxRatio: 0.98, ryRatio: 0.78, duration: 10, direction: 'normal', opacity: 0.45, strokeWidth: 1.1, startAngle: 312 },
+  { rxRatio: 0.62, ryRatio: 0.82, duration: 18, direction: 'reverse', opacity: 0.3, strokeWidth: 0.7, startAngle: 45 },
+  { rxRatio: 0.80, ryRatio: 0.65, duration: 7, direction: 'normal', opacity: 0.55, strokeWidth: 1.3, startAngle: 198 },
+  { rxRatio: 0.70, ryRatio: 0.90, duration: 14, direction: 'reverse', opacity: 0.38, strokeWidth: 0.9, startAngle: 134 },
+  { rxRatio: 0.88, ryRatio: 0.58, duration: 9, direction: 'normal', opacity: 0.48, strokeWidth: 1.0, startAngle: 278 },
 ];
 
 export function Knob({ paramId, label, color = 'cyan' }: KnobProps) {
   const { value, setValue, beginChange, endChange } = useParameter(paramId);
   const runtimeParameters = useRuntimeParameters();
   const [isDragging, setIsDragging] = useState(false);
-  const [rotations, setRotations] = useState(() => ovalConfigs.map(c => c.startAngle));
   const knobRef = useRef<HTMLDivElement>(null);
-  const animationRef = useRef<number>();
-  const lastTimeRef = useRef<number>(0);
-  const isDraggingRef = useRef(false);
 
   const colors = colorConfig[color];
 
@@ -91,42 +88,11 @@ export function Knob({ paramId, label, color = 'cyan' }: KnobProps) {
     return `${rounded}${unit}`;
   }, [value, paramMeta]);
 
-  // Animation loop
-  useEffect(() => {
-    const animate = (time: number) => {
-      if (lastTimeRef.current === 0) {
-        lastTimeRef.current = time;
-      }
-      const delta = (time - lastTimeRef.current) / 1000; // seconds
-      lastTimeRef.current = time;
-
-      const speedMultiplier = isDraggingRef.current ? 2.5 : 1;
-
-      setRotations(prev =>
-        prev.map((rotation, i) => {
-          const config = ovalConfigs[i];
-          return rotation + config.speed * config.direction * delta * speedMultiplier;
-        })
-      );
-
-      animationRef.current = requestAnimationFrame(animate);
-    };
-
-    animationRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, []);
-
   const clamp = (v: number) => Math.max(0, Math.min(1, v));
 
   const startDrag = useCallback(
     (startY: number, startValue: number) => {
       setIsDragging(true);
-      isDraggingRef.current = true;
       beginChange();
 
       const onMove = (y: number) => {
@@ -147,7 +113,6 @@ export function Knob({ paramId, label, color = 'cyan' }: KnobProps) {
       const onEnd = () => {
         endChange();
         setIsDragging(false);
-        isDraggingRef.current = false;
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onEnd);
         document.removeEventListener('touchmove', onTouchMove);
@@ -187,6 +152,14 @@ export function Knob({ paramId, label, color = 'cyan' }: KnobProps) {
 
   return (
     <div className="flex flex-col items-center gap-2">
+      {/* CSS keyframes for knob rotation - injected once */}
+      <style>{`
+        @keyframes knobSpin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+
       {label && (
         <label
           className="text-[10px] font-bold uppercase tracking-[0.15em]"
@@ -214,21 +187,30 @@ export function Knob({ paramId, label, color = 'cyan' }: KnobProps) {
             </radialGradient>
           </defs>
 
-          {/* Chaotic rotating ovals */}
-          {ovalConfigs.map((oval, idx) => (
-            <ellipse
-              key={`oval-${idx}`}
-              cx={centerX}
-              cy={centerY}
-              rx={maxR * oval.rxRatio}
-              ry={maxR * oval.ryRatio}
-              fill="none"
-              stroke={colors.primary}
-              strokeWidth={oval.strokeWidth}
-              opacity={oval.opacity}
-              transform={`rotate(${rotations[idx]} ${centerX} ${centerY})`}
-            />
-          ))}
+          {/* Chaotic rotating ovals - pure CSS animation */}
+          {ovalConfigs.map((oval, idx) => {
+            // Calculate animation delay to start at the correct angle
+            // startAngle / 360 * duration gives us how far into the cycle we should start
+            const delay = -(oval.startAngle / 360) * oval.duration;
+            return (
+              <ellipse
+                key={`oval-${idx}`}
+                cx={centerX}
+                cy={centerY}
+                rx={maxR * oval.rxRatio}
+                ry={maxR * oval.ryRatio}
+                fill="none"
+                stroke={colors.primary}
+                strokeWidth={oval.strokeWidth}
+                opacity={oval.opacity}
+                style={{
+                  transformOrigin: `${centerX}px ${centerY}px`,
+                  animation: `knobSpin ${oval.duration}s linear infinite ${oval.direction}`,
+                  animationDelay: `${delay}s`,
+                }}
+              />
+            );
+          })}
 
           {/* Progress arc background - more visible track */}
           <circle
