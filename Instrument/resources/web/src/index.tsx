@@ -1,10 +1,17 @@
 /**
  * React entry point
+ *
+ * Renders full App (with header, keyboard) in WAM/web mode,
+ * or just PluginBody in WebView (AU/VST) mode.
  */
 
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from '@/components/App';
+import { PluginBody } from '@/components/PluginBody';
+import { BridgeProvider } from 'sharedUi/BridgeProvider';
+import { RuntimeParametersProvider } from 'sharedUi/RuntimeParametersProvider';
+import { controlTags, runtimeParameters } from '@/config/runtimeParameters';
 import { initializeEnvironment } from '@/utils/environment';
 
 // Prevent tab key navigation and touch scrolling
@@ -17,16 +24,30 @@ document.addEventListener('touchmove', (e) => {
 }, { passive: false });
 
 // Initialize environment detection
-initializeEnvironment();
+const env = initializeEnvironment();
 
 // Mount React app - wait for DOM to be ready
 function mountReactApp() {
   const container = document.getElementById('main');
-  if (container) {
-    const root = createRoot(container);
-    root.render(<App />);
-  } else {
+  if (!container) {
     console.error('Could not find #main element to mount React app');
+    return;
+  }
+
+  const root = createRoot(container);
+
+  if (env === 'webview') {
+    // AU/VST: Render only PluginBody with minimal providers
+    root.render(
+      <RuntimeParametersProvider parameters={runtimeParameters}>
+        <BridgeProvider controlTags={controlTags}>
+          <PluginBody />
+        </BridgeProvider>
+      </RuntimeParametersProvider>
+    );
+  } else {
+    // Web: Render full App with header, keyboard, etc.
+    root.render(<App />);
   }
 }
 
