@@ -11,7 +11,6 @@ export const KnobPropsSchema = z.object({
   paramId: z.number(),
   label: z.string().optional(),
   color: z.enum(['cyan', 'magenta', 'green', 'orange']).optional(),
-  size: z.enum(['small', 'medium', 'large']).optional(),
 });
 export type KnobProps = z.infer<typeof KnobPropsSchema>;
 
@@ -86,3 +85,15 @@ export const TitlePropsSchema = z.object({
   color: z.enum(['cyan', 'magenta', 'green', 'orange']).optional(),
 });
 export type TitleProps = z.infer<typeof TitlePropsSchema>;
+
+export const HeaderPropsSchema = z.object({});
+export type HeaderProps = z.infer<typeof HeaderPropsSchema> & {
+  children: React.ReactNode;
+};
+
+export const StandalonePropsSchema = z.object({
+  size: z.enum(['sm', 'md', 'lg']).optional(),
+});
+export type StandaloneProps = z.infer<typeof StandalonePropsSchema> & {
+  children: React.ReactNode;
+};

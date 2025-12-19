@@ -4,6 +4,7 @@
  * Simple stereo gain effect with smoothed parameter control.
  */
 
+import { Header } from 'sharedUi/components/Header';
 import { Section } from 'sharedUi/components/Section';
 import { SubGroup } from 'sharedUi/components/SubGroup';
 import { Meter } from 'sharedUi/components/Meter';
@@ -33,21 +34,21 @@ export function PluginBody() {
       <div className="absolute bottom-2 right-2 w-8 h-8 border-r border-b border-cyan-500/40" />
 
       <div className="flex flex-col gap-4 h-full">
-        {/* Header */}
         <Title title="Gain" version="1.0" color="cyan" />
 
-        {/* Master Section */}
-        <Section title="Master" size="full">
-          <div className="flex items-center gap-4">
-            <SubGroup>
-              <div className="flex flex-col gap-2 flex-1">
-                <Meter channel={0} label="L" color="cyan" />
-                <Meter channel={1} label="R" color="cyan" />
-              </div>
-            </SubGroup>
-            <Knob paramId={EParams.kParamGain} label="Gain" size="small" color="cyan" />
+        {/* Header - meters and main gain */}
+        <Header>
+          <div className="flex flex-col gap-2 flex-1">
+            <Meter channel={0} label="L" color="cyan" />
+            <Meter channel={1} label="R" color="cyan" />
           </div>
-        </Section>
+          <Knob paramId={EParams.kParamGain} label="Gain" color="cyan" />
+        </Header>
+
+        {/* Grid for all sections */}
+        <div className="grid grid-cols-4 gap-4">
+          {/* Add sections here as needed */}
+        </div>
       </div>
     </div>
   );

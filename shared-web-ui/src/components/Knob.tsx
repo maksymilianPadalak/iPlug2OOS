@@ -40,11 +40,7 @@ const colorConfig = {
   },
 };
 
-const sizeConfig = {
-  small: { size: 70 },
-  medium: { size: 90 },
-  large: { size: 120 },
-};
+const KNOB_SIZE = 90;
 
 // Oval configurations - static to avoid recreating
 const ovalConfigs = [
@@ -59,7 +55,7 @@ const ovalConfigs = [
   { rxRatio: 0.88, ryRatio: 0.58, speed: 40, direction: 1, opacity: 0.48, strokeWidth: 1.0, startAngle: 278 },
 ];
 
-export function Knob({ paramId, label, color = 'cyan', size = 'medium' }: KnobProps) {
+export function Knob({ paramId, label, color = 'cyan' }: KnobProps) {
   const { value, setValue, beginChange, endChange } = useParameter(paramId);
   const runtimeParameters = useRuntimeParameters();
   const [isDragging, setIsDragging] = useState(false);
@@ -70,7 +66,6 @@ export function Knob({ paramId, label, color = 'cyan', size = 'medium' }: KnobPr
   const isDraggingRef = useRef(false);
 
   const colors = colorConfig[color];
-  const sizes = sizeConfig[size];
 
   // Get parameter metadata for formatting
   const paramMeta = useMemo(
@@ -177,7 +172,7 @@ export function Knob({ paramId, label, color = 'cyan', size = 'medium' }: KnobPr
     if (e.touches[0]) startDrag(e.touches[0].clientY, value);
   };
 
-  const { size: svgSize } = sizes;
+  const svgSize = KNOB_SIZE;
   const centerX = svgSize / 2;
   const centerY = svgSize / 2;
   const maxR = svgSize / 2 - 2;
