@@ -67,7 +67,6 @@ export const SectionPropsSchema = z.object({
   title: z.string(),
   description: z.string().optional(),
   size: z.enum(['compact', 'wide', 'full']).optional(),
-  variant: z.enum(['dark', 'light']).optional(),
 });
 export type SectionProps = z.infer<typeof SectionPropsSchema> & {
   children: React.ReactNode;

@@ -4,6 +4,8 @@
  * Simple stereo gain effect with smoothed parameter control.
  */
 
+import { Section } from 'sharedUi/components/Section';
+import { SubGroup } from 'sharedUi/components/SubGroup';
 import { Meter } from 'sharedUi/components/Meter';
 import { Title } from 'sharedUi/components/Title';
 import { Knob } from 'sharedUi/components/Knob';
@@ -34,14 +36,18 @@ export function PluginBody() {
         {/* Header */}
         <Title title="Gain" version="1.0" color="cyan" />
 
-        {/* Meters + Gain knob */}
-        <div className="flex items-center gap-4">
-          <div className="flex-1 flex flex-col gap-2">
-            <Meter channel={0} label="L" color="cyan" />
-            <Meter channel={1} label="R" color="cyan" />
+        {/* Master Section */}
+        <Section title="Master" size="full">
+          <div className="flex items-center gap-4">
+            <SubGroup>
+              <div className="flex flex-col gap-2 flex-1">
+                <Meter channel={0} label="L" color="cyan" />
+                <Meter channel={1} label="R" color="cyan" />
+              </div>
+            </SubGroup>
+            <Knob paramId={EParams.kParamGain} label="Gain" size="small" color="cyan" />
           </div>
-          <Knob paramId={EParams.kParamGain} label="Gain" size="small" color="cyan" />
-        </div>
+        </Section>
       </div>
     </div>
   );
