@@ -85,3 +85,12 @@ export const TitlePropsSchema = z.object({
   color: z.enum(['cyan', 'magenta', 'green', 'orange']).optional(),
 });
 export type TitleProps = z.infer<typeof TitlePropsSchema>;
+
+export const WaveSelectorPropsSchema = z.object({
+  paramId: z.number(),
+  label: z.string().optional(),
+  color: z.enum(['cyan', 'magenta', 'green', 'orange']).optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+});
+export type WaveSelectorProps = z.infer<typeof WaveSelectorPropsSchema>;

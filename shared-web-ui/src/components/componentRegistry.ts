@@ -24,6 +24,7 @@ import {
   MeterPlanSchema,
   WaveformDisplayPlanSchema,
   ADSRDisplayPlanSchema,
+  WaveSelectorPlanSchema,
   SectionPlanSchema,
   SubGroupPlanSchema,
 } from './planSchemas';
@@ -43,6 +44,11 @@ export const controls = {
     path: 'sharedUi/components/XYPad',
     propsSchema: XYPadPlanSchema,
     description: '2D controller for two related parameters (e.g., delay time/feedback, filter cutoff/resonance). Use when user mentions "xy pad" or two parameters commonly adjusted together.',
+  },
+  WaveSelector: {
+    path: 'sharedUi/components/WaveSelector',
+    propsSchema: WaveSelectorPlanSchema,
+    description: 'Animated waveform selector with dropdown. Shows live wave animation (sine/saw/square/triangle) with gradient colors and ghost trail effect. Use for oscillator waveform selection.',
   },
 } as const;
 

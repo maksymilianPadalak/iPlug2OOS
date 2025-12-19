@@ -8,9 +8,9 @@ import { Section } from 'sharedUi/components/Section';
 import { SubGroup } from 'sharedUi/components/SubGroup';
 import { Title } from 'sharedUi/components/Title';
 import { Knob } from 'sharedUi/components/Knob';
-import { Dropdown } from 'sharedUi/components/Dropdown';
 import { Meter } from 'sharedUi/components/Meter';
 import { WaveformDisplay } from 'sharedUi/components/WaveformDisplay';
+import { WaveSelector } from 'sharedUi/components/WaveSelector';
 import { EParams, EControlTags } from '@/config/runtimeParameters';
 
 export function PluginBody() {
@@ -40,19 +40,17 @@ export function PluginBody() {
 
         {/* Control Sections */}
         <div className="grid grid-cols-4 gap-4">
-          <Section title="Oscillator" size="wide">
-            <SubGroup layout="row">
-              <Dropdown paramId={EParams.kParamWaveform} label="Waveform" />
-              <WaveformDisplay ctrlTag={EControlTags.kCtrlTagWaveform} label="Output" />
-            </SubGroup>
-          </Section>
-
           <Section title="Master" size="wide">
             <SubGroup layout="row">
               <Knob paramId={EParams.kParamGain} label="Gain" color="cyan" />
               <Meter channel={0} label="L" color="cyan" />
               <Meter channel={1} label="R" color="cyan" />
             </SubGroup>
+            <WaveformDisplay ctrlTag={EControlTags.kCtrlTagWaveform} label="Output" />
+          </Section>
+
+          <Section title="Oscillator" size="wide">
+            <WaveSelector paramId={EParams.kParamWaveform} label="Waveform" />
           </Section>
         </div>
       </div>

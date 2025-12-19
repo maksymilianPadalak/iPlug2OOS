@@ -21,7 +21,7 @@
     "./components/AudioFileInput": "./src/components/AudioFileInput.tsx",
     "./components/WAMControls": "./src/components/WAMControls.tsx",
     "./components/XYPad": "./src/components/XYPad.tsx",
-    "./components/Standalone": "./src/components/Standalone.tsx",
+    "./components/WaveSelector": "./src/components/WaveSelector.tsx",
     "./components/componentProps": "./src/components/componentProps.ts",
     "./components/planSchemas": "./src/components/planSchemas.ts",
     "./components/componentRegistry": "./src/components/componentRegistry.ts",

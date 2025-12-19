@@ -49,6 +49,11 @@ export const ADSRDisplayPlanSchema = z.object({
   label: z.string().nullable().describe('Optional label'),
 });
 
+export const WaveSelectorPlanSchema = z.object({
+  paramId: z.string().describe('EParams key for waveform selection (enum parameter)'),
+  label: z.string().nullable().describe('Optional label'),
+});
+
 export const SectionPlanSchema = z.object({
   title: z.string().describe('Section title'),
   description: z.string().nullable().describe('Optional description'),
