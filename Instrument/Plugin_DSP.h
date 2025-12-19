@@ -1,10 +1,20 @@
 #pragma once
 
 #include <array>
-#include <cmath>
 #include <cstring>
 
+// Q DSP Library
+#include <q/support/literals.hpp>
+#include <q/support/phase.hpp>
+#include <q/synth/sin_osc.hpp>
+#include <q/synth/saw_osc.hpp>
+#include <q/synth/square_osc.hpp>
+#include <q/synth/triangle_osc.hpp>
+#include <q/synth/envelope_gen.hpp>
+
 using namespace iplug;
+namespace q = cycfi::q;
+using namespace q::literals;
 
 enum EWaveform
 {
@@ -43,13 +53,46 @@ public:
         if (!voice.active)
           continue;
 
-        const T oscValue = ProcessOscillator(voice, waveform);
-        sample += oscValue * voice.level;
+        // Get envelope amplitude (clamp to prevent overshoot from exponential curves)
+        float envAmp = std::min(voice.env(), 1.0f);
+
+        // Check if voice should be deactivated (envelope finished)
+        if (voice.releasing && voice.env.in_idle_phase())
+        {
+          voice.active = false;
+          continue;
+        }
+
+        // Generate oscillator sample using Q library
+        float oscValue = 0.0f;
+        switch (waveform)
+        {
+          case kWaveformSine:
+            oscValue = q::sin(voice.phase++);
+            break;
+          case kWaveformSaw:
+            oscValue = q::saw(voice.phase++);
+            break;
+          case kWaveformSquare:
+            oscValue = q::square(voice.phase++);
+            break;
+          case kWaveformTriangle:
+            oscValue = q::triangle(voice.phase++);
+            break;
+          default:
+            oscValue = q::sin(voice.phase++);
+            break;
+        }
+
+        sample += static_cast<T>(oscValue * envAmp * voice.velocity);
       }
 
       // Scale down for polyphony (1/sqrt(maxVoices) preserves perceived loudness)
       constexpr T kPolyScale = static_cast<T>(1.0 / 2.83); // ~1/sqrt(8)
       sample *= gain * kPolyScale;
+
+      // Hard clip to prevent any remaining clipping (safety measure)
+      sample = std::max(static_cast<T>(-1.0), std::min(sample, static_cast<T>(1.0)));
 
       for (int ch = 0; ch < nOutputs; ++ch)
       {
@@ -60,12 +103,22 @@ public:
 
   void Reset(double sampleRate, int /*blockSize*/)
   {
+    mSampleRate = static_cast<float>(sampleRate);
+
+    // Create ADSR config
+    mEnvConfig = q::adsr_envelope_gen::config{
+      10_ms,      // Attack - fast for synth feel
+      100_ms,     // Decay
+      -6_dB,      // Sustain level
+      50_s,       // Sustain rate (very slow decay during sustain)
+      200_ms      // Release
+    };
+
     for (auto& voice : mVoices)
     {
-      voice.Reset();
+      voice.Reset(mEnvConfig, mSampleRate);
     }
 
-    mSampleRate = sampleRate;
     mGain = static_cast<T>(0.8);
     mNextVoice = 0;
   }
@@ -84,8 +137,8 @@ public:
           break;
         }
 
-        const double frequency = 440.0 * std::pow(2.0, (note - 69) / 12.0);
-        const T level = static_cast<T>(static_cast<double>(velocity) / 127.0);
+        const float frequency = static_cast<float>(440.0 * std::pow(2.0, (note - 69) / 12.0));
+        const float level = static_cast<float>(velocity) / 127.0f;
         ActivateVoice(note, frequency, level);
         break;
       }
@@ -107,6 +160,27 @@ public:
       case kParamWaveform:
         mWaveform = static_cast<int>(value);
         break;
+      case kParamAttack:
+        mEnvConfig.attack_rate = q::duration{value * 0.001}; // ms to seconds
+        UpdateEnvelopeConfig();
+        break;
+      case kParamDecay:
+        mEnvConfig.decay_rate = q::duration{value * 0.001};
+        UpdateEnvelopeConfig();
+        break;
+      case kParamSustain:
+        // Convert percentage to decibels (0% = -inf, 100% = 0dB)
+        // Using a simple mapping: sustain% -> dB
+        {
+          double db = (value <= 0.0) ? -96.0 : 20.0 * std::log10(value / 100.0);
+          mEnvConfig.sustain_level = q::decibel{db, q::direct_unit};
+        }
+        UpdateEnvelopeConfig();
+        break;
+      case kParamRelease:
+        mEnvConfig.release_rate = q::duration{value * 0.001};
+        UpdateEnvelopeConfig();
+        break;
       default:
         break;
     }
@@ -117,58 +191,59 @@ private:
 
   struct Voice
   {
-    double phase = 0.0;
-    double frequency = 0.0;
+    q::phase_iterator phase;
+    q::adsr_envelope_gen env{q::adsr_envelope_gen::config{}, 44100.0f};
     int noteNumber = -1;
-    T level = static_cast<T>(0.0);
+    float velocity = 0.0f;
     bool active = false;
+    bool releasing = false;
 
-    void Reset()
+    void Reset(q::adsr_envelope_gen::config const& config, float sps)
     {
-      phase = 0.0;
-      frequency = 0.0;
+      phase = q::phase_iterator{};
+      env = q::adsr_envelope_gen{config, sps};
       noteNumber = -1;
-      level = static_cast<T>(0.0);
+      velocity = 0.0f;
       active = false;
+      releasing = false;
+    }
+
+    void Activate(int note, q::frequency freq, float vel, float sps)
+    {
+      phase = q::phase_iterator{freq, sps};
+      noteNumber = note;
+      velocity = vel;
+      active = true;
+      releasing = false;
+      env.attack();
+    }
+
+    void Release()
+    {
+      releasing = true;
+      env.release();
     }
   };
 
-  T ProcessOscillator(Voice& voice, int waveform)
-  {
-    const double phaseIncr = voice.frequency / mSampleRate;
-    voice.phase += phaseIncr;
-    if (voice.phase >= 1.0)
-      voice.phase -= 1.0;
-
-    const double phase = voice.phase;
-    T output = static_cast<T>(0.0);
-
-    switch (waveform)
-    {
-      case kWaveformSine:
-        output = static_cast<T>(std::sin(phase * 2.0 * 3.14159265358979323846));
-        break;
-      case kWaveformSaw:
-        output = static_cast<T>(2.0 * phase - 1.0);
-        break;
-      case kWaveformSquare:
-        output = static_cast<T>(phase < 0.5 ? 1.0 : -1.0);
-        break;
-      case kWaveformTriangle:
-        output = static_cast<T>(phase < 0.5 ? (4.0 * phase - 1.0) : (3.0 - 4.0 * phase));
-        break;
-      default:
-        break;
-    }
-
-    return output;
-  }
-
   std::array<Voice, kMaxVoices> mVoices;
+  q::adsr_envelope_gen::config mEnvConfig{};
   T mGain = static_cast<T>(0.8);
   int mWaveform = kWaveformSine;
-  double mSampleRate = 44100.0;
+  float mSampleRate = 44100.0f;
   int mNextVoice = 0;
+
+  void UpdateEnvelopeConfig()
+  {
+    // Update envelope config for all inactive voices
+    // Active voices keep their current envelope until they're recycled
+    for (auto& voice : mVoices)
+    {
+      if (!voice.active)
+      {
+        voice.env = q::adsr_envelope_gen{mEnvConfig, mSampleRate};
+      }
+    }
+  }
 
   bool HasActiveVoices() const
   {
@@ -194,18 +269,27 @@ private:
 
   int AllocateVoice()
   {
+    // First, try to find an inactive voice
     for (int i = 0; i < kMaxVoices; ++i)
     {
       if (!mVoices[i].active)
         return i;
     }
 
+    // Then, try to find a releasing voice (steal it)
+    for (int i = 0; i < kMaxVoices; ++i)
+    {
+      if (mVoices[i].releasing)
+        return i;
+    }
+
+    // Finally, steal the oldest voice
     const int stolenIndex = mNextVoice;
     mNextVoice = (mNextVoice + 1) % kMaxVoices;
     return stolenIndex;
   }
 
-  void ActivateVoice(int noteNumber, double frequency, T level)
+  void ActivateVoice(int noteNumber, float frequency, float level)
   {
     int voiceIndex = FindVoiceByNote(noteNumber);
 
@@ -215,11 +299,10 @@ private:
     }
 
     auto& voice = mVoices[voiceIndex];
-    voice.phase = 0.0;
-    voice.frequency = frequency;
-    voice.noteNumber = noteNumber;
-    voice.level = level;
-    voice.active = true;
+
+    // Re-initialize envelope for this voice
+    voice.env = q::adsr_envelope_gen{mEnvConfig, mSampleRate};
+    voice.Activate(noteNumber, q::frequency{static_cast<double>(frequency)}, level, mSampleRate);
   }
 
   void ReleaseVoice(int noteNumber)
@@ -229,6 +312,6 @@ private:
     if (voiceIndex < 0)
       return;
 
-    mVoices[voiceIndex].active = false;
+    mVoices[voiceIndex].Release();
   }
 };

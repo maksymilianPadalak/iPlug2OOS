@@ -1,7 +1,7 @@
 /**
  * Plugin Body - Instrument
  *
- * Simple synth with oscillator, waveform display, and master section.
+ * Simple synth with oscillator, ADSR envelope, waveform display, and master section.
  */
 
 import { Section } from 'sharedUi/components/Section';
@@ -11,6 +11,7 @@ import { Knob } from 'sharedUi/components/Knob';
 import { Meter } from 'sharedUi/components/Meter';
 import { WaveformDisplay } from 'sharedUi/components/WaveformDisplay';
 import { WaveSelector } from 'sharedUi/components/WaveSelector';
+import { ADSRDisplay } from 'sharedUi/components/ADSRDisplay';
 import { EParams, EControlTags } from '@/config/runtimeParameters';
 
 export function PluginBody() {
@@ -40,19 +41,39 @@ export function PluginBody() {
 
         {/* Control Sections */}
         <div className="grid grid-cols-4 gap-4">
-          <Section title="Master" size="wide">
+          <Section title="Master" size="compact">
             <SubGroup layout="row">
               <Knob paramId={EParams.kParamGain} label="Gain" color="cyan" />
               <Meter channel={0} label="L" color="cyan" />
               <Meter channel={1} label="R" color="cyan" />
             </SubGroup>
-            <WaveformDisplay ctrlTag={EControlTags.kCtrlTagWaveform} label="Output" />
           </Section>
 
-          <Section title="Oscillator" size="wide">
+          <Section title="Oscillator" size="compact">
             <WaveSelector paramId={EParams.kParamWaveform} label="Waveform" />
           </Section>
+
+          <Section title="Envelope" size="wide">
+            <SubGroup layout="grid-4">
+              <Knob paramId={EParams.kParamAttack} label="Attack" color="magenta" />
+              <Knob paramId={EParams.kParamDecay} label="Decay" color="magenta" />
+              <Knob paramId={EParams.kParamSustain} label="Sustain" color="magenta" />
+              <Knob paramId={EParams.kParamRelease} label="Release" color="magenta" />
+            </SubGroup>
+            <ADSRDisplay
+              attackParam={EParams.kParamAttack}
+              decayParam={EParams.kParamDecay}
+              sustainParam={EParams.kParamSustain}
+              releaseParam={EParams.kParamRelease}
+              label="Envelope"
+            />
+          </Section>
         </div>
+
+        {/* Output Waveform */}
+        <Section title="Output" size="full" borderless>
+          <WaveformDisplay ctrlTag={EControlTags.kCtrlTagWaveform} label="Waveform" />
+        </Section>
       </div>
     </div>
   );

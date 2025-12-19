@@ -12,6 +12,10 @@ enum EParams
 {
   kParamGain = 0,
   kParamWaveform,
+  kParamAttack,
+  kParamDecay,
+  kParamSustain,
+  kParamRelease,
   kNumParams
 };
 
