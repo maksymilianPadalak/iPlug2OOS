@@ -3,9 +3,11 @@
  *
  * Provides runtimeParameters to shared components (like Dropdown)
  * so they can look up enum options by paramId.
+ * Also initializes parameterStore with default values on mount.
  */
 
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
+import { parameterStore } from './state/parameterStore';
 
 /**
  * Minimal type for parameters that shared components need.
@@ -16,6 +18,7 @@ export type RuntimeParameter = {
   name: string;
   min?: number;
   max?: number;
+  default?: number;
   unit?: string;
   shape?: string;
   shapeParameter?: number;
@@ -61,6 +64,39 @@ export function fromNormalized(
   }
 }
 
+/**
+ * Convert actual value to normalized (0-1) using parameter shape.
+ * Inverse of fromNormalized.
+ */
+export function toNormalized(
+  value: number,
+  min: number,
+  max: number,
+  shape: string = 'ShapeLinear',
+  shapeParameter: number = 0
+): number {
+  const range = max - min;
+  if (range === 0) return 0;
+
+  switch (shape) {
+    case 'ShapeLinear':
+      return (value - min) / range;
+
+    case 'ShapePowCurve':
+      return Math.pow((value - min) / range, 1 / shapeParameter);
+
+    case 'ShapeExp': {
+      const safeMin = min <= 0 ? 0.00000001 : min;
+      const mAdd = Math.log(safeMin);
+      const mMul = Math.log(max / safeMin);
+      return (Math.log(value) - mAdd) / mMul;
+    }
+
+    default:
+      return (value - min) / range;
+  }
+}
+
 const RuntimeParametersContext = createContext<RuntimeParameter[]>([]);
 
 export type RuntimeParametersProviderProps = {
@@ -69,6 +105,26 @@ export type RuntimeParametersProviderProps = {
 };
 
 export function RuntimeParametersProvider({ parameters, children }: RuntimeParametersProviderProps) {
+  // Initialize parameterStore with normalized default values on mount
+  useEffect(() => {
+    const defaults = new Map<number, number>();
+    parameters.forEach((param) => {
+      if (param.default !== undefined && param.min !== undefined && param.max !== undefined) {
+        const normalized = toNormalized(
+          param.default,
+          param.min,
+          param.max,
+          param.shape,
+          param.shapeParameter
+        );
+        defaults.set(param.id, normalized);
+      }
+    });
+    if (defaults.size > 0) {
+      parameterStore.initializeValues(defaults);
+    }
+  }, [parameters]);
+
   return (
     <RuntimeParametersContext.Provider value={parameters}>
       {children}
