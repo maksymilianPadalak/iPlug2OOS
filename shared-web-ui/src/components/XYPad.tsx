@@ -14,13 +14,15 @@ export type { XYPadProps };
 // Cursor color
 const cursorColor = { color: '#00ffff', glow: 'rgba(0, 255, 255, 0.8)' };
 
+const XYPAD_SIZE = 420;
+
 export function XYPad({
   paramIdX,
   paramIdY,
   labelX = 'X',
   labelY = 'Y',
-  size = 288,
 }: XYPadProps) {
+  const size = XYPAD_SIZE;
   const xParam = useParameter(paramIdX);
   const yParam = useParameter(paramIdY);
   const xyRef = useRef<HTMLDivElement>(null);

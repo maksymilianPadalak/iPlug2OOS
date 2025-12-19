@@ -13,10 +13,10 @@ export type { SubGroupProps };
 
 export function SubGroup({ title, layout = 'row', children }: SubGroupProps) {
   const layoutClass = {
-    'row': 'flex flex-wrap items-center gap-3',
-    'grid-2': 'grid grid-cols-2 gap-3',
-    'grid-3': 'grid grid-cols-3 gap-3',
-    'grid-4': 'grid grid-cols-4 gap-3',
+    'row': 'flex flex-wrap items-center justify-center gap-4',
+    'grid-2': 'grid grid-cols-2 gap-4 justify-items-center',
+    'grid-3': 'grid grid-cols-3 gap-4 justify-items-center',
+    'grid-4': 'grid grid-cols-4 gap-4 justify-items-center',
   }[layout];
 
   return (

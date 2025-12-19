@@ -25,7 +25,6 @@ export const XYPadPropsSchema = z.object({
   paramIdY: z.number(),
   labelX: z.string().optional(),
   labelY: z.string().optional(),
-  size: z.number().optional(),
 });
 export type XYPadProps = z.infer<typeof XYPadPropsSchema>;
 
@@ -63,9 +62,10 @@ export const ADSRDisplayPropsSchema = z.object({
 export type ADSRDisplayProps = z.infer<typeof ADSRDisplayPropsSchema>;
 
 export const SectionPropsSchema = z.object({
-  title: z.string(),
+  title: z.string().optional(),
   description: z.string().optional(),
   size: z.enum(['compact', 'wide', 'full']).optional(),
+  borderless: z.boolean().optional(),
 });
 export type SectionProps = z.infer<typeof SectionPropsSchema> & {
   children: React.ReactNode;
@@ -85,15 +85,3 @@ export const TitlePropsSchema = z.object({
   color: z.enum(['cyan', 'magenta', 'green', 'orange']).optional(),
 });
 export type TitleProps = z.infer<typeof TitlePropsSchema>;
-
-export const HeaderPropsSchema = z.object({});
-export type HeaderProps = z.infer<typeof HeaderPropsSchema> & {
-  children: React.ReactNode;
-};
-
-export const StandalonePropsSchema = z.object({
-  size: z.enum(['sm', 'md', 'lg']).optional(),
-});
-export type StandaloneProps = z.infer<typeof StandalonePropsSchema> & {
-  children: React.ReactNode;
-};

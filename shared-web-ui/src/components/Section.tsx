@@ -3,6 +3,9 @@
  *
  * Groups related controls with a title and optional description.
  * Futuristic dark theme with cyan accents.
+ *
+ * Use borderless={true} for standalone items like XYPad that need
+ * grid placement but no visual wrapper.
  */
 
 import React from 'react';
@@ -10,12 +13,21 @@ import type { SectionProps } from './componentProps';
 
 export type { SectionProps };
 
-export function Section({ title, description, children, size = 'compact' }: SectionProps) {
+export function Section({ title, description, children, size = 'compact', borderless = false }: SectionProps) {
   const sizeClasses = {
     compact: 'col-span-1',
     wide: 'col-span-2',
     full: 'col-span-full w-full',
   };
+
+  // Borderless mode - just grid placement and centering, no visual wrapper
+  if (borderless) {
+    return (
+      <div className={`${sizeClasses[size]} flex justify-center items-center`}>
+        {children}
+      </div>
+    );
+  }
 
   return (
     <section
@@ -42,7 +54,7 @@ export function Section({ title, description, children, size = 'compact' }: Sect
           )}
         </div>
       </header>
-      <div>
+      <div className="flex flex-col gap-3">
         {children}
       </div>
     </section>
