@@ -41,7 +41,7 @@ export function PluginBody() {
         <Title title="Instrument" version="1.0" color="cyan" />
 
         <GridFoundation>
-          {/* Top Row: Master + Output Waveform */}
+          {/* Top Row: Master (left) + Waveform (right) */}
           <Section title="Master" size="wide">
             <SubGroup layout="row">
               <div className="flex flex-col gap-2 flex-1">
@@ -52,7 +52,7 @@ export function PluginBody() {
             </SubGroup>
           </Section>
 
-          <Section title="Output" size="wide" borderless>
+          <Section size="wide" borderless>
             <WaveformDisplay ctrlTag={EControlTags.kCtrlTagWaveform} label="Waveform" />
           </Section>
 

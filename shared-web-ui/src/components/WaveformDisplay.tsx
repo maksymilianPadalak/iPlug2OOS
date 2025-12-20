@@ -1,12 +1,10 @@
 /**
  * WaveformDisplay - Oscilloscope-style waveform visualization
  *
- * Displays real-time waveform data from DSP via control tags.
- * Auto-fades when no data is received.
- * Takes ctrlTag and uses useWaveform internally.
+ * Performance-optimized: minimal shadowBlur, no allocations per frame.
  */
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { useWaveform } from '../glue/hooks/useWaveform';
 import type { WaveformDisplayProps } from './componentProps';
 
@@ -34,7 +32,26 @@ export function WaveformDisplay({ ctrlTag, label }: WaveformDisplayProps) {
     return () => observer.disconnect();
   }, []);
 
-  // Draw waveform
+  // Draw waveform path helper
+  const drawWaveformPath = useCallback(
+    (
+      ctx: CanvasRenderingContext2D,
+      data: Float32Array,
+      width: number,
+      centerY: number
+    ) => {
+      ctx.beginPath();
+      for (let i = 0; i < data.length; i++) {
+        const x = (i / data.length) * width;
+        const y = centerY - data[i] * centerY * 0.8;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+    },
+    []
+  );
+
+  // Render on data change
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -49,99 +66,87 @@ export function WaveformDisplay({ ctrlTag, label }: WaveformDisplayProps) {
     // Clear
     ctx.clearRect(0, 0, width, height);
 
-    // Check if data is stale (fade out)
+    // Check if data is stale
     const isStale = Date.now() - timestamp > FADE_TIMEOUT_MS;
-    const alpha = isStale ? 0.2 : 1;
+    const baseAlpha = isStale ? 0.3 : 1;
 
-    // Draw subtle grid - brass color
-    ctx.strokeStyle = `rgba(184, 134, 11, ${0.15 * alpha})`;
+    // Draw grid (no shadows, very fast)
+    ctx.strokeStyle = `rgba(0, 212, 255, ${0.1 * baseAlpha})`;
     ctx.lineWidth = 1;
+
+    // Center line
     ctx.beginPath();
     ctx.moveTo(0, centerY);
     ctx.lineTo(width, centerY);
     ctx.stroke();
 
-    // Draw waveform if we have data
-    if (samples.length > 0) {
-      // Glow layers - warm brass tones
-      const glowLayers = [
-        { blur: 10, alpha: 0.25 * alpha },
-        { blur: 5, alpha: 0.4 * alpha },
-        { blur: 2, alpha: 0.7 * alpha },
-      ];
+    // 25% and 75% lines
+    ctx.strokeStyle = `rgba(0, 212, 255, ${0.05 * baseAlpha})`;
+    ctx.beginPath();
+    ctx.moveTo(0, height * 0.25);
+    ctx.lineTo(width, height * 0.25);
+    ctx.moveTo(0, height * 0.75);
+    ctx.lineTo(width, height * 0.75);
+    ctx.stroke();
 
-      for (const { blur, alpha: layerAlpha } of glowLayers) {
-        ctx.save();
-        ctx.shadowColor = 'rgba(184, 134, 11, 1)';
-        ctx.shadowBlur = blur;
-        ctx.strokeStyle = `rgba(184, 134, 11, ${layerAlpha})`;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-
-        for (let i = 0; i < samples.length; i++) {
-          const x = (i / samples.length) * width;
-          const y = centerY - samples[i] * centerY * 0.8;
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // Main stroke - darker brass for contrast
-      ctx.strokeStyle = `rgba(139, 105, 20, ${alpha})`;
-      ctx.lineWidth = 1.5;
+    // Vertical grid
+    for (let i = 1; i < 8; i++) {
+      const x = (i / 8) * width;
       ctx.beginPath();
-
-      for (let i = 0; i < samples.length; i++) {
-        const x = (i / samples.length) * width;
-        const y = centerY - samples[i] * centerY * 0.8;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
       ctx.stroke();
     }
 
-    // Soft vignette for depth
-    const vignette = ctx.createRadialGradient(
-      width / 2, height / 2, 0,
-      width / 2, height / 2, width / 1.5
-    );
-    vignette.addColorStop(0, 'rgba(0,0,0,0)');
-    vignette.addColorStop(1, 'rgba(0,0,0,0.15)');
-    ctx.fillStyle = vignette;
-    ctx.fillRect(0, 0, width, height);
-  }, [samples, timestamp, canvasWidth]);
+    // Draw waveform if we have data
+    if (samples.length > 0) {
+      // Single glow layer (ONE shadowBlur operation)
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 255, 255, 0.8)';
+      ctx.shadowBlur = 12;
+      ctx.strokeStyle = `rgba(0, 220, 255, ${0.6 * baseAlpha})`;
+      ctx.lineWidth = 3;
+      drawWaveformPath(ctx, samples, width, centerY);
+      ctx.stroke();
+      ctx.restore();
+
+      // Bright core line (no shadow)
+      ctx.strokeStyle = `rgba(180, 255, 255, ${baseAlpha})`;
+      ctx.lineWidth = 1.5;
+      drawWaveformPath(ctx, samples, width, centerY);
+      ctx.stroke();
+    }
+  }, [samples, timestamp, canvasWidth, drawWaveformPath]);
 
   // Check if data is stale for indicator
   const isActive = Date.now() - timestamp < FADE_TIMEOUT_MS;
 
   return (
-    <fieldset className="w-full col-span-full rounded-xl border border-[#B8860B]/30 px-3 pb-3 pt-1 bg-gradient-to-br from-white/50 to-white/20">
-      <legend className="px-2 text-[10px] font-bold uppercase tracking-wider text-[#1a1a1a]">
+    <fieldset
+      className="w-full col-span-full rounded-xl border border-cyan-500/40 px-3 pb-3 pt-1 bg-gradient-to-br from-[#0a1520] via-[#0d1a25] to-[#081018]"
+      style={{
+        boxShadow: '0 0 20px rgba(0, 212, 255, 0.15), inset 0 1px 0 rgba(0, 212, 255, 0.1)',
+      }}
+    >
+      <legend className="px-2 text-[10px] font-bold uppercase tracking-wider text-cyan-400/90">
         <span
           className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full"
           style={{
-            backgroundColor: isActive ? 'rgb(184, 134, 11)' : 'rgb(180, 170, 155)',
+            backgroundColor: isActive ? 'rgb(0, 212, 255)' : 'rgb(60, 80, 90)',
+            boxShadow: isActive ? '0 0 6px rgba(0, 212, 255, 0.8)' : 'none',
           }}
         />
         {label}
       </legend>
       <div
         ref={containerRef}
-        className="relative overflow-hidden rounded-lg border border-[#B8860B]/20 bg-gradient-to-b from-[#1a1816] via-[#0f0e0d] to-[#0a0908]"
+        className="relative overflow-hidden rounded-lg border border-cyan-500/30"
         style={{
-          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)',
+          background: 'linear-gradient(180deg, #0a1218 0%, #060d12 50%, #040810 100%)',
+          boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.5), inset 0 0 20px rgba(0, 212, 255, 0.05), 0 0 15px rgba(0, 212, 255, 0.1)',
         }}
       >
-        <canvas
-          ref={canvasRef}
-          width={canvasWidth}
-          height={80}
-          className="block w-full"
-        />
+        <canvas ref={canvasRef} width={canvasWidth} height={80} className="block w-full" />
       </div>
     </fieldset>
   );
