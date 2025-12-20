@@ -6,6 +6,7 @@
 
 import { Section } from 'sharedUi/components/Section';
 import { SubGroup } from 'sharedUi/components/SubGroup';
+import { GridFoundation } from 'sharedUi/components/GridFoundation';
 import { Title } from 'sharedUi/components/Title';
 import { Knob } from 'sharedUi/components/Knob';
 import { Meter } from 'sharedUi/components/Meter';
@@ -39,8 +40,8 @@ export function PluginBody() {
         {/* Header */}
         <Title title="Instrument" version="1.0" color="cyan" />
 
-        {/* Top Row: Master + Output Waveform */}
-        <div className="grid grid-cols-4 gap-4">
+        <GridFoundation>
+          {/* Top Row: Master + Output Waveform */}
           <Section title="Master" size="wide">
             <SubGroup layout="row">
               <div className="flex flex-col gap-2 flex-1">
@@ -54,10 +55,8 @@ export function PluginBody() {
           <Section title="Output" size="wide" borderless>
             <WaveformDisplay ctrlTag={EControlTags.kCtrlTagWaveform} label="Waveform" />
           </Section>
-        </div>
 
-        {/* Bottom Row: Oscillator + Envelope */}
-        <div className="grid grid-cols-4 gap-4">
+          {/* Bottom Row: Oscillator + Envelope */}
           <Section title="Oscillator" size="wide">
             <WaveSelector paramId={EParams.kParamWaveform} label="Waveform" />
           </Section>
@@ -77,7 +76,7 @@ export function PluginBody() {
               <Knob paramId={EParams.kParamRelease} label="Release" color="magenta" />
             </SubGroup>
           </Section>
-        </div>
+        </GridFoundation>
       </div>
     </div>
   );

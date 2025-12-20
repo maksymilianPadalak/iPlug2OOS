@@ -6,6 +6,7 @@
 
 import { Section } from 'sharedUi/components/Section';
 import { SubGroup } from 'sharedUi/components/SubGroup';
+import { GridFoundation } from 'sharedUi/components/GridFoundation';
 import { Meter } from 'sharedUi/components/Meter';
 import { Title } from 'sharedUi/components/Title';
 import { Knob } from 'sharedUi/components/Knob';
@@ -36,7 +37,7 @@ export function PluginBody() {
         <Title title="Gain" version="1.0" color="cyan" />
 
         {/* Grid for all sections */}
-        <div className="grid grid-cols-4 gap-4 [grid-auto-flow:dense]">
+        <GridFoundation>
           {/* Master section - meters and gain */}
           <Section title="Master" size="wide">
             <SubGroup layout="row">
@@ -47,7 +48,7 @@ export function PluginBody() {
               <Knob paramId={EParams.kParamGain} label="Gain" color="cyan" />
             </SubGroup>
           </Section>
-        </div>
+        </GridFoundation>
       </div>
     </div>
   );

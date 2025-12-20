@@ -81,7 +81,7 @@ export const layouts = {
   Section: {
     path: 'sharedUi/components/Section',
     propsSchema: SectionPlanSchema,
-    description: 'Groups related controls. Sizes: compact=1col, wide=2cols, full=4cols.',
+    description: 'Groups related controls. Always placed inside GridFoundation (already in template). Sizes: compact=1col, wide=2cols, full=4cols.',
   },
   SubGroup: {
     path: 'sharedUi/components/SubGroup',
