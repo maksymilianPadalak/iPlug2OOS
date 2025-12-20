@@ -42,6 +42,7 @@
     "./state/systemExclusiveStore": "./src/glue/state/systemExclusiveStore.ts",
     "./bridge": "./src/glue/iplugBridge/iplugBridge.ts",
     "./processorCallbacks": "./src/glue/processorCallbacks/processorCallbacks.ts",
+    "./utils/normalization": "./src/glue/utils/normalization/index.ts",
     "./errors": "./src/glue/errors/bridgeErrors.ts",
     "./config/protocol": "./src/config/protocol.ts",
     "./config/senderTypeMapping": "./src/config/senderTypeMapping.ts",
