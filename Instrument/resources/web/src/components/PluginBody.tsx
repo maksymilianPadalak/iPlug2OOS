@@ -41,19 +41,20 @@ export function PluginBody() {
         <Title title="Instrument" version="1.0" color="cyan" />
 
         <GridFoundation>
-          {/* Top Row: Master (left) + Waveform (right) */}
-          <Section title="Master" size="wide">
-            <SubGroup layout="row">
-              <div className="flex flex-col gap-2 flex-1">
-                <Meter channel={0} label="L" color="cyan" />
-                <Meter channel={1} label="R" color="cyan" />
+          {/* Top Row: Master with Meters + Gain + Waveform */}
+          <Section title="Master" size="full">
+            <div className="flex gap-8 items-center">
+              <div className="flex-1 flex gap-4 items-center">
+                <Knob paramId={EParams.kParamGain} label="Gain" color="cyan" />
+                <div className="flex flex-col gap-2 flex-1">
+                  <Meter channel={0} label="L" color="cyan" />
+                  <Meter channel={1} label="R" color="cyan" />
+                </div>
               </div>
-              <Knob paramId={EParams.kParamGain} label="Gain" color="cyan" />
-            </SubGroup>
-          </Section>
-
-          <Section size="wide" borderless>
-            <WaveformDisplay ctrlTag={EControlTags.kCtrlTagWaveform} label="Waveform" />
+              <div className="flex-1">
+                <WaveformDisplay ctrlTag={EControlTags.kCtrlTagWaveform} label="Waveform" />
+              </div>
+            </div>
           </Section>
 
           {/* Bottom Row: Oscillator + Envelope */}
