@@ -46,3 +46,13 @@ body.wam-mode .wam-only {
 .moderne-scroll::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(to bottom, #B8860B80, #8B691460);
 }
+
+/* Synthwave grid line pulse - wave effect for driving illusion */
+@keyframes grid-line-pulse {
+  0%, 100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

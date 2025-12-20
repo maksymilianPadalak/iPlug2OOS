@@ -2,7 +2,7 @@
  * ADSR Display Component
  *
  * Visualizes an ADSR envelope curve based on parameter values.
- * Streamline Moderne style with smooth curves and gradient fills.
+ * Synthwave / Outrun style with perspective grid floor and neon gradients.
  * Takes paramIds and uses useParameter internally.
  */
 
@@ -23,196 +23,246 @@ export function ADSRDisplay({
   const { value: decay } = useParameter(decayParam);
   const { value: sustain } = useParameter(sustainParam);
   const { value: release } = useParameter(releaseParam);
+
   // SVG dimensions
   const width = 200;
-  const height = 80;
-  const padding = { top: 8, right: 8, bottom: 8, left: 8 };
+  const height = 120;
+  const padding = { top: 14, right: 12, bottom: 14, left: 12 };
   const graphWidth = width - padding.left - padding.right;
   const graphHeight = height - padding.top - padding.bottom;
 
-  // Calculate envelope path
-  const path = useMemo(() => {
-    // Normalize time values (attack, decay, release are 0-1 normalized)
-    // Allocate width: Attack 25%, Decay 25%, Sustain 25%, Release 25%
+  // Calculate key points for envelope
+  const points = useMemo(() => {
     const attackWidth = graphWidth * 0.25 * attack;
     const decayWidth = graphWidth * 0.25 * decay;
     const sustainWidth = graphWidth * 0.25;
     const releaseWidth = graphWidth * 0.25 * release;
 
-    // Ensure minimum visibility
     const minWidth = 4;
     const aW = Math.max(minWidth, attackWidth);
     const dW = Math.max(minWidth, decayWidth);
     const sW = sustainWidth;
     const rW = Math.max(minWidth, releaseWidth);
 
-    // Calculate x positions
     const x0 = padding.left;
-    const x1 = x0 + aW; // End of attack (peak)
-    const x2 = x1 + dW; // End of decay (sustain level)
-    const x3 = x2 + sW; // End of sustain
-    const x4 = x3 + rW; // End of release
+    const x1 = x0 + aW;
+    const x2 = x1 + dW;
+    const x3 = x2 + sW;
+    const x4 = x3 + rW;
 
-    // Calculate y positions (inverted because SVG y goes down)
     const yBottom = padding.top + graphHeight;
     const yTop = padding.top;
     const ySustain = padding.top + graphHeight * (1 - sustain);
 
-    // Create smooth bezier curve path
-    // Attack: exponential rise
-    const attackCtrl1X = x0 + aW * 0.4;
-    const attackCtrl1Y = yBottom;
-    const attackCtrl2X = x0 + aW * 0.6;
-    const attackCtrl2Y = yTop;
+    return { x0, x1, x2, x3, x4, yBottom, yTop, ySustain, aW, dW, sW, rW };
+  }, [attack, decay, sustain, release, graphWidth, graphHeight, padding]);
 
-    // Decay: exponential fall to sustain
-    const decayCtrl1X = x1 + dW * 0.3;
-    const decayCtrl1Y = yTop;
-    const decayCtrl2X = x1 + dW * 0.7;
-    const decayCtrl2Y = ySustain;
+  // Calculate envelope path - smooth wave (sine-like curves)
+  const path = useMemo(() => {
+    const { x0, x1, x2, x3, x4, yBottom, yTop, ySustain, aW, dW, rW } = points;
 
-    // Release: exponential fall to zero
-    const releaseCtrl1X = x3 + rW * 0.3;
-    const releaseCtrl1Y = ySustain;
-    const releaseCtrl2X = x3 + rW * 0.7;
-    const releaseCtrl2Y = yBottom;
+    // Gentle sine-wave style curves
+    // Attack: ease out (slow at top)
+    // Decay: ease in-out
+    // Release: ease in (slow at start)
 
     return `
       M ${x0} ${yBottom}
-      C ${attackCtrl1X} ${attackCtrl1Y}, ${attackCtrl2X} ${attackCtrl2Y}, ${x1} ${yTop}
-      C ${decayCtrl1X} ${decayCtrl1Y}, ${decayCtrl2X} ${decayCtrl2Y}, ${x2} ${ySustain}
+      C ${x0 + aW * 0.5} ${yBottom}, ${x1 - aW * 0.5} ${yTop}, ${x1} ${yTop}
+      C ${x1 + dW * 0.5} ${yTop}, ${x2 - dW * 0.5} ${ySustain}, ${x2} ${ySustain}
       L ${x3} ${ySustain}
-      C ${releaseCtrl1X} ${releaseCtrl1Y}, ${releaseCtrl2X} ${releaseCtrl2Y}, ${x4} ${yBottom}
+      C ${x3 + rW * 0.5} ${ySustain}, ${x4 - rW * 0.5} ${yBottom}, ${x4} ${yBottom}
     `;
-  }, [attack, decay, sustain, release, graphWidth, graphHeight, padding]);
+  }, [points]);
 
   // Create fill path (closed shape for gradient fill)
   const fillPath = useMemo(() => {
     return `${path} L ${padding.left} ${padding.top + graphHeight} Z`;
   }, [path, padding, graphHeight]);
 
-  // Unique ID for gradient
-  const gradientId = useMemo(
-    () => `adsr-gradient-${Math.random().toString(36).slice(2, 9)}`,
-    []
-  );
+  // Unique IDs for gradients
+  const ids = useMemo(() => {
+    const base = Math.random().toString(36).slice(2, 9);
+    return {
+      strokeGradient: `adsr-stroke-${base}`,
+      glowFilter: `adsr-glow-${base}`,
+    };
+  }, []);
+
+  // Generate perspective grid lines (separated for animation)
+  const { horizontalLines, verticalLines } = useMemo(() => {
+    const horizontal: { x1: number; y1: number; x2: number; y2: number; opacity: number }[] = [];
+    const vertical: { x1: number; y1: number; x2: number; y2: number; opacity: number }[] = [];
+
+    const horizonY = padding.top + graphHeight * 0.25; // Vanishing point at 25% down from top
+    const floorBottom = height - 2; // Stop just before the bottom edge
+    const vanishX = width / 2;
+
+    // Horizontal lines with perspective (skip first line at horizon)
+    const hLineCount = 8;
+    for (let i = 1; i <= hLineCount; i++) {
+      const t = i / hLineCount;
+      const y = horizonY + (floorBottom - horizonY) * Math.pow(t, 0.55);
+      // Wider spread - starts at 15% at horizon, 100% at front
+      const spread = 0.15 + t * 0.85;
+      const x1 = vanishX - (vanishX + 10) * spread; // Extend past edges
+      const x2 = vanishX + (width - vanishX + 10) * spread;
+      horizontal.push({ x1, y1: y, x2, y2: y, opacity: 0.12 });
+    }
+
+    // Vertical lines converging to vanishing point
+    const vLineCount = 15;
+    for (let i = 0; i <= vLineCount; i++) {
+      const t = i / vLineCount;
+      const xBottom = -10 + (width + 20) * t; // Extend past edges
+      vertical.push({
+        x1: vanishX,
+        y1: horizonY,
+        x2: xBottom,
+        y2: floorBottom,
+        opacity: 0.15,
+      });
+    }
+
+    return { horizontalLines: horizontal, verticalLines: vertical };
+  }, [width, height, padding, graphWidth, graphHeight]);
 
   return (
-    <div className="flex flex-col gap-1.5 w-full col-span-full">
+    <div className="flex flex-col gap-2 w-full col-span-full">
+      {/* Inline keyframe animation - starts dim, pulses brighter */}
+      <style>{`
+        @keyframes grid-line-pulse {
+          0%, 100% { opacity: 0.12; }
+          50% { opacity: 0.4; }
+        }
+      `}</style>
+
       {label && (
-        <label className="text-[#1a1a1a] text-[11px] font-black uppercase tracking-[0.1em] text-center">
+        <label
+          className="text-[11px] font-bold uppercase tracking-[0.2em] text-center"
+          style={{
+            color: '#ff6ec7',
+            textShadow: '0 0 10px rgba(255, 110, 199, 0.7), 0 0 20px rgba(255, 110, 199, 0.4)',
+          }}
+        >
           {label}
         </label>
       )}
 
+      {/* Synthwave container */}
       <div
-        className="relative w-full bg-gradient-to-br from-white/70 to-white/40 border border-[#B8860B]/25 rounded-xl overflow-hidden"
+        className="relative w-full rounded-lg overflow-hidden"
         style={{
-          boxShadow: 'inset 0 1px 3px rgba(255,255,255,0.9), 0 4px 12px rgba(0,0,0,0.08)',
+          background: 'linear-gradient(180deg, #0a0a1a 0%, #1a0a2e 50%, #2d1b4e 100%)',
+          border: '1px solid rgba(255, 110, 199, 0.3)',
         }}
       >
-        {/* Subtle grid lines */}
+        {/* Main SVG */}
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          className="absolute inset-0 w-full h-full opacity-30"
+          className="relative w-full"
+          style={{ height: '120px' }}
           preserveAspectRatio="none"
-          style={{ height: '80px' }}
+          shapeRendering="geometricPrecision"
         >
-          {/* Horizontal grid lines */}
-          {[0.25, 0.5, 0.75].map((y) => (
-            <line
-              key={`h-${y}`}
-              x1={padding.left}
-              y1={padding.top + graphHeight * y}
-              x2={width - padding.right}
-              y2={padding.top + graphHeight * y}
-              stroke="#B8860B"
-              strokeWidth="0.5"
-              strokeDasharray="2,4"
-            />
-          ))}
-          {/* Vertical grid lines for ADSR segments */}
-          {[0.25, 0.5, 0.75].map((x) => (
-            <line
-              key={`v-${x}`}
-              x1={padding.left + graphWidth * x}
-              y1={padding.top}
-              x2={padding.left + graphWidth * x}
-              y2={height - padding.bottom}
-              stroke="#B8860B"
-              strokeWidth="0.5"
-              strokeDasharray="2,4"
-            />
-          ))}
-        </svg>
-
-        {/* Main envelope SVG */}
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ height: '80px' }} preserveAspectRatio="none">
           <defs>
-            {/* Gradient fill - warm brass tones */}
-            <linearGradient id={gradientId} x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#B8860B" stopOpacity="0.35" />
-              <stop offset="50%" stopColor="#DAA520" stopOpacity="0.15" />
-              <stop offset="100%" stopColor="#F5E6D3" stopOpacity="0.05" />
+            {/* Animated stroke gradient - pink glow */}
+            <linearGradient id={ids.strokeGradient} x1="0%" y1="0%" x2="200%" y2="0%">
+              <stop offset="0%" stopColor="#cc4499" />
+              <stop offset="25%" stopColor="#ff6ec7" />
+              <stop offset="50%" stopColor="#cc4499" />
+              <stop offset="75%" stopColor="#ff6ec7" />
+              <stop offset="100%" stopColor="#cc4499" />
+              <animate
+                attributeName="x1"
+                values="0%;-100%"
+                dur="3s"
+                repeatCount="indefinite"
+              />
+              <animate
+                attributeName="x2"
+                values="200%;100%"
+                dur="3s"
+                repeatCount="indefinite"
+              />
             </linearGradient>
-            {/* Subtle glow filter */}
-            <filter id="adsrGlow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="1.5" result="blur" />
+
+            {/* Glow filter */}
+            <filter id={ids.glowFilter} x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="2" result="glow" />
               <feMerge>
-                <feMergeNode in="blur" />
+                <feMergeNode in="glow" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
           </defs>
 
-          {/* Filled area under curve */}
-          <path d={fillPath} fill={`url(#${gradientId})`} />
+          {/* Vertical grid lines (static) */}
+          <g>
+            {verticalLines.map((line, i) => (
+              <line
+                key={`v-${i}`}
+                x1={line.x1}
+                y1={line.y1}
+                x2={line.x2}
+                y2={line.y2}
+                stroke="#ff6ec7"
+                strokeWidth="0.5"
+                opacity={line.opacity}
+              />
+            ))}
+          </g>
 
-          {/* Main envelope curve with glow */}
+          {/* Horizontal grid lines with staggered CSS animation */}
+          <g>
+            {horizontalLines.map((line, i) => (
+              <line
+                key={`h-${i}`}
+                x1={line.x1}
+                y1={line.y1}
+                x2={line.x2}
+                y2={line.y2}
+                stroke="#ff6ec7"
+                strokeWidth="0.5"
+                opacity={0.12}
+                style={{
+                  animation: `grid-line-pulse 1.2s ease-in-out infinite`,
+                  animationDelay: `${i * 0.12}s`,
+                }}
+              />
+            ))}
+          </g>
+
+          {/* Main curve - animated pink glow */}
           <path
             d={path}
             fill="none"
-            stroke="#B8860B"
+            stroke={`url(#${ids.strokeGradient})`}
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            filter="url(#adsrGlow)"
+            filter={`url(#${ids.glowFilter})`}
           />
 
-          {/* Crisp envelope curve on top */}
-          <path
-            d={path}
-            fill="none"
-            stroke="#8B6914"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-
-          {/* Corner accents - Streamline Moderne style */}
-          <path
-            d={`M ${padding.left} ${padding.top + 10} L ${padding.left} ${padding.top} L ${padding.left + 10} ${padding.top}`}
-            fill="none"
-            stroke="#B8860B"
-            strokeWidth="1"
-            strokeOpacity="0.4"
-          />
-          <path
-            d={`M ${width - padding.right - 10} ${padding.top} L ${width - padding.right} ${padding.top} L ${width - padding.right} ${padding.top + 10}`}
-            fill="none"
-            stroke="#B8860B"
-            strokeWidth="1"
-            strokeOpacity="0.4"
-          />
         </svg>
 
-        {/* ADSR labels at bottom */}
-        <div className="absolute bottom-1 left-0 right-0 flex justify-around px-2">
-          <span className="text-[9px] font-black text-[#2a2a2a] uppercase">A</span>
-          <span className="text-[9px] font-black text-[#2a2a2a] uppercase">D</span>
-          <span className="text-[9px] font-black text-[#2a2a2a] uppercase">S</span>
-          <span className="text-[9px] font-black text-[#2a2a2a] uppercase">R</span>
-        </div>
+        {/* Corner accents - matching border pink */}
+        <div
+          className="absolute top-1 left-1 w-3 h-3 border-l border-t"
+          style={{ borderColor: 'rgba(255, 110, 199, 0.5)' }}
+        />
+        <div
+          className="absolute top-1 right-1 w-3 h-3 border-r border-t"
+          style={{ borderColor: 'rgba(255, 110, 199, 0.5)' }}
+        />
+        <div
+          className="absolute bottom-1 left-1 w-3 h-3 border-l border-b"
+          style={{ borderColor: 'rgba(255, 110, 199, 0.5)' }}
+        />
+        <div
+          className="absolute bottom-1 right-1 w-3 h-3 border-r border-b"
+          style={{ borderColor: 'rgba(255, 110, 199, 0.5)' }}
+        />
       </div>
     </div>
   );
