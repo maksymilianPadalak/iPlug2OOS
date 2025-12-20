@@ -61,15 +61,15 @@ export function App() {
           </div>
 
           {/* Scrollable plugin body - fixed width, no horizontal scroll */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-3 moderne-scroll">
-            <div className="w-[1100px] max-w-full mx-auto">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-3 moderne-scroll flex justify-center">
+            <div className="w-[950px] max-w-full">
               <PluginBody />
             </div>
           </div>
 
           {/* Fixed keyboard at bottom */}
-          <div className="flex-shrink-0 px-2 pb-2">
-            <div className="w-[1100px] max-w-full mx-auto">
+          <div className="flex-shrink-0 px-2 pb-2 flex justify-center">
+            <div className="w-[950px] max-w-full">
               <KeyboardWrapper />
             </div>
           </div>

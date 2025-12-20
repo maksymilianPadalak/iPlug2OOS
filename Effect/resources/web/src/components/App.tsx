@@ -97,8 +97,8 @@ export function App() {
           </div>
 
           {/* Audio file input at bottom */}
-          <div className="flex-shrink-0 px-2 pb-4">
-            <div className="w-[1100px] max-w-full mx-auto">
+          <div className="flex-shrink-0 px-2 pb-4 flex justify-center">
+            <div className="w-[950px] max-w-full">
               <div className="bg-gradient-to-br from-[#F5E6D3] via-[#EDE0CC] to-[#E8D4B8] rounded-2xl p-4 shadow-md">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
