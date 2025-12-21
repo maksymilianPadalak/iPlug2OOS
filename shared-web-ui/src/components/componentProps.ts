@@ -11,6 +11,7 @@ export const KnobPropsSchema = z.object({
   paramId: z.number(),
   label: z.string().optional(),
   color: z.enum(['cyan', 'magenta', 'green', 'orange']).optional(),
+  size: z.enum(['small', 'medium']).optional(),
 });
 export type KnobProps = z.infer<typeof KnobPropsSchema>;
 
@@ -58,6 +59,7 @@ export const ADSRDisplayPropsSchema = z.object({
   sustainParam: z.number(),
   releaseParam: z.number(),
   label: z.string().optional(),
+  height: z.number().optional(),
 });
 export type ADSRDisplayProps = z.infer<typeof ADSRDisplayPropsSchema>;
 
@@ -94,3 +96,14 @@ export const WaveSelectorPropsSchema = z.object({
   height: z.number().optional(),
 });
 export type WaveSelectorProps = z.infer<typeof WaveSelectorPropsSchema>;
+
+export const TabbedPanelPropsSchema = z.object({
+  tabs: z.array(z.object({
+    title: z.string(),
+    color: z.enum(['cyan', 'magenta', 'green', 'orange', 'purple', 'yellow']),
+  })),
+  defaultTab: z.number().optional(),
+});
+export type TabbedPanelProps = Omit<z.infer<typeof TabbedPanelPropsSchema>, 'tabs'> & {
+  tabs: Array<z.infer<typeof TabbedPanelPropsSchema>['tabs'][number] & { content: React.ReactNode }>;
+};

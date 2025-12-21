@@ -27,6 +27,7 @@ import {
   WaveSelectorPlanSchema,
   SectionPlanSchema,
   SubGroupPlanSchema,
+  TabbedPanelPlanSchema,
 } from './planSchemas';
 
 export const controls = {
@@ -48,7 +49,7 @@ export const controls = {
   WaveSelector: {
     path: 'sharedUi/components/WaveSelector',
     propsSchema: WaveSelectorPlanSchema,
-    description: 'Animated waveform selector with dropdown. Shows live wave animation (sine/saw/square/triangle) with gradient colors and ghost trail effect. Use for oscillator waveform selection.',
+    description: 'Animated waveform selector with arrow navigation. Shows live wave animation (sine/saw/square/triangle) with gradient colors and ghost trail effect. Use for oscillator waveform selection. Use reduced height inside TabbedPanel tabs for compact layout.',
   },
 } as const;
 
@@ -73,7 +74,7 @@ export const displays = {
     path: 'sharedUi/components/ADSRDisplay',
     propsSchema: ADSRDisplayPlanSchema,
     description:
-      'Visualizes ADSR envelope curve. Use when 4 ADSR params exist (Attack/Decay/Sustain/Release pattern in names). Place in grid-4 SubGroup with ADSR knobs.',
+      'Visualizes ADSR envelope curve. Use when 4 ADSR params exist (Attack/Decay/Sustain/Release pattern in names). Place with ADSR knobs. Use reduced height inside TabbedPanel tabs for compact layout.',
   },
 } as const;
 
@@ -88,5 +89,11 @@ export const layouts = {
     propsSchema: SubGroupPlanSchema,
     description:
       'Groups controls within Section. Use grid-4 for ADSR, grid-2 for stereo pairs/meters, row for default.',
+  },
+  TabbedPanel: {
+    path: 'sharedUi/components/TabbedPanel',
+    propsSchema: TabbedPanelPlanSchema,
+    description:
+      'Groups similar modules (oscillators, LFOs) into tabs with LED indicators. Use when 2+ similar parameter groups exist (Osc1/Osc2, LFO1/LFO2). Each tab contains SubGroups. Knobs inside tabs MUST use size="small". Colors: OSC1=cyan, OSC2=purple, LFO1=green, LFO2=yellow.',
   },
 } as const;

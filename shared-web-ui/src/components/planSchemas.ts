@@ -16,6 +16,7 @@ export const KnobPlanSchema = z.object({
   paramId: z.string().describe('EParams key like kParamGain'),
   label: z.string().nullable().describe('Optional label'),
   color: z.enum(['cyan', 'magenta', 'green', 'orange']).nullable().describe('Knob color theme'),
+  size: z.enum(['small', 'medium']).nullable().describe('Knob size - use "small" inside TabbedPanel tabs'),
 });
 
 export const DropdownPlanSchema = z.object({
@@ -47,12 +48,18 @@ export const ADSRDisplayPlanSchema = z.object({
   sustainParam: z.string().describe('EParams key for sustain'),
   releaseParam: z.string().describe('EParams key for release'),
   label: z.string().nullable().describe('Optional label'),
+  height: z.number().nullable().describe('Display height in pixels (default 120, use reduced height inside tabs)'),
 });
 
 export const WaveSelectorPlanSchema = z.object({
   paramId: z.string().describe('EParams key for waveform selection (enum parameter)'),
   label: z.string().nullable().describe('Optional label'),
+  height: z.number().nullable().describe('Display height in pixels (default 120, use reduced height inside tabs)'),
 });
+
+// =============================================================================
+// Layout Schemas
+// =============================================================================
 
 export const SectionPlanSchema = z.object({
   title: z.string().describe('Section title'),
@@ -64,4 +71,14 @@ export const SectionPlanSchema = z.object({
 export const SubGroupPlanSchema = z.object({
   title: z.string().nullable().describe('Optional group title'),
   layout: z.enum(['row', 'grid-2', 'grid-3', 'grid-4']).nullable().describe('Layout mode'),
+});
+
+
+// TabbedPanel props - children added to each tab in schemas.ts
+export const TabbedPanelPlanSchema = z.object({
+  tabs: z.array(z.object({
+    title: z.string().describe('Tab title like "OSC 1" or "LFO 1"'),
+    color: z.enum(['cyan', 'magenta', 'green', 'orange', 'purple', 'yellow']).describe('Tab color theme'),
+  })),
+  defaultTab: z.number().nullable().describe('Default active tab index (0-based)'),
 });
