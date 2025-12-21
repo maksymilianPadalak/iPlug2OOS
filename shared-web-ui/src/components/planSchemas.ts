@@ -78,7 +78,7 @@ export const SubGroupPlanSchema = z.object({
 export const TabbedPanelPlanSchema = z.object({
   tabs: z.array(z.object({
     title: z.string().describe('Tab title like "OSC 1" or "LFO 1"'),
-    color: z.enum(['cyan', 'magenta', 'green', 'orange', 'purple', 'yellow']).describe('Tab color theme'),
+    color: z.enum(['cyan', 'magenta', 'green', 'orange', 'purple', 'yellow']).describe('Tab LED color - EACH TAB MUST HAVE A DIFFERENT COLOR (e.g., OSC1=cyan, OSC2=purple, Filter=green)'),
   })),
   defaultTab: z.number().nullable().describe('Default active tab index (0-based)'),
 });
