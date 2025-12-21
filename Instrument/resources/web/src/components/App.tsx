@@ -67,11 +67,9 @@ export function App() {
             </div>
           </div>
 
-          {/* Fixed keyboard at bottom */}
-          <div className="flex-shrink-0 px-2 pb-2 flex justify-center">
-            <div className="w-[950px] max-w-full">
-              <KeyboardWrapper />
-            </div>
+          {/* Fixed keyboard at bottom - full width like WebControls */}
+          <div className="flex-shrink-0 px-2 pb-2">
+            <KeyboardWrapper />
           </div>
         </div>
       </BridgeProvider>
