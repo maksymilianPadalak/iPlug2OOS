@@ -40,7 +40,10 @@ const colorConfig = {
   },
 };
 
-const KNOB_SIZE = 90;
+const SIZE_CONFIG = {
+  small: { knobSize: 60, labelFont: 'text-[8px]', valueFont: 'text-[9px]', gap: 'gap-1' },
+  medium: { knobSize: 90, labelFont: 'text-[10px]', valueFont: 'text-[11px]', gap: 'gap-2' },
+};
 
 // Oval configurations for CSS animation
 // speed is degrees/second, duration = 360/speed
@@ -56,13 +59,14 @@ const ovalConfigs = [
   { rxRatio: 0.88, ryRatio: 0.58, duration: 9, direction: 'normal', opacity: 0.48, strokeWidth: 1.0, startAngle: 278 },
 ];
 
-export function Knob({ paramId, label, color = 'cyan' }: KnobProps) {
+export function Knob({ paramId, label, color = 'cyan', size = 'medium' }: KnobProps) {
   const { value, setValue, beginChange, endChange } = useParameter(paramId);
   const runtimeParameters = useRuntimeParameters();
   const [isDragging, setIsDragging] = useState(false);
   const knobRef = useRef<HTMLDivElement>(null);
 
   const colors = colorConfig[color];
+  const sizeConfig = SIZE_CONFIG[size];
 
   // Get parameter metadata for formatting
   const paramMeta = useMemo(
@@ -137,7 +141,7 @@ export function Knob({ paramId, label, color = 'cyan' }: KnobProps) {
     if (e.touches[0]) startDrag(e.touches[0].clientY, value);
   };
 
-  const svgSize = KNOB_SIZE;
+  const svgSize = sizeConfig.knobSize;
   const centerX = svgSize / 2;
   const centerY = svgSize / 2;
   const maxR = svgSize / 2 - 2;
@@ -151,7 +155,7 @@ export function Knob({ paramId, label, color = 'cyan' }: KnobProps) {
   const arcLength = circumference * 0.75;
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className={`flex flex-col items-center ${sizeConfig.gap}`}>
       {/* CSS keyframes for knob rotation - injected once */}
       <style>{`
         @keyframes knobSpin {
@@ -162,7 +166,7 @@ export function Knob({ paramId, label, color = 'cyan' }: KnobProps) {
 
       {label && (
         <label
-          className="text-[10px] font-bold uppercase tracking-[0.15em]"
+          className={`font-bold uppercase tracking-[0.15em] ${sizeConfig.labelFont}`}
           style={{ color: colors.primary, textShadow: `0 0 8px ${colors.glow}` }}
         >
           {label}
@@ -311,7 +315,7 @@ export function Knob({ paramId, label, color = 'cyan' }: KnobProps) {
       </div>
 
       <div
-        className="text-[11px] font-bold tabular-nums tracking-wider"
+        className={`font-bold tabular-nums tracking-wider ${sizeConfig.valueFont}`}
         style={{ color: colors.primary, textShadow: `0 0 6px ${colors.dim}` }}
       >
         {displayValue}

@@ -18,6 +18,7 @@ export function ADSRDisplay({
   sustainParam,
   releaseParam,
   label,
+  height: propHeight = 120,
 }: ADSRDisplayProps) {
   const { value: attack } = useParameter(attackParam);
   const { value: decay } = useParameter(decayParam);
@@ -26,7 +27,7 @@ export function ADSRDisplay({
 
   // SVG dimensions
   const width = 200;
-  const height = 120;
+  const height = propHeight;
   const padding = { top: 14, right: 12, bottom: 14, left: 12 };
   const graphWidth = width - padding.left - padding.right;
   const graphHeight = height - padding.top - padding.bottom;
@@ -161,7 +162,7 @@ export function ADSRDisplay({
         <svg
           viewBox={`0 0 ${width} ${height}`}
           className="relative w-full"
-          style={{ height: '120px' }}
+          style={{ height: `${height}px` }}
           preserveAspectRatio="none"
           shapeRendering="geometricPrecision"
         >

@@ -64,11 +64,9 @@ export function WaveSelector({
   const runtimeParameters = useRuntimeParameters();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
   const phaseRef = useRef(0);
   const ghostPhaseRef = useRef(0);
-  const [isOpen, setIsOpen] = useState(false);
   const [canvasWidth, setCanvasWidth] = useState(200);
 
   // Get options from runtimeParameters or use defaults
@@ -106,29 +104,6 @@ export function WaveSelector({
   const currentColor = WAVE_COLOR_ORDER[selectedIndex % WAVE_COLOR_ORDER.length];
   const colors = colorConfig[currentColor];
 
-  const handleSelect = useCallback(
-    (index: number) => {
-      beginChange();
-      setValue(indexToNormalized(index));
-      endChange();
-      setIsOpen(false);
-    },
-    [beginChange, setValue, endChange, indexToNormalized]
-  );
-
-  // Close dropdown on click outside
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
 
   // Track container width for responsive canvas
   useEffect(() => {
@@ -273,7 +248,7 @@ export function WaveSelector({
         </label>
       )}
 
-      {/* Waveform display */}
+      {/* Waveform display with integrated dropdown */}
       <div
         ref={containerRef}
         className="relative rounded-lg overflow-hidden w-full"
@@ -303,73 +278,56 @@ export function WaveSelector({
           className="absolute bottom-1 right-1 w-3 h-3 border-r border-b"
           style={{ borderColor: colors.dim }}
         />
-      </div>
 
-      {/* Custom dropdown */}
-      <div ref={dropdownRef} className="relative">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-md transition-all"
+        {/* Wave selector with arrows */}
+        <div
+          className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2 px-2 py-1 rounded-full"
           style={{
-            backgroundColor: 'rgba(10, 10, 20, 0.8)',
+            backgroundColor: 'rgba(5, 5, 15, 0.85)',
             border: `1px solid ${colors.dim}`,
-            color: colors.primary,
-            boxShadow: isOpen ? `0 0 10px ${colors.glow}` : 'none',
           }}
         >
-          <span className="text-[11px] font-bold uppercase tracking-wider min-w-[60px]">
+          <button
+            onClick={() => {
+              const newIndex = (selectedIndex - 1 + options.length) % options.length;
+              beginChange();
+              setValue(indexToNormalized(newIndex));
+              endChange();
+            }}
+            className="p-0.5 rounded transition-all hover:scale-125"
+            style={{ color: colors.primary, opacity: 0.6 }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; }}
+          >
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+              <path d="M8 2L4 6L8 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+
+          <span
+            className="text-[9px] font-bold uppercase tracking-wider min-w-[50px] text-center"
+            style={{ color: colors.primary }}
+          >
             {selectedWave}
           </span>
-          <svg
-            width="10"
-            height="6"
-            viewBox="0 0 10 6"
-            fill="none"
-            style={{
-              transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-              transition: 'transform 0.2s ease',
-            }}
-          >
-            <path d="M1 1L5 5L9 1" stroke={colors.primary} strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        </button>
 
-        {/* Dropdown menu */}
-        {isOpen && (
-          <div
-            className="absolute top-full left-0 right-0 mt-1 rounded-md overflow-hidden z-50"
-            style={{
-              backgroundColor: 'rgba(5, 5, 10, 0.98)',
-              border: `1px solid ${colors.dim}`,
-              boxShadow: `0 4px 20px rgba(0,0,0,0.7)`,
+          <button
+            onClick={() => {
+              const newIndex = (selectedIndex + 1) % options.length;
+              beginChange();
+              setValue(indexToNormalized(newIndex));
+              endChange();
             }}
+            className="p-0.5 rounded transition-all hover:scale-125"
+            style={{ color: colors.primary, opacity: 0.6 }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; }}
           >
-            {options.map((wave, index) => {
-              // Each option gets its own color - always full brightness
-              const optionColor = colorConfig[WAVE_COLOR_ORDER[index % WAVE_COLOR_ORDER.length]];
-              const isSelected = index === selectedIndex;
-              return (
-                <button
-                  key={wave}
-                  onClick={() => handleSelect(index)}
-                  className="w-full px-3 py-2 text-left transition-all"
-                  style={{
-                    backgroundColor: isSelected ? `${optionColor.primary}30` : 'transparent',
-                    color: optionColor.primary,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = `${optionColor.primary}25`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = isSelected ? `${optionColor.primary}30` : 'transparent';
-                  }}
-                >
-                  <span className="text-[12px] font-bold uppercase tracking-wider">{wave}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+              <path d="M4 2L8 6L4 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );
