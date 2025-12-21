@@ -15,9 +15,11 @@ using namespace iplug;
 namespace q = cycfi::q;
 using namespace q::literals;
 
-// VOICE_CONFIG_START (DO NOT DELETE - used by build system to extract voice definitions)
+// VOICE_CONFIG_START (do not remove this marker)
+// LLM: Add, modify, or remove voice definitions here. Keep them between the markers.
+// Format: constexpr int kMidiNote<Name> = <midiNote>;
 constexpr int kMidiNoteKick = 48;
-// VOICE_CONFIG_END
+// VOICE_CONFIG_END (do not remove this marker)
 
 //==============================================================================
 // Kick Voice - Sine oscillator with pitch envelope
