@@ -40,7 +40,7 @@
 					<key>sandboxSafe</key>
 					<true/>
 					<key>subtype</key>
-					<string>9c0G</string>
+					<string>Dm1X</string>
 					<key>tags</key>
 					<array>
 						<string>Synth</string>
@@ -55,7 +55,7 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.AudioUnit-UI</string>
 		<key>NSExtensionPrincipalClass</key>
-		<string>IPlugAUViewController_vDrumMachine</string>
+		<string>IPlugAUViewController_vTemplateProject</string>
 	</dict>
 </dict>
 </plist>
