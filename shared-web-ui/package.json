@@ -15,6 +15,8 @@
     "./components/Dropdown": "./src/components/Dropdown.tsx",
     "./components/PianoKeyboard": "./src/components/PianoKeyboard.tsx",
     "./components/KeyboardSection": "./src/components/KeyboardSection.tsx",
+    "./components/DrumPads": "./src/components/DrumPads.tsx",
+    "./components/StepSequencer": "./src/components/StepSequencer.tsx",
     "./components/WebControls": "./src/components/WebControls.tsx",
     "./components/Title": "./src/components/Title.tsx",
     "./components/TestToneButton": "./src/components/TestToneButton.tsx",
