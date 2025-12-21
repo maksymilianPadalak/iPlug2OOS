@@ -13,38 +13,11 @@ enum EParams
   // Master
   kParamGain = 0,
 
-  // Kick (MIDI note 36 / C1)
+  // Kick (MIDI note 48 / C3)
   kParamKickPitchStart,
   kParamKickPitchEnd,
   kParamKickPitchDecay,
   kParamKickAmpDecay,
-
-  // Snare (MIDI note 38 / D1)
-  kParamSnareFilterFreq,
-  kParamSnareFilterQ,
-  kParamSnareNoiseDecay,
-  kParamSnareBodyMix,
-
-  // HiHat (MIDI note 42 closed, 46 open)
-  kParamHiHatFilterFreq,
-  kParamHiHatClosedDecay,
-  kParamHiHatOpenDecay,
-
-  // Tom (MIDI note 45 / A1)
-  kParamTomPitchStart,
-  kParamTomPitchEnd,
-  kParamTomPitchDecay,
-  kParamTomAmpDecay,
-
-  // Clap (MIDI note 39 / D#1)
-  kParamClapFilterFreq,
-  kParamClapDecay,
-  kParamClapSpread,
-
-  // Rim (MIDI note 37 / C#1)
-  kParamRimPitch,
-  kParamRimDecay,
-  kParamRimClick,
 
   kNumParams
 };
