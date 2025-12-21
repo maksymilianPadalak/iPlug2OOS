@@ -1,7 +1,7 @@
 /**
  * Plugin Body - DrumMachine
  *
- * Synthesized drum machine with 6 drum voices: Kick, Snare, HiHat, Tom, Clap, Rim
+ * Synthesized drum machine with Kick voice
  */
 
 import { Section } from 'sharedUi/components/Section';
@@ -10,6 +10,7 @@ import { GridFoundation } from 'sharedUi/components/GridFoundation';
 import { Title } from 'sharedUi/components/Title';
 import { Knob } from 'sharedUi/components/Knob';
 import { Meter } from 'sharedUi/components/Meter';
+import { VoiceCard } from 'sharedUi/components/VoiceCard';
 import { EParams } from '@/config/runtimeParameters';
 
 export function PluginBody() {
@@ -49,62 +50,15 @@ export function PluginBody() {
             </SubGroup>
           </Section>
 
-          {/* Kick Section */}
-          <Section title="Kick" size="wide">
+                    {/* Kick Section - C3 (48) */}
+          <VoiceCard title="Kick" icon="decay" triggerId={48} color="orange">
             <SubGroup layout="grid-4">
               <Knob paramId={EParams.kParamKickPitchStart} label="Start" color="orange" />
               <Knob paramId={EParams.kParamKickPitchEnd} label="End" color="orange" />
               <Knob paramId={EParams.kParamKickPitchDecay} label="P.Decay" color="orange" />
               <Knob paramId={EParams.kParamKickAmpDecay} label="A.Decay" color="orange" />
             </SubGroup>
-          </Section>
-
-          {/* Snare Section */}
-          <Section title="Snare" size="wide">
-            <SubGroup layout="grid-4">
-              <Knob paramId={EParams.kParamSnareFilterFreq} label="Filter" color="cyan" />
-              <Knob paramId={EParams.kParamSnareFilterQ} label="Q" color="cyan" />
-              <Knob paramId={EParams.kParamSnareNoiseDecay} label="Decay" color="cyan" />
-              <Knob paramId={EParams.kParamSnareBodyMix} label="Body" color="cyan" />
-            </SubGroup>
-          </Section>
-
-          {/* HiHat Section */}
-          <Section title="HiHat" size="wide">
-            <SubGroup layout="grid-3">
-              <Knob paramId={EParams.kParamHiHatFilterFreq} label="Tone" color="orange" />
-              <Knob paramId={EParams.kParamHiHatClosedDecay} label="Closed" color="orange" />
-              <Knob paramId={EParams.kParamHiHatOpenDecay} label="Open" color="orange" />
-            </SubGroup>
-          </Section>
-
-          {/* Tom Section */}
-          <Section title="Tom" size="wide">
-            <SubGroup layout="grid-4">
-              <Knob paramId={EParams.kParamTomPitchStart} label="Start" color="green" />
-              <Knob paramId={EParams.kParamTomPitchEnd} label="End" color="green" />
-              <Knob paramId={EParams.kParamTomPitchDecay} label="P.Decay" color="green" />
-              <Knob paramId={EParams.kParamTomAmpDecay} label="A.Decay" color="green" />
-            </SubGroup>
-          </Section>
-
-          {/* Clap Section */}
-          <Section title="Clap" size="wide">
-            <SubGroup layout="grid-3">
-              <Knob paramId={EParams.kParamClapFilterFreq} label="Filter" color="magenta" />
-              <Knob paramId={EParams.kParamClapDecay} label="Decay" color="magenta" />
-              <Knob paramId={EParams.kParamClapSpread} label="Spread" color="magenta" />
-            </SubGroup>
-          </Section>
-
-          {/* Rim Section */}
-          <Section title="Rim" size="wide">
-            <SubGroup layout="grid-3">
-              <Knob paramId={EParams.kParamRimPitch} label="Pitch" color="cyan" />
-              <Knob paramId={EParams.kParamRimDecay} label="Decay" color="cyan" />
-              <Knob paramId={EParams.kParamRimClick} label="Click" color="cyan" />
-            </SubGroup>
-          </Section>
+          </VoiceCard>
         </GridFoundation>
       </div>
     </div>
