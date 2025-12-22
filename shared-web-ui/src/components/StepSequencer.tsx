@@ -3,7 +3,7 @@
  *
  * 16-step drum sequencer with transport controls.
  * Uses Web Worker for timing to avoid main thread jank.
- * Accepts voiceConfig prop for dynamic track configuration.
+ * Futuristic holographic LED pad design.
  */
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
@@ -11,30 +11,89 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 const NUM_STEPS = 16;
 const DEFAULT_BPM = 120;
 
-type DrumColor = 'cyan' | 'magenta' | 'green' | 'orange';
+type DrumColor = 'orange' | 'cyan' | 'magenta' | 'green';
 
-const COLOR_STYLES: Record<DrumColor, { active: string; inactive: string; playing: string }> = {
+// Subtle color definitions - matching the dark plugin aesthetic
+const COLORS: Record<DrumColor, {
+  rgb: string;
+  active: string;
+  inactive: string;
+  border: string;
+  activeBorder: string;
+  glow: string;
+  text: string;
+}> = {
   orange: {
-    active: 'bg-orange-500 border-orange-400 shadow-[0_0_8px_rgba(255,165,0,0.6)]',
-    inactive: 'bg-orange-950/30 border-orange-800/40 hover:bg-orange-900/40',
-    playing: 'bg-orange-400 border-orange-300 shadow-[0_0_12px_rgba(255,165,0,0.8)]',
+    rgb: '251, 146, 60',
+    active: 'rgba(251, 146, 60, 0.5)',
+    inactive: 'rgba(251, 146, 60, 0.08)',
+    border: 'rgba(251, 146, 60, 0.2)',
+    activeBorder: 'rgba(251, 146, 60, 0.7)',
+    glow: '0 0 12px rgba(251,146,60,0.5)',
+    text: 'rgb(251, 146, 60)',
   },
   cyan: {
-    active: 'bg-cyan-500 border-cyan-400 shadow-[0_0_8px_rgba(0,255,255,0.6)]',
-    inactive: 'bg-cyan-950/30 border-cyan-800/40 hover:bg-cyan-900/40',
-    playing: 'bg-cyan-400 border-cyan-300 shadow-[0_0_12px_rgba(0,255,255,0.8)]',
+    rgb: '34, 211, 238',
+    active: 'rgba(34, 211, 238, 0.5)',
+    inactive: 'rgba(34, 211, 238, 0.08)',
+    border: 'rgba(34, 211, 238, 0.2)',
+    activeBorder: 'rgba(34, 211, 238, 0.7)',
+    glow: '0 0 12px rgba(34,211,238,0.5)',
+    text: 'rgb(34, 211, 238)',
   },
   magenta: {
-    active: 'bg-pink-500 border-pink-400 shadow-[0_0_8px_rgba(255,0,128,0.6)]',
-    inactive: 'bg-pink-950/30 border-pink-800/40 hover:bg-pink-900/40',
-    playing: 'bg-pink-400 border-pink-300 shadow-[0_0_12px_rgba(255,0,128,0.8)]',
+    rgb: '236, 72, 153',
+    active: 'rgba(236, 72, 153, 0.5)',
+    inactive: 'rgba(236, 72, 153, 0.08)',
+    border: 'rgba(236, 72, 153, 0.2)',
+    activeBorder: 'rgba(236, 72, 153, 0.7)',
+    glow: '0 0 12px rgba(236,72,153,0.5)',
+    text: 'rgb(236, 72, 153)',
   },
   green: {
-    active: 'bg-green-500 border-green-400 shadow-[0_0_8px_rgba(0,255,100,0.6)]',
-    inactive: 'bg-green-950/30 border-green-800/40 hover:bg-green-900/40',
-    playing: 'bg-green-400 border-green-300 shadow-[0_0_12px_rgba(0,255,100,0.8)]',
+    rgb: '74, 222, 128',
+    active: 'rgba(74, 222, 128, 0.5)',
+    inactive: 'rgba(74, 222, 128, 0.08)',
+    border: 'rgba(74, 222, 128, 0.2)',
+    activeBorder: 'rgba(74, 222, 128, 0.7)',
+    glow: '0 0 12px rgba(74,222,128,0.5)',
+    text: 'rgb(74, 222, 128)',
   },
 };
+
+// Must match VoiceCard colors in PluginBody: Kick=orange, Snare=magenta, HiHat=green, Clap=orange, Tom=cyan, Rim=magenta
+const VOICE_COLORS: DrumColor[] = ['orange', 'magenta', 'green', 'orange', 'cyan', 'magenta'];
+
+// Simple CSS - minimal animations matching plugin style
+const SEQUENCER_STYLES = `
+  @keyframes seq-trigger {
+    0% { filter: brightness(1.8); }
+    100% { filter: brightness(1); }
+  }
+
+  .seq-step {
+    cursor: pointer;
+    transition: border-color 0.1s, background 0.1s;
+  }
+
+  .seq-step:hover {
+    filter: brightness(1.3);
+  }
+
+  .seq-step-triggered {
+    animation: seq-trigger 0.12s ease-out;
+  }
+
+  /* Hide default number input spinners */
+  .seq-bpm-input::-webkit-outer-spin-button,
+  .seq-bpm-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .seq-bpm-input {
+    -moz-appearance: textfield;
+  }
+`;
 
 // Inline worker code - runs on separate thread
 const workerCode = `
@@ -139,14 +198,10 @@ function createWorker(): { worker: Worker; blobUrl: string } {
   return { worker: new Worker(blobUrl), blobUrl };
 }
 
-// Voice configuration type (matches runtimeParameters.ts - no color, UI assigns it)
 export type VoiceConfig = {
   name: string;
   midiNote: number;
 };
-
-// Colors assigned by UI in order
-const VOICE_COLORS: DrumColor[] = ['orange', 'cyan', 'magenta', 'green'];
 
 export type StepSequencerProps = {
   voiceConfig: VoiceConfig[];
@@ -155,7 +210,6 @@ export type StepSequencerProps = {
 };
 
 export function StepSequencer({ voiceConfig, onNoteOn, onNoteOff }: StepSequencerProps) {
-  // Derive tracks from voiceConfig, assigning colors by index
   const tracks = useMemo(() =>
     voiceConfig.map((v, i) => ({
       name: v.name,
@@ -189,7 +243,6 @@ export function StepSequencer({ voiceConfig, onNoteOn, onNoteOff }: StepSequence
     workerRef.current?.postMessage({ type: 'updateNotes', notes: drumNotes });
   }, [tracks, drumNotes]);
 
-  // Keep refs in sync
   useEffect(() => {
     patternRef.current = pattern;
     workerRef.current?.postMessage({ type: 'updatePattern', pattern });
@@ -200,7 +253,6 @@ export function StepSequencer({ voiceConfig, onNoteOn, onNoteOff }: StepSequence
     workerRef.current?.postMessage({ type: 'updateBpm', bpm });
   }, [bpm]);
 
-  // Keep callback refs in sync (avoids worker recreation)
   useEffect(() => {
     onNoteOnRef.current = onNoteOn;
   }, [onNoteOn]);
@@ -209,20 +261,18 @@ export function StepSequencer({ voiceConfig, onNoteOn, onNoteOff }: StepSequence
     onNoteOffRef.current = onNoteOff;
   }, [onNoteOff]);
 
-  // Initialize worker once on mount
+  // Initialize worker
   useEffect(() => {
     const { worker, blobUrl } = createWorker();
     workerRef.current = worker;
     blobUrlRef.current = blobUrl;
 
-    // Handle messages from worker
     worker.onmessage = (event) => {
       const message = event.data;
 
       if (message.type === 'tick') {
         setCurrentStep(message.step);
 
-        // Trigger all notes for this step (use refs to avoid stale closures)
         message.notes.forEach((note: number) => {
           onNoteOnRef.current(note, 127);
           setTimeout(() => {
@@ -236,14 +286,23 @@ export function StepSequencer({ voiceConfig, onNoteOn, onNoteOff }: StepSequence
 
     return () => {
       worker.terminate();
-      // Revoke blob URL to prevent memory leak
       if (blobUrlRef.current) {
         URL.revokeObjectURL(blobUrlRef.current);
       }
     };
-  }, []); // Empty deps - worker created once on mount
+  }, []);
 
-  // Toggle a step in the pattern
+  // Inject CSS
+  useEffect(() => {
+    const styleId = 'seq-styles-v2';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = SEQUENCER_STYLES;
+      document.head.appendChild(style);
+    }
+  }, []);
+
   const toggleStep = useCallback((trackIndex: number, stepIndex: number) => {
     setPattern(prev => {
       const newPattern = prev.map(row => [...row]);
@@ -252,7 +311,6 @@ export function StepSequencer({ voiceConfig, onNoteOn, onNoteOff }: StepSequence
     });
   }, []);
 
-  // Start playback
   const startPlayback = useCallback(() => {
     setIsPlaying(true);
     workerRef.current?.postMessage({
@@ -263,13 +321,11 @@ export function StepSequencer({ voiceConfig, onNoteOn, onNoteOff }: StepSequence
     });
   }, []);
 
-  // Stop playback
   const stopPlayback = useCallback(() => {
     setIsPlaying(false);
     workerRef.current?.postMessage({ type: 'stop' });
   }, []);
 
-  // Toggle play/stop
   const togglePlay = useCallback(() => {
     if (isPlaying) {
       stopPlayback();
@@ -278,58 +334,90 @@ export function StepSequencer({ voiceConfig, onNoteOn, onNoteOff }: StepSequence
     }
   }, [isPlaying, startPlayback, stopPlayback]);
 
-  // Clear pattern
   const clearPattern = useCallback(() => {
     setPattern(tracks.map(() => Array(NUM_STEPS).fill(false)));
   }, [tracks]);
 
-  // Don't render if no voices configured
   if (tracks.length === 0) {
     return null;
   }
 
   return (
-    <div className="bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] rounded-2xl p-4 border border-pink-500/30">
-      {/* Header with transport controls */}
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-4">
+    <div
+      className="relative rounded-lg overflow-hidden"
+      style={{
+        backgroundColor: '#080508',
+        backgroundImage: `
+          linear-gradient(rgba(255,0,128,0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,0,128,0.03) 1px, transparent 1px)
+        `,
+        backgroundSize: '24px 24px',
+        boxShadow: 'inset 0 1px 2px rgba(255,0,128,0.05), inset 0 -1px 2px rgba(0,0,0,0.5)',
+      }}
+    >
+      {/* Corner accents - matching plugin style */}
+      <div className="absolute top-1.5 left-1.5 w-4 h-4 border-l border-t border-pink-500/40" />
+      <div className="absolute top-1.5 right-1.5 w-4 h-4 border-r border-t border-pink-500/40" />
+      <div className="absolute bottom-1.5 left-1.5 w-4 h-4 border-l border-b border-pink-500/40" />
+      <div className="absolute bottom-1.5 right-1.5 w-4 h-4 border-r border-b border-pink-500/40" />
+
+      {/* Header */}
+      <div className="flex justify-between items-center pl-4 pr-8 py-3">
+        <div className="flex items-center gap-2">
           <div className="flex gap-0.5">
-            <div className="w-0.5 h-4 bg-gradient-to-b from-pink-500 to-pink-700 rounded-full" />
-            <div className="w-0.5 h-3 bg-gradient-to-b from-pink-500 to-pink-700 rounded-full mt-0.5" />
+            <div className="w-0.5 h-4 bg-pink-500 rounded-full" />
+            <div className="w-0.5 h-3 bg-pink-500/60 rounded-full mt-0.5" />
           </div>
-          <h3 className="text-pink-200 text-xs font-bold uppercase tracking-[0.2em]">Step Sequencer</h3>
+          <span className="text-xs font-bold uppercase tracking-[0.15em] text-pink-500">
+            Step Sequencer
+          </span>
         </div>
 
-        {/* Transport controls */}
+        {/* Transport */}
         <div className="flex items-center gap-3">
-          {/* BPM control */}
-          <div className="flex items-center gap-2">
-            <span className="text-pink-500/60 text-[10px] font-mono uppercase">BPM</span>
+          <span className="text-[11px] text-pink-500/50 uppercase tracking-wider">BPM</span>
+          <div className="flex items-stretch h-8">
             <input
               type="number"
               value={bpm}
               onChange={(e) => setBpm(Math.max(40, Math.min(300, parseInt(e.target.value) || DEFAULT_BPM)))}
-              className="w-14 bg-black/50 border border-pink-500/30 rounded px-2 py-1 text-xs text-pink-200 font-mono text-center"
+              className="seq-bpm-input w-14 bg-black/50 border border-pink-500/30 rounded-l px-2 text-sm text-pink-200 font-mono text-center focus:outline-none focus:border-pink-500/60"
               min={40}
               max={300}
             />
+            <div className="flex flex-col border border-l-0 border-pink-500/30 rounded-r overflow-hidden">
+              <button
+                onClick={() => setBpm(prev => Math.min(300, prev + 1))}
+                className="flex-1 px-1.5 bg-black/50 text-pink-500/60 hover:bg-pink-500/20 hover:text-pink-400 transition-colors flex items-center justify-center"
+              >
+                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setBpm(prev => Math.max(40, prev - 1))}
+                className="flex-1 px-1.5 bg-black/50 text-pink-500/60 hover:bg-pink-500/20 hover:text-pink-400 transition-colors border-t border-pink-500/30 flex items-center justify-center"
+              >
+                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
           </div>
 
-          {/* Clear button */}
           <button
             onClick={clearPattern}
-            className="px-3 py-1.5 bg-pink-950/50 border border-pink-500/30 rounded text-pink-300 text-xs font-bold uppercase tracking-wider hover:bg-pink-900/50 transition-colors"
+            className="px-4 py-1.5 border border-pink-500/30 rounded text-pink-400/70 text-[11px] font-bold uppercase tracking-wider hover:border-pink-500/50 hover:text-pink-300 transition-colors"
           >
             Clear
           </button>
 
-          {/* Play/Stop button */}
           <button
             onClick={togglePlay}
-            className={`px-4 py-1.5 rounded text-xs font-bold uppercase tracking-wider transition-all ${
+            className={`px-5 py-1.5 rounded text-[11px] font-bold uppercase tracking-wider transition-all ${
               isPlaying
-                ? 'bg-pink-500 text-white shadow-[0_0_15px_rgba(255,0,128,0.5)]'
-                : 'bg-pink-950/50 border border-pink-500/30 text-pink-300 hover:bg-pink-900/50'
+                ? 'bg-pink-500 text-white shadow-[0_0_15px_rgba(236,72,153,0.5)]'
+                : 'border border-pink-500/30 text-pink-400/70 hover:border-pink-500/50 hover:text-pink-300'
             }`}
           >
             {isPlaying ? 'Stop' : 'Play'}
@@ -337,72 +425,86 @@ export function StepSequencer({ voiceConfig, onNoteOn, onNoteOff }: StepSequence
         </div>
       </div>
 
-      {/* Step indicators */}
-      <div className="flex mb-2 ml-16">
-        {Array.from({ length: NUM_STEPS }, (_, i) => (
-          <div
-            key={`indicator-${i}`}
-            className={`w-6 h-1.5 mx-0.5 rounded-full transition-all ${
-              currentStep === i && isPlaying
-                ? 'bg-pink-400 shadow-[0_0_8px_rgba(255,0,128,0.8)]'
-                : i % 4 === 0
-                  ? 'bg-pink-800/60'
-                  : 'bg-pink-950/40'
-            }`}
-          />
-        ))}
-      </div>
-
-      {/* Sequencer grid */}
-      <div className="space-y-1">
-        {tracks.map((track, trackIndex) => {
-          const colorStyle = COLOR_STYLES[track.color];
-          return (
-            <div key={track.name} className="flex items-center gap-2">
-              {/* Track label */}
-              <div className="w-14 text-right">
-                <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">
-                  {track.name}
-                </span>
+      {/* Grid */}
+      <div className="px-4 pb-4">
+        {/* Step numbers */}
+        <div className="flex mb-1.5 ml-14 pr-4">
+          {Array.from({ length: NUM_STEPS }, (_, i) => {
+            const isPlayhead = isPlaying && currentStep === i;
+            return (
+              <div
+                key={i}
+                className={`flex-1 text-center text-[10px] font-mono transition-colors ${
+                  isPlayhead ? 'text-pink-400' : 'text-pink-500/40'
+                } ${i % 4 === 0 && i !== 0 ? 'ml-1.5' : ''}`}
+                style={{ minWidth: 0 }}
+              >
+                {i + 1}
               </div>
+            );
+          })}
+        </div>
 
-              {/* Steps */}
-              <div className="flex gap-1">
-                {Array.from({ length: NUM_STEPS }, (_, stepIndex) => {
-                  const isActive = pattern[trackIndex]?.[stepIndex] ?? false;
-                  const isCurrentlyPlaying = isPlaying && currentStep === stepIndex && isActive;
-                  const isBeatStart = stepIndex % 4 === 0;
+        {/* Tracks */}
+        <div className="space-y-1.5">
+          {tracks.map((track, trackIndex) => {
+            const color = COLORS[track.color];
+            return (
+              <div key={track.name} className="flex items-center">
+                {/* Label */}
+                <div className="w-14 text-right pr-2 flex-shrink-0">
+                  <span
+                    className="text-[11px] font-bold uppercase tracking-wide"
+                    style={{ color: color.text }}
+                  >
+                    {track.name}
+                  </span>
+                </div>
 
-                  return (
-                    <button
-                      key={`${trackIndex}-${stepIndex}`}
-                      onClick={() => toggleStep(trackIndex, stepIndex)}
-                      className={`
-                        w-6 h-8 rounded border transition-all
-                        ${isCurrentlyPlaying
-                          ? colorStyle.playing
-                          : isActive
-                            ? colorStyle.active
-                            : colorStyle.inactive
-                        }
-                        ${isBeatStart ? 'ml-1' : ''}
-                      `}
-                    />
-                  );
-                })}
+                {/* Steps */}
+                <div className="flex-1 flex pr-4">
+                  {Array.from({ length: NUM_STEPS }, (_, stepIndex) => {
+                    const isActive = pattern[trackIndex]?.[stepIndex] ?? false;
+                    const isPlayhead = isPlaying && currentStep === stepIndex;
+                    const isTriggered = isPlayhead && isActive;
+                    const isBeatStart = stepIndex % 4 === 0 && stepIndex !== 0;
+
+                    return (
+                      <button
+                        key={stepIndex}
+                        onClick={() => toggleStep(trackIndex, stepIndex)}
+                        className={`
+                          seq-step flex-1 h-7 rounded-sm
+                          ${isTriggered ? 'seq-step-triggered' : ''}
+                          ${isBeatStart ? 'ml-1.5' : 'ml-0.5'}
+                        `}
+                        style={{
+                          minWidth: 0,
+                          background: isActive ? color.active : color.inactive,
+                          border: `1px solid ${isActive ? color.activeBorder : color.border}`,
+                          boxShadow: isActive ? color.glow : 'none',
+                        }}
+                      />
+                    );
+                  })}
+                </div>
               </div>
+            );
+          })}
+        </div>
+
+        {/* Beat markers */}
+        <div className="flex mt-2 ml-14 pr-4">
+          {[1, 2, 3, 4].map((beat, i) => (
+            <div
+              key={beat}
+              className={`flex-1 text-center text-[10px] font-mono text-pink-500/30 ${i > 0 ? 'ml-1.5' : ''}`}
+              style={{ minWidth: 0 }}
+            >
+              {beat}
             </div>
-          );
-        })}
-      </div>
-
-      {/* Beat markers */}
-      <div className="flex mt-2 ml-16 text-[9px] text-pink-500/40 font-mono">
-        {[1, 2, 3, 4].map((beat) => (
-          <div key={beat} className="w-[116px] text-center">
-            {beat}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
