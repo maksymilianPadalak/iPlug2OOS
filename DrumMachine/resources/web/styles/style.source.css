@@ -1,4 +1,4 @@
-@import '../../../shared-web-ui/styles/shared.css';
+@import '../../../../shared-web-ui/styles/shared.css';
 
 @tailwind base;
 @tailwind components;

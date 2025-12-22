@@ -8,6 +8,11 @@ module.exports = {
     "./scripts/**/*.{js,jsx}",
     "./index.html",
     "../../../shared-web-ui/src/**/*.{js,jsx,ts,tsx}",
+    "../../../shared-web-ui/styles/**/*.css",
+  ],
+  safelist: [
+    'trigger-indicator',
+    'triggered',
   ],
   theme: {
     extend: {
