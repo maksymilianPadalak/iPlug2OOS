@@ -3,20 +3,10 @@
  *
  * 16-step drum sequencer with transport controls.
  * Uses Web Worker for timing to avoid main thread jank.
+ * Accepts voiceConfig prop for dynamic track configuration.
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-
-// GM Standard drum note mapping
-const DRUM_TRACKS = [
-  { name: 'KICK', note: 36, color: 'orange' },
-  { name: 'SNARE', note: 38, color: 'cyan' },
-  { name: 'HH-C', note: 42, color: 'orange' },
-  { name: 'HH-O', note: 46, color: 'orange' },
-  { name: 'CLAP', note: 39, color: 'magenta' },
-  { name: 'TOM', note: 45, color: 'green' },
-  { name: 'RIM', note: 37, color: 'cyan' },
-] as const;
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 
 const NUM_STEPS = 16;
 const DEFAULT_BPM = 120;
@@ -55,10 +45,9 @@ let isPlaying = false;
 let currentStep = 0;
 let bpm = 120;
 let pattern = [];
+let drumNotes = [];
 let nextStepTime = 0;
 let intervalId = null;
-
-const DRUM_NOTES = [36, 38, 42, 46, 39, 45, 37];
 
 function getStepDurationMs() {
   return (60 / bpm / 4) * 1000;
@@ -73,8 +62,8 @@ function scheduler() {
     const notesToTrigger = [];
 
     pattern.forEach((track, trackIndex) => {
-      if (track[currentStep]) {
-        notesToTrigger.push(DRUM_NOTES[trackIndex]);
+      if (track[currentStep] && drumNotes[trackIndex] !== undefined) {
+        notesToTrigger.push(drumNotes[trackIndex]);
       }
     });
 
@@ -93,9 +82,10 @@ function scheduler() {
   }
 }
 
-function start(initialBpm, initialPattern) {
+function start(initialBpm, initialPattern, notes) {
   bpm = initialBpm;
   pattern = initialPattern;
+  drumNotes = notes;
   currentStep = 0;
   nextStepTime = performance.now();
   isPlaying = true;
@@ -125,7 +115,7 @@ self.onmessage = (event) => {
 
   switch (message.type) {
     case 'start':
-      start(message.bpm, message.pattern);
+      start(message.bpm, message.pattern, message.notes);
       break;
     case 'stop':
       stop();
@@ -135,6 +125,9 @@ self.onmessage = (event) => {
       break;
     case 'updateBpm':
       bpm = message.bpm;
+      break;
+    case 'updateNotes':
+      drumNotes = message.notes;
       break;
   }
 };
@@ -146,14 +139,36 @@ function createWorker(): { worker: Worker; blobUrl: string } {
   return { worker: new Worker(blobUrl), blobUrl };
 }
 
+// Voice configuration type (matches runtimeParameters.ts - no color, UI assigns it)
+export type VoiceConfig = {
+  name: string;
+  midiNote: number;
+};
+
+// Colors assigned by UI in order
+const VOICE_COLORS: DrumColor[] = ['orange', 'cyan', 'magenta', 'green'];
+
 export type StepSequencerProps = {
+  voiceConfig: VoiceConfig[];
   onNoteOn: (noteNum: number, velocity: number) => void;
   onNoteOff: (noteNum: number, velocity: number) => void;
 };
 
-export function StepSequencer({ onNoteOn, onNoteOff }: StepSequencerProps) {
+export function StepSequencer({ voiceConfig, onNoteOn, onNoteOff }: StepSequencerProps) {
+  // Derive tracks from voiceConfig, assigning colors by index
+  const tracks = useMemo(() =>
+    voiceConfig.map((v, i) => ({
+      name: v.name,
+      note: v.midiNote,
+      color: VOICE_COLORS[i % VOICE_COLORS.length],
+    })),
+    [voiceConfig]
+  );
+
+  const drumNotes = useMemo(() => voiceConfig.map(v => v.midiNote), [voiceConfig]);
+
   const [pattern, setPattern] = useState<boolean[][]>(() =>
-    DRUM_TRACKS.map(() => Array(NUM_STEPS).fill(false))
+    tracks.map(() => Array(NUM_STEPS).fill(false))
   );
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -163,8 +178,16 @@ export function StepSequencer({ onNoteOn, onNoteOff }: StepSequencerProps) {
   const blobUrlRef = useRef<string | null>(null);
   const patternRef = useRef(pattern);
   const bpmRef = useRef(bpm);
+  const drumNotesRef = useRef(drumNotes);
   const onNoteOnRef = useRef(onNoteOn);
   const onNoteOffRef = useRef(onNoteOff);
+
+  // Reset pattern when voiceConfig changes
+  useEffect(() => {
+    setPattern(tracks.map(() => Array(NUM_STEPS).fill(false)));
+    drumNotesRef.current = drumNotes;
+    workerRef.current?.postMessage({ type: 'updateNotes', notes: drumNotes });
+  }, [tracks, drumNotes]);
 
   // Keep refs in sync
   useEffect(() => {
@@ -236,6 +259,7 @@ export function StepSequencer({ onNoteOn, onNoteOff }: StepSequencerProps) {
       type: 'start',
       bpm: bpmRef.current,
       pattern: patternRef.current,
+      notes: drumNotesRef.current,
     });
   }, []);
 
@@ -256,8 +280,13 @@ export function StepSequencer({ onNoteOn, onNoteOff }: StepSequencerProps) {
 
   // Clear pattern
   const clearPattern = useCallback(() => {
-    setPattern(DRUM_TRACKS.map(() => Array(NUM_STEPS).fill(false)));
-  }, []);
+    setPattern(tracks.map(() => Array(NUM_STEPS).fill(false)));
+  }, [tracks]);
+
+  // Don't render if no voices configured
+  if (tracks.length === 0) {
+    return null;
+  }
 
   return (
     <div className="bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] rounded-2xl p-4 border border-pink-500/30">
@@ -326,8 +355,8 @@ export function StepSequencer({ onNoteOn, onNoteOff }: StepSequencerProps) {
 
       {/* Sequencer grid */}
       <div className="space-y-1">
-        {DRUM_TRACKS.map((track, trackIndex) => {
-          const colorStyle = COLOR_STYLES[track.color as DrumColor];
+        {tracks.map((track, trackIndex) => {
+          const colorStyle = COLOR_STYLES[track.color];
           return (
             <div key={track.name} className="flex items-center gap-2">
               {/* Track label */}
@@ -340,7 +369,7 @@ export function StepSequencer({ onNoteOn, onNoteOff }: StepSequencerProps) {
               {/* Steps */}
               <div className="flex gap-1">
                 {Array.from({ length: NUM_STEPS }, (_, stepIndex) => {
-                  const isActive = pattern[trackIndex][stepIndex];
+                  const isActive = pattern[trackIndex]?.[stepIndex] ?? false;
                   const isCurrentlyPlaying = isPlaying && currentStep === stepIndex && isActive;
                   const isBeatStart = stepIndex % 4 === 0;
 

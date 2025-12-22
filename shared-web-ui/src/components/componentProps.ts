@@ -107,3 +107,13 @@ export const TabbedPanelPropsSchema = z.object({
 export type TabbedPanelProps = Omit<z.infer<typeof TabbedPanelPropsSchema>, 'tabs'> & {
   tabs: Array<z.infer<typeof TabbedPanelPropsSchema>['tabs'][number] & { content: React.ReactNode }>;
 };
+
+export const VoiceCardPropsSchema = z.object({
+  title: z.string(),
+  color: z.enum(['cyan', 'magenta', 'green', 'orange']).optional(),
+  triggerId: z.number().optional(),
+  icon: z.enum(['decay', 'burst', 'shimmer', 'resonant', 'staccato', 'spike', 'sine', 'saw', 'square', 'noise']).optional(),
+});
+export type VoiceCardProps = z.infer<typeof VoiceCardPropsSchema> & {
+  children: React.ReactNode;
+};

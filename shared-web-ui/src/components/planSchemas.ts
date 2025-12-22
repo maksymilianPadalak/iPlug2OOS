@@ -82,3 +82,10 @@ export const TabbedPanelPlanSchema = z.object({
   })),
   defaultTab: z.number().nullable().describe('Default active tab index (0-based)'),
 });
+
+export const VoiceCardPlanSchema = z.object({
+  title: z.string().describe('Voice name'),
+  color: z.enum(['cyan', 'magenta', 'green', 'orange']).nullable().describe('Card color theme'),
+  triggerId: z.number().nullable().describe('MIDI note number for trigger pulse animation'),
+  icon: z.enum(['decay', 'burst', 'shimmer', 'resonant', 'staccato', 'spike', 'sine', 'saw', 'square', 'noise']).nullable().describe('Waveform icon: decay=exponential falloff, burst=noise attack, shimmer=high-freq oscillation, resonant=pitched ring, staccato=multiple hits, spike=sharp transient, sine/saw/square/noise=standard waves'),
+});

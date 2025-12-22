@@ -28,6 +28,7 @@ import {
   SectionPlanSchema,
   SubGroupPlanSchema,
   TabbedPanelPlanSchema,
+  VoiceCardPlanSchema,
 } from './planSchemas';
 
 export const controls = {
@@ -95,5 +96,11 @@ export const layouts = {
     propsSchema: TabbedPanelPlanSchema,
     description:
       'Groups similar modules (oscillators, LFOs) into tabs with LED indicators. Use when 2+ similar parameter groups exist (Osc1/Osc2, LFO1/LFO2). Each tab contains SubGroups. Knobs inside tabs MUST use size="small". Colors: OSC1=cyan, OSC2=purple, LFO1=green, LFO2=yellow.',
+  },
+  VoiceCard: {
+    path: 'sharedUi/components/VoiceCard',
+    propsSchema: VoiceCardPlanSchema,
+    description:
+      'Card for instrument voices (drums, synth voices) with optional trigger pulse animation and waveform icon. Use for drum machines or instruments with discrete trigger-able voices. triggerId is the MIDI note number. Always spans 2 columns (col-span-2).',
   },
 } as const;

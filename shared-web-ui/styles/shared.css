@@ -56,3 +56,30 @@ body.wam-mode .wam-only {
     opacity: 0.5;
   }
 }
+
+/* Trigger pulse ring animation for VoiceCard */
+.trigger-indicator {
+  --pulse-color: rgba(0, 255, 255, 0.8);
+}
+
+.trigger-indicator.triggered {
+  animation: pulseRing 200ms ease-out forwards;
+}
+
+@keyframes pulseRing {
+  0% {
+    box-shadow:
+      0 0 0 0 var(--pulse-color),
+      0 0 8px var(--pulse-color);
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    box-shadow:
+      0 0 0 14px transparent,
+      0 0 12px var(--pulse-color);
+    transform: scale(1);
+  }
+}

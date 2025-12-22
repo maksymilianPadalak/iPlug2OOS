@@ -14,14 +14,27 @@ import { RuntimeParametersProvider } from 'sharedUi/RuntimeParametersProvider';
 import { WebControls } from 'sharedUi/components/WebControls';
 import { StepSequencer } from 'sharedUi/components/StepSequencer';
 import { sendNoteOn, sendNoteOff } from 'sharedUi/bridge';
-import { controlTags, runtimeParameters } from '@/config/runtimeParameters';
+import { trigger } from 'sharedUi/state/triggerStore';
+import { controlTags, runtimeParameters, voiceConfig } from '@/config/runtimeParameters';
 import { PluginBody } from '@/components/PluginBody';
+
+// Wrap sendNoteOn to also update trigger store for UI visualization
+function handleNoteOn(noteNumber: number, velocity: number) {
+  trigger(noteNumber);
+  sendNoteOn(noteNumber, velocity);
+}
+
+function handleNoteOff(noteNumber: number, velocity: number) {
+  // No-op for release - the shared trigger auto-releases after 100ms
+  sendNoteOff(noteNumber, velocity);
+}
 
 function StepSequencerWrapper() {
   return (
     <StepSequencer
-      onNoteOn={sendNoteOn}
-      onNoteOff={sendNoteOff}
+      voiceConfig={voiceConfig}
+      onNoteOn={handleNoteOn}
+      onNoteOff={handleNoteOff}
     />
   );
 }
