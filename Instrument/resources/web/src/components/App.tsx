@@ -68,8 +68,8 @@ export function App() {
             <div
               className="w-[950px] max-w-full rounded-lg"
               style={{
-                boxShadow: '0 0 40px rgba(0, 255, 255, 0.12), 0 0 80px rgba(0, 255, 255, 0.06), 0 0 120px rgba(0, 255, 255, 0.03)',
-                border: '1px solid rgba(0, 255, 255, 0.1)',
+                boxShadow: '0 0 40px rgba(255, 255, 255, 0.18), 0 0 80px rgba(255, 255, 255, 0.10), 0 0 120px rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
               }}
             >
               <PluginBody />
