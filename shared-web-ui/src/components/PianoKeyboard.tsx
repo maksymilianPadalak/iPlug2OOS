@@ -124,24 +124,45 @@ export function PianoKeyboard({ activeNotes, onNoteOn, onNoteOff }: PianoKeyboar
   const KEY_GAP = 2;
 
   return (
-    <div className="bg-gradient-to-b from-[#2a2a2a] to-[#1a1a1a] rounded-2xl p-4 border border-[#B8860B]/30">
+    <div
+      className="relative rounded-lg overflow-hidden"
+      style={{
+        backgroundColor: '#080508',
+        backgroundImage: `
+          linear-gradient(rgba(0,255,255,0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0,255,255,0.03) 1px, transparent 1px)
+        `,
+        backgroundSize: '24px 24px',
+        boxShadow: 'inset 0 1px 2px rgba(0,255,255,0.05), inset 0 -1px 2px rgba(0,0,0,0.5)',
+      }}
+    >
+      {/* Corner accents */}
+      <div className="absolute top-1.5 left-1.5 w-4 h-4 border-l border-t border-cyan-500/40" />
+      <div className="absolute top-1.5 right-1.5 w-4 h-4 border-r border-t border-cyan-500/40" />
+      <div className="absolute bottom-1.5 left-1.5 w-4 h-4 border-l border-b border-cyan-500/40" />
+      <div className="absolute bottom-1.5 right-1.5 w-4 h-4 border-r border-b border-cyan-500/40" />
+
       {/* Header */}
-      <div className="flex justify-between items-center mb-3">
-        <div className="flex items-center gap-4">
-          {/* Art Deco accent */}
+      <div className="flex justify-between items-center px-4 py-3">
+        <div className="flex items-center gap-2">
+          {/* Futuristic accent bars */}
           <div className="flex gap-0.5">
-            <div className="w-0.5 h-4 bg-gradient-to-b from-[#B8860B] to-[#8B6914] rounded-full" />
-            <div className="w-0.5 h-3 bg-gradient-to-b from-[#B8860B] to-[#8B6914] rounded-full mt-0.5" />
+            <div className="w-0.5 h-4 bg-cyan-500 rounded-full" />
+            <div className="w-0.5 h-3 bg-cyan-500/60 rounded-full mt-0.5" />
           </div>
-          <h3 className="text-[#E8D4B8] text-xs font-bold uppercase tracking-[0.2em]">Keyboard</h3>
+          <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-cyan-400">Keyboard</h3>
         </div>
-        <div className="text-[#B8860B]/60 text-[10px] font-mono uppercase tracking-wider">
+        <div className="text-[11px] text-cyan-500/50 uppercase tracking-wider font-mono">
           Z/X Shift Octave
         </div>
       </div>
 
       {/* Piano keys container */}
-      <div className="relative h-24 bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] rounded-xl p-2 border border-[#B8860B]/20 overflow-hidden">
+      <div className="relative h-24 mx-4 mb-4 rounded-lg p-2 overflow-hidden" style={{
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        border: '1px solid rgba(0,255,255,0.15)',
+        boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.5)',
+      }}>
         {/* Render all white keys first */}
         <div className="flex h-full">
           {displayOctaves.map((octave) => (
@@ -158,18 +179,17 @@ export function PianoKeyboard({ activeNotes, onNoteOn, onNoteOff }: PianoKeyboar
                     onMouseLeave={() => releaseNote(octave, noteOffset)}
                     onTouchStart={(e) => { e.preventDefault(); playNote(octave, noteOffset); }}
                     onTouchEnd={(e) => { e.preventDefault(); releaseNote(octave, noteOffset); }}
-                    className={`relative h-full cursor-pointer select-none rounded-b-md flex-shrink-0
-                      ${isPressed
-                        ? 'bg-gradient-to-b from-[#B8860B] to-[#8B6914]'
-                        : 'bg-gradient-to-b from-[#F5F0E6] to-[#E8DCC8]'
-                      }
-                    `}
+                    className="relative h-full cursor-pointer select-none rounded-b-md flex-shrink-0 transition-all duration-75"
                     style={{
                       width: `${WHITE_KEY_WIDTH}px`,
-                      boxShadow: isPressed
-                        ? 'inset 0 2px 4px rgba(0,0,0,0.3)'
-                        : 'inset 0 -4px 8px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.3)',
                       marginRight: '2px',
+                      background: isPressed
+                        ? 'linear-gradient(180deg, #c8c8c8 0%, #b0b0b0 100%)'
+                        : 'linear-gradient(180deg, #f8f8f8 0%, #e0e0e0 100%)',
+                      border: '1px solid rgba(180,180,180,0.4)',
+                      boxShadow: isPressed
+                        ? 'inset 0 2px 8px rgba(0,0,0,0.25), inset 0 0 4px rgba(0,0,0,0.1)'
+                        : 'inset 0 -4px 8px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.3)',
                     }}
                   />
                 );
@@ -189,17 +209,16 @@ export function PianoKeyboard({ activeNotes, onNoteOn, onNoteOff }: PianoKeyboar
                 onMouseLeave={() => releaseNote(7, 0)}
                 onTouchStart={(e) => { e.preventDefault(); playNote(7, 0); }}
                 onTouchEnd={(e) => { e.preventDefault(); releaseNote(7, 0); }}
-                className={`relative h-full cursor-pointer select-none rounded-b-md flex-shrink-0
-                  ${isPressed
-                    ? 'bg-gradient-to-b from-[#B8860B] to-[#8B6914]'
-                    : 'bg-gradient-to-b from-[#F5F0E6] to-[#E8DCC8]'
-                  }
-                `}
+                className="relative h-full cursor-pointer select-none rounded-b-md flex-shrink-0 transition-all duration-75"
                 style={{
                   width: `${WHITE_KEY_WIDTH}px`,
+                  background: isPressed
+                    ? 'linear-gradient(180deg, #c8c8c8 0%, #b0b0b0 100%)'
+                    : 'linear-gradient(180deg, #f8f8f8 0%, #e0e0e0 100%)',
+                  border: '1px solid rgba(180,180,180,0.4)',
                   boxShadow: isPressed
-                    ? 'inset 0 2px 4px rgba(0,0,0,0.3)'
-                    : 'inset 0 -4px 8px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.3)',
+                    ? 'inset 0 2px 8px rgba(0,0,0,0.25), inset 0 0 4px rgba(0,0,0,0.1)'
+                    : 'inset 0 -4px 8px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.3)',
                 }}
               />
             );
@@ -226,18 +245,17 @@ export function PianoKeyboard({ activeNotes, onNoteOn, onNoteOff }: PianoKeyboar
                   onMouseLeave={() => releaseNote(octave, noteOffset)}
                   onTouchStart={(e) => { e.preventDefault(); playNote(octave, noteOffset); }}
                   onTouchEnd={(e) => { e.preventDefault(); releaseNote(octave, noteOffset); }}
-                  className={`absolute top-2 h-14 cursor-pointer z-10 select-none rounded-b-md
-                    ${isPressed
-                      ? 'bg-gradient-to-b from-[#B8860B] to-[#5a4510]'
-                      : 'bg-gradient-to-b from-[#2a2a2a] to-[#1a1a1a]'
-                    }
-                  `}
+                  className="absolute top-2 h-14 cursor-pointer z-10 select-none rounded-b-md transition-all duration-75"
                   style={{
                     width: `${BLACK_KEY_WIDTH}px`,
                     left: `${totalOffset}px`,
+                    background: isPressed
+                      ? 'linear-gradient(180deg, #1a1a1f 0%, #0f0f12 100%)'
+                      : 'linear-gradient(180deg, #2a2a2f 0%, #1a1a1f 100%)',
+                    border: '1px solid rgba(0,0,0,0.6)',
                     boxShadow: isPressed
-                      ? 'inset 0 2px 4px rgba(0,0,0,0.5)'
-                      : '0 4px 8px rgba(0,0,0,0.5), inset 0 -2px 4px rgba(255,255,255,0.05)',
+                      ? 'inset 0 2px 6px rgba(0,0,0,0.5), inset 0 0 3px rgba(0,0,0,0.3)'
+                      : '0 4px 8px rgba(0,0,0,0.6), inset 0 -2px 4px rgba(255,255,255,0.03)',
                   }}
                 />
               );
