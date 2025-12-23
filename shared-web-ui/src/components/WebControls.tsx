@@ -37,11 +37,11 @@ export function WebControls({ audioStatus }: WebControlsProps) {
           <div className="flex justify-end">
             {audioStatus && (
               <div className="flex items-center gap-2">
-                <span className="text-[#1a1a1a]/70 text-xs font-semibold uppercase tracking-wider">
+                <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">
                   Audio
                 </span>
                 <span className={`text-xs font-bold uppercase tracking-wider ${
-                  audioStatus === 'working' ? 'text-emerald-600' : 'text-rose-600'
+                  audioStatus === 'working' ? 'text-emerald-400' : 'text-rose-400'
                 }`}>
                   {audioStatus === 'working' ? '\u2713' : '\u2717'}
                 </span>
@@ -51,7 +51,7 @@ export function WebControls({ audioStatus }: WebControlsProps) {
 
           {/* Vertical Divider - Centered */}
           <div className="flex justify-center">
-            <div className="w-px h-6 bg-[#1a1a1a]/20"></div>
+            <div className="w-px h-6 bg-white/10"></div>
           </div>
 
           {/* MIDI Controls - Left aligned */}
@@ -59,23 +59,23 @@ export function WebControls({ audioStatus }: WebControlsProps) {
             {hasMidiDevices ? (
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <label htmlFor="midiInSelect" className="text-[#1a1a1a]/70 text-xs font-semibold uppercase tracking-wider">
+                  <label htmlFor="midiInSelect" className="text-white/50 text-xs font-semibold uppercase tracking-wider">
                     In
                   </label>
                   <select
                     id="midiInSelect"
-                    className="bg-[#1a1a1a] text-[#F5F0E6] px-2 py-1 rounded text-xs focus:outline-none cursor-pointer min-w-[100px]"
+                    className="bg-white/10 border border-white/20 text-white px-2 py-1 rounded text-xs focus:outline-none cursor-pointer min-w-[100px]"
                   >
                     <option value="default">Select</option>
                   </select>
                 </div>
                 <div className="flex items-center gap-2">
-                  <label htmlFor="midiOutSelect" className="text-[#1a1a1a]/70 text-xs font-semibold uppercase tracking-wider">
+                  <label htmlFor="midiOutSelect" className="text-white/50 text-xs font-semibold uppercase tracking-wider">
                     Out
                   </label>
                   <select
                     id="midiOutSelect"
-                    className="bg-[#1a1a1a] text-[#F5F0E6] px-2 py-1 rounded text-xs focus:outline-none cursor-pointer min-w-[100px]"
+                    className="bg-white/10 border border-white/20 text-white px-2 py-1 rounded text-xs focus:outline-none cursor-pointer min-w-[100px]"
                   >
                     <option value="default">Select</option>
                   </select>
@@ -83,10 +83,10 @@ export function WebControls({ audioStatus }: WebControlsProps) {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <span className="text-[#1a1a1a]/70 text-xs font-semibold uppercase tracking-wider">
+                <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">
                   MIDI
                 </span>
-                <span className="text-[#1a1a1a]/40 text-xs">
+                <span className="text-white/30 text-xs">
                   No device
                 </span>
               </div>
@@ -96,7 +96,7 @@ export function WebControls({ audioStatus }: WebControlsProps) {
       </div>
 
       {/* Horizontal Separator - Only visible in WAM mode */}
-      <div className="wam-only border-t-2 border-[#1a1a1a]/20 mt-2 max-w-7xl mx-auto"></div>
+      <div className="wam-only border-t border-white/10 mt-2 max-w-7xl mx-auto"></div>
     </>
   );
 }

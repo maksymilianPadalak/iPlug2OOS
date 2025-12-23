@@ -54,10 +54,10 @@ export function AudioFileInput({ onFileSelected, onPlay, onStop, isPlaying, hasF
       <div className="flex gap-2">
         <button
           onClick={handleSelectFileClick}
-          className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all shadow-sm ${
+          className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all ${
             hasFile
-              ? 'bg-[#B8860B] hover:bg-[#9A7209] text-white'
-              : 'bg-[#B8860B]/20 hover:bg-[#B8860B]/40 text-[#5a4a2a] border border-[#B8860B]/40'
+              ? 'bg-cyan-500 hover:bg-cyan-600 text-white shadow-[0_0_12px_rgba(34,211,238,0.3)]'
+              : 'bg-white/10 hover:bg-white/20 text-white/70 border border-white/20'
           }`}
         >
           {hasFile ? 'Change File' : 'Select File'}
@@ -65,7 +65,7 @@ export function AudioFileInput({ onFileSelected, onPlay, onStop, isPlaying, hasF
         {hasFile && !isPlaying && (
           <button
             onClick={handlePlayClick}
-            className="px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+            className="px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all bg-emerald-500 hover:bg-emerald-600 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)]"
           >
             Play
           </button>
@@ -73,14 +73,14 @@ export function AudioFileInput({ onFileSelected, onPlay, onStop, isPlaying, hasF
         {isPlaying && (
           <button
             onClick={handleStopClick}
-            className="px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all bg-rose-600 hover:bg-rose-700 text-white shadow-sm"
+            className="px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all bg-rose-500 hover:bg-rose-600 text-white shadow-[0_0_12px_rgba(244,63,94,0.3)]"
           >
             Stop
           </button>
         )}
       </div>
       {currentFileName && (
-        <span className="text-[#5a4a2a]/70 text-[10px] uppercase tracking-wider max-w-[200px] truncate">
+        <span className="text-white/40 text-[10px] uppercase tracking-wider max-w-[200px] truncate">
           {currentFileName}
         </span>
       )}
