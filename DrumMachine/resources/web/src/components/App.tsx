@@ -64,21 +64,30 @@ export function App() {
   return (
     <RuntimeParametersProvider parameters={runtimeParameters}>
       <BridgeProvider controlTags={controlTags}>
-        <div className="h-screen w-full bg-[#F5F0E6] flex flex-col overflow-hidden text-orange-100">
+        <div
+          className="h-screen w-full flex flex-col overflow-hidden text-orange-100 relative bg-transparent"
+        >
+
           {/* Fixed header */}
-          <div className="flex-shrink-0 px-2 pt-2">
+          <div className="flex-shrink-0 px-2 pt-2 relative z-10">
             <WebControls audioStatus={audioStatus} />
           </div>
 
           {/* Scrollable plugin body - fixed width, no horizontal scroll */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-3 moderne-scroll flex justify-center">
-            <div className="w-[950px] max-w-full">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-3 moderne-scroll flex justify-center relative z-10">
+            <div
+              className="w-[950px] max-w-full rounded-lg"
+              style={{
+                boxShadow: '0 0 40px rgba(0, 255, 255, 0.12), 0 0 80px rgba(0, 255, 255, 0.06), 0 0 120px rgba(0, 255, 255, 0.03)',
+                border: '1px solid rgba(0, 255, 255, 0.1)',
+              }}
+            >
               <PluginBody />
             </div>
           </div>
 
           {/* Fixed step sequencer at bottom - full width like WebControls */}
-          <div className="flex-shrink-0 px-2 pb-2">
+          <div className="flex-shrink-0 px-2 pb-2 relative z-10">
             <StepSequencerWrapper />
           </div>
         </div>

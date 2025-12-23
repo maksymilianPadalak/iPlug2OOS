@@ -83,29 +83,38 @@ export function App() {
   return (
     <RuntimeParametersProvider parameters={runtimeParameters}>
       <BridgeProvider controlTags={controlTags}>
-        <div className="h-screen w-full bg-[#F5F0E6] flex flex-col overflow-hidden text-orange-100">
+        <div
+          className="h-screen w-full flex flex-col overflow-hidden text-orange-100 relative bg-transparent"
+        >
+
           {/* Fixed header */}
-          <div className="flex-shrink-0 px-2 pt-2">
+          <div className="flex-shrink-0 px-2 pt-2 relative z-10">
             <WebControls audioStatus={audioStatus} />
           </div>
 
           {/* Scrollable plugin body - constrained to 1000x625 */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-3 moderne-scroll flex justify-center">
-            <div className="w-[950px] h-[525px] flex-shrink-0">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-3 moderne-scroll flex justify-center relative z-10">
+            <div
+              className="w-[950px] h-[525px] flex-shrink-0 rounded-lg"
+              style={{
+                boxShadow: '0 0 40px rgba(0, 255, 255, 0.12), 0 0 80px rgba(0, 255, 255, 0.06), 0 0 120px rgba(0, 255, 255, 0.03)',
+                border: '1px solid rgba(0, 255, 255, 0.1)',
+              }}
+            >
               <PluginBody />
             </div>
           </div>
 
           {/* Audio file input at bottom */}
-          <div className="flex-shrink-0 px-2 pb-4 flex justify-center">
+          <div className="flex-shrink-0 px-2 pb-4 flex justify-center relative z-10">
             <div className="w-[950px] max-w-full">
-              <div className="bg-gradient-to-br from-[#F5E6D3] via-[#EDE0CC] to-[#E8D4B8] rounded-2xl p-4 shadow-md">
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="text-[#2a2a2a] text-xs font-bold uppercase tracking-wider">
+                    <span className="text-white/80 text-xs font-bold uppercase tracking-wider">
                       Audio Input
                     </span>
-                    <span className="text-[#666] text-[10px] uppercase tracking-wider">
+                    <span className="text-white/40 text-[10px] uppercase tracking-wider">
                       Load an audio file to test the effect
                     </span>
                   </div>
