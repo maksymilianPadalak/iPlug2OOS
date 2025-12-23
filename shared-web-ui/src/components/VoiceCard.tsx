@@ -114,9 +114,16 @@ export function VoiceCard({
   color = 'cyan',
   triggerId,
   icon,
+  size = 'wide',
   children,
 }: VoiceCardProps) {
   const config = COLOR_CONFIG[color];
+
+  const sizeClasses = {
+    compact: 'col-span-1',
+    wide: 'col-span-2',
+    full: 'col-span-full w-full',
+  };
   const indicatorRef = useRef<HTMLDivElement>(null);
 
   // Subscribe to trigger events - animate via CSS class (no React re-render)
@@ -144,7 +151,7 @@ export function VoiceCard({
   return (
     <section
       aria-label={title}
-      className={`relative col-span-2 rounded-lg p-4 bg-black/30 ${config.border} border overflow-hidden`}
+      className={`relative ${sizeClasses[size]} rounded-lg p-4 bg-black/30 ${config.border} border overflow-hidden`}
       style={{
         boxShadow: 'inset 0 1px 2px rgba(0,255,255,0.05), 0 2px 8px rgba(0,0,0,0.3)',
       }}

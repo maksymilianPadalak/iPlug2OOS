@@ -40,23 +40,23 @@ export function PluginBody() {
 
         <GridFoundation>
           {/* Master Section */}
-          <Section title="Master" size="compact">
+          <Section title="Master" size="wide">
             <SubGroup layout="row">
-              <Knob paramId={EParams.kParamGain} label="Gain" color="magenta" />
-              <div className="flex flex-col gap-1 w-full mt-2">
+              <Knob paramId={EParams.kParamGain} label="Gain" color="magenta" size="small" />
+              <div className="flex flex-col gap-1 flex-1">
                 <Meter channel={0} label="L" color="magenta" />
                 <Meter channel={1} label="R" color="magenta" />
               </div>
             </SubGroup>
           </Section>
 
-                    {/* Kick Section - C3 (48) */}
+          {/* Kick Section - C3 (48) */}
           <VoiceCard title="Kick" icon="decay" triggerId={48} color="orange">
             <SubGroup layout="grid-4">
-              <Knob paramId={EParams.kParamKickPitchStart} label="Start" color="orange" />
-              <Knob paramId={EParams.kParamKickPitchEnd} label="End" color="orange" />
-              <Knob paramId={EParams.kParamKickPitchDecay} label="P.Decay" color="orange" />
-              <Knob paramId={EParams.kParamKickAmpDecay} label="A.Decay" color="orange" />
+              <Knob paramId={EParams.kParamKickPitchStart} label="Start" color="orange" size="small" />
+              <Knob paramId={EParams.kParamKickPitchEnd} label="End" color="orange" size="small" />
+              <Knob paramId={EParams.kParamKickPitchDecay} label="P.Decay" color="orange" size="small" />
+              <Knob paramId={EParams.kParamKickAmpDecay} label="A.Decay" color="orange" size="small" />
             </SubGroup>
           </VoiceCard>
         </GridFoundation>

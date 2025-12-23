@@ -113,6 +113,7 @@ export const VoiceCardPropsSchema = z.object({
   color: z.enum(['cyan', 'magenta', 'green', 'orange']).optional(),
   triggerId: z.number().optional(),
   icon: z.enum(['decay', 'burst', 'shimmer', 'resonant', 'staccato', 'spike', 'sine', 'saw', 'square', 'noise']).optional(),
+  size: z.enum(['compact', 'wide', 'full']).optional(),
 });
 export type VoiceCardProps = z.infer<typeof VoiceCardPropsSchema> & {
   children: React.ReactNode;

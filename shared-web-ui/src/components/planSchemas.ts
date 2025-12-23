@@ -88,4 +88,5 @@ export const VoiceCardPlanSchema = z.object({
   color: z.enum(['cyan', 'magenta', 'green', 'orange']).nullable().describe('Card color theme'),
   triggerId: z.number().nullable().describe('MIDI note number for trigger pulse animation'),
   icon: z.enum(['decay', 'burst', 'shimmer', 'resonant', 'staccato', 'spike', 'sine', 'saw', 'square', 'noise']).nullable().describe('Waveform icon: decay=exponential falloff, burst=noise attack, shimmer=high-freq oscillation, resonant=pitched ring, staccato=multiple hits, spike=sharp transient, sine/saw/square/noise=standard waves'),
+  size: z.enum(['compact', 'wide', 'full']).nullable().describe('Grid columns: compact=1col, wide=2cols (default), full=4cols. Use wide for 2 voices per row.'),
 });
