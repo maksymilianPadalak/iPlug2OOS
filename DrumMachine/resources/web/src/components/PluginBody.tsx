@@ -19,20 +19,20 @@ export function PluginBody() {
       id="plugin-body"
       className="relative rounded-lg p-4 h-full overflow-hidden"
       style={{
-        backgroundColor: '#080508',
+        backgroundColor: '#080808',
         backgroundImage: `
-          linear-gradient(rgba(255,0,128,0.03) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255,0,128,0.03) 1px, transparent 1px)
+          linear-gradient(rgba(255,0,128,0.02) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,0,128,0.02) 1px, transparent 1px)
         `,
         backgroundSize: '24px 24px',
-        boxShadow: 'inset 0 1px 2px rgba(255,0,128,0.05), inset 0 -1px 2px rgba(0,0,0,0.5), 0 0 20px rgba(255,0,128,0.03)',
+        boxShadow: 'inset 0 1px 2px rgba(255,0,128,0.03), inset 0 -1px 2px rgba(0,0,0,0.5), 0 0 20px rgba(255,0,128,0.02)',
       }}
     >
       {/* Corner accents */}
-      <div className="absolute top-2 left-2 w-8 h-8 border-l border-t border-pink-500/40" />
-      <div className="absolute top-2 right-2 w-8 h-8 border-r border-t border-pink-500/40" />
-      <div className="absolute bottom-2 left-2 w-8 h-8 border-l border-b border-pink-500/40" />
-      <div className="absolute bottom-2 right-2 w-8 h-8 border-r border-b border-pink-500/40" />
+      <div className="absolute top-2 left-2 w-8 h-8 border-l border-t border-pink-500/20" />
+      <div className="absolute top-2 right-2 w-8 h-8 border-r border-t border-pink-500/20" />
+      <div className="absolute bottom-2 left-2 w-8 h-8 border-l border-b border-pink-500/20" />
+      <div className="absolute bottom-2 right-2 w-8 h-8 border-r border-b border-pink-500/20" />
 
       <div className="flex flex-col gap-3 h-full">
         {/* Header */}
@@ -42,10 +42,10 @@ export function PluginBody() {
           {/* Master Section */}
           <Section title="Master" size="wide">
             <SubGroup layout="row">
-              <Knob paramId={EParams.kParamGain} label="Gain" color="magenta" size="small" />
+              <Knob paramId={EParams.kParamGain} label="Gain" color="cyan" size="small" />
               <div className="flex flex-col gap-1 flex-1">
-                <Meter channel={0} label="L" color="magenta" />
-                <Meter channel={1} label="R" color="magenta" />
+                <Meter channel={0} label="L" color="cyan" />
+                <Meter channel={1} label="R" color="cyan" />
               </div>
             </SubGroup>
           </Section>
@@ -53,10 +53,10 @@ export function PluginBody() {
           {/* Kick Section - C3 (48) */}
           <VoiceCard title="Kick" icon="decay" triggerId={48} color="orange">
             <SubGroup layout="grid-4">
-              <Knob paramId={EParams.kParamKickPitchStart} label="Start" color="orange" size="small" />
-              <Knob paramId={EParams.kParamKickPitchEnd} label="End" color="orange" size="small" />
-              <Knob paramId={EParams.kParamKickPitchDecay} label="P.Decay" color="orange" size="small" />
-              <Knob paramId={EParams.kParamKickAmpDecay} label="A.Decay" color="orange" size="small" />
+              <Knob paramId={EParams.kParamKickPitchStart} label="Hi" color="orange" size="small" />
+              <Knob paramId={EParams.kParamKickPitchEnd} label="Lo" color="orange" size="small" />
+              <Knob paramId={EParams.kParamKickPitchDecay} label="Drop" color="orange" size="small" />
+              <Knob paramId={EParams.kParamKickAmpDecay} label="Ring" color="orange" size="small" />
             </SubGroup>
           </VoiceCard>
         </GridFoundation>
