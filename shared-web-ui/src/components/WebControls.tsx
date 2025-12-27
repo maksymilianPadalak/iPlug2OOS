@@ -31,7 +31,7 @@ export function WebControls({ audioStatus }: WebControlsProps) {
   return (
     <>
       {/* Web Controls - Only visible in WAM mode */}
-      <div className="wam-only max-w-7xl mx-auto">
+      <div className="wam-only">
         <div className="grid grid-cols-3 items-center">
           {/* Audio Status - Right aligned */}
           <div className="flex justify-end">
@@ -96,7 +96,7 @@ export function WebControls({ audioStatus }: WebControlsProps) {
       </div>
 
       {/* Horizontal Separator - Only visible in WAM mode */}
-      <div className="wam-only border-t border-white/10 mt-2 max-w-7xl mx-auto"></div>
+      <div className="wam-only border-t border-white/10 mt-2"></div>
     </>
   );
 }

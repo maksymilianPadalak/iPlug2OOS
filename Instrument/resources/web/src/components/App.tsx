@@ -58,8 +58,8 @@ export function App() {
           className="h-screen w-full flex flex-col overflow-hidden text-orange-100 relative bg-transparent"
         >
 
-          {/* Fixed header */}
-          <div className="flex-shrink-0 px-2 pt-2 relative z-10">
+          {/* Fixed header - full width */}
+          <div className="flex-shrink-0 pt-2 relative z-10">
             <WebControls audioStatus={audioStatus} />
           </div>
 
@@ -76,8 +76,8 @@ export function App() {
             </div>
           </div>
 
-          {/* Fixed keyboard at bottom - full width like WebControls */}
-          <div className="flex-shrink-0 px-2 pb-2 relative z-10">
+          {/* Fixed keyboard at bottom - centered, fits content */}
+          <div className="flex-shrink-0 pb-2 relative z-10 flex justify-center">
             <KeyboardWrapper />
           </div>
         </div>

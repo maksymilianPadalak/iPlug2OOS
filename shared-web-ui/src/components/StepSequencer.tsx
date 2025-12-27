@@ -342,10 +342,15 @@ export function StepSequencer({ voiceConfig, onNoteOn, onNoteOff }: StepSequence
     return null;
   }
 
+  // Match keyboard width: 29 white keys × 36px + padding = ~1092px
+  const SEQUENCER_WIDTH = 1092;
+
   return (
     <div
       className="relative rounded-lg overflow-hidden"
       style={{
+        width: SEQUENCER_WIDTH,
+        maxWidth: '100%',
         backgroundColor: '#080508',
         backgroundImage: `
           linear-gradient(rgba(255,0,128,0.03) 1px, transparent 1px),
