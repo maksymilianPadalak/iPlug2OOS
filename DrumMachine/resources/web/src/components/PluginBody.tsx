@@ -20,12 +20,7 @@ export function PluginBody() {
       className="relative rounded-lg p-4 h-full overflow-hidden"
       style={{
         backgroundColor: '#080808',
-        backgroundImage: `
-          linear-gradient(rgba(255,0,128,0.02) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255,0,128,0.02) 1px, transparent 1px)
-        `,
-        backgroundSize: '24px 24px',
-        boxShadow: 'inset 0 1px 2px rgba(255,0,128,0.03), inset 0 -1px 2px rgba(0,0,0,0.5), 0 0 20px rgba(255,0,128,0.02)',
+        boxShadow: 'inset 0 1px 1px rgba(255,0,128,0.01), inset 0 -1px 1px rgba(0,0,0,0.3), 0 0 10px rgba(255,0,128,0.01)',
       }}
     >
       {/* Corner accents */}

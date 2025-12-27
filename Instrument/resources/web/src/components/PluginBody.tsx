@@ -22,12 +22,7 @@ export function PluginBody() {
       className="relative rounded-lg p-4 h-full overflow-hidden"
       style={{
         backgroundColor: '#050508',
-        backgroundImage: `
-          linear-gradient(rgba(0,255,255,0.04) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(0,255,255,0.04) 1px, transparent 1px)
-        `,
-        backgroundSize: '30px 30px',
-        boxShadow: 'inset 0 1px 2px rgba(0,255,255,0.05), inset 0 -1px 2px rgba(0,0,0,0.5), 0 0 20px rgba(0,255,255,0.03)',
+        boxShadow: 'inset 0 1px 1px rgba(0,255,255,0.02), inset 0 -1px 1px rgba(0,0,0,0.3), 0 0 10px rgba(0,255,255,0.01)',
       }}
     >
       {/* Corner accents */}
@@ -62,7 +57,7 @@ export function PluginBody() {
             <WaveSelector paramId={EParams.kParamWaveform} label="Waveform" />
           </Section>
 
-          <Section title="Envelope" size="wide">
+                    <Section title="Envelope" size="wide">
             <ADSRDisplay
               attackParam={EParams.kParamAttack}
               decayParam={EParams.kParamDecay}
@@ -75,6 +70,17 @@ export function PluginBody() {
               <Knob paramId={EParams.kParamDecay} label="Decay" color="magenta" />
               <Knob paramId={EParams.kParamSustain} label="Sustain" color="magenta" />
               <Knob paramId={EParams.kParamRelease} label="Release" color="magenta" />
+            </SubGroup>
+          </Section>
+
+          <Section title="Heavy Metal" size="wide">
+            <SubGroup title="Distortion" layout="row">
+              <Knob paramId={EParams.kParamDrive} label="Drive" color="orange" />
+              <Knob paramId={EParams.kParamTone} label="Tone" color="green" />
+            </SubGroup>
+            <SubGroup title="Double" layout="row">
+              <Knob paramId={EParams.kParamOsc2Level} label="Osc2 Level" color="magenta" />
+              <Knob paramId={EParams.kParamOsc2Detune} label="Osc2 Detune" color="cyan" />
             </SubGroup>
           </Section>
         </GridFoundation>
