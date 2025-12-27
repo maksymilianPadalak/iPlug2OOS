@@ -176,6 +176,10 @@ public:
       IKeyPress keyPress = ConvertToIKeyPress(json["keyCode"].get<uint32_t>(), json["utf8"].get<std::string>().c_str(), json["S"].get<bool>(), json["C"].get<bool>(), json["A"].get<bool>());
       json["isUp"].get<bool>() ? OnKeyUp(keyPress) : OnKeyDown(keyPress); // return value not used
     }
+    else if(json["msg"] == "SREQ") // State Request - UI is ready, send all parameter values
+    {
+      SendCurrentParamValuesFromDelegate();
+    }
   }
 
   void Resize(int width, int height);

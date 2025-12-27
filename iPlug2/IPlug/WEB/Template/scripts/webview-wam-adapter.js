@@ -128,6 +128,11 @@ function initWebViewWAMAdapter(wamController) {
         WAMControllerInstance.sendMessage("SMMFUI", midiProp, 0);
         break;
 
+      case "SREQ": // State Request - request all parameter values from processor
+        console.log("SREQ: Requesting state sync from processor");
+        WAMControllerInstance.sendMessage("SREQ", "", 0);
+        break;
+
       default:
         console.warn("Unknown message type:", msg);
     }
@@ -251,6 +256,15 @@ function setupWAMMessageHandlers(controller) {
             const base64 = btoa(String.fromCharCode(...bytes));
             window.SSMFD(bytes.length, base64);
           }
+        }
+        break;
+
+      case "SSTATE": // Send State From Delegate - full parameter state dump
+        console.log("SSTATE: Received state dump from processor");
+        if (typeof window.SSTATE === 'function') {
+          window.SSTATE(msg.data);
+        } else {
+          console.warn("window.SSTATE is not a function, state sync unavailable");
         }
         break;
 

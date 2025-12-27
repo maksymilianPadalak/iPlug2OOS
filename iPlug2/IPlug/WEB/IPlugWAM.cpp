@@ -122,6 +122,14 @@ void IPlugWAM::onMessage(char* verb, char* res, double data)
 
     OnMessage(data[0], data[1], sizeof(double), reinterpret_cast<void*>(&data));
   }
+  else if(strcmp(verb, "SREQ") == 0) // State Request - send all parameter values to UI
+  {
+    DBGMSG("SREQ: Sending all parameter values to UI\n");
+    for (int idx = 0; idx < NParams(); idx++)
+    {
+      SendParameterValueFromDelegate(idx, GetParam(idx)->Value(), false);
+    }
+  }
 }
 
 //WAM onMessageS
