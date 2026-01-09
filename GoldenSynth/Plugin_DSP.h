@@ -21,30 +21,74 @@ namespace q = cycfi::q;
 using namespace q::literals;
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// WAVETABLE OSCILLATOR - Simple & Working
+// WAVETABLE OSCILLATOR - Band-Limited with Mip Levels
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// WHAT IS A WAVETABLE?
+// A wavetable stores pre-computed waveform cycles in memory. Instead of calculating
+// waveforms mathematically each sample (expensive), we look up values from a table
+// (fast). This also allows complex waveforms that can't be expressed as simple formulas.
+//
+// WHY MIPMAPS?
+// At high frequencies, waveform harmonics can exceed Nyquist (sampleRate/2), causing
+// aliasing artifacts. Mipmaps store multiple versions of the wavetable with progressively
+// fewer harmonics. We select the appropriate mip level based on playback frequency.
+//
+// WHY STATIC ALLOCATION?
+// WebAssembly (WASM) has a limited stack size (~64KB by default). A 1MB wavetable
+// would overflow the stack if allocated as a local variable. Static storage places
+// the data in the binary's data segment, avoiding stack limitations.
+//
 // ═══════════════════════════════════════════════════════════════════════════════
 
-constexpr int kWavetableSize = 256;       // Samples per waveform
-constexpr int kWavetableFrames = 16;      // Waveforms per table
+// Wavetable dimensions
+constexpr int kWavetableSize = 2048;      // Samples per cycle (power of 2 for fast wrapping)
+constexpr int kWavetableFrames = 16;      // Morph positions (more = smoother morphing)
+constexpr int kNumMipLevels = 8;          // One mip per octave (8 octaves = 20Hz to 5kHz+)
 constexpr float kWavetableSizeF = static_cast<float>(kWavetableSize);
+
+// Morph configuration - 4 classic waveforms
+constexpr int kNumWaveShapes = 4;         // Sine, Triangle, Saw, Square
+constexpr float kShapeSpacing = 1.0f / (kNumWaveShapes - 1);  // 0.333...
+
+// Memory: 2048 × 16 × 8 × 4 bytes = 1MB (static allocation, not stack)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DSP UTILITIES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Calculate one-pole smoothing coefficient from time constant
+// This creates a sample-rate independent smoothing filter.
+// Formula: coeff = 1 - e^(-1 / (time * sampleRate))
+// At each sample: smoothed += coeff * (target - smoothed)
+inline float calcSmoothingCoeff(float timeSeconds, float sampleRate)
+{
+  return 1.0f - std::exp(-1.0f / (timeSeconds * sampleRate));
+}
 
 class WavetableOscillator
 {
 public:
-  // Simple wavetable: [frame][sample]
-  using WavetableData = std::array<std::array<float, kWavetableSize>, kWavetableFrames>;
+  // Mipmapped wavetable: [mipLevel][frame][sample]
+  using MipLevel = std::array<std::array<float, kWavetableSize>, kWavetableFrames>;
+  using WavetableData = std::array<MipLevel, kNumMipLevels>;
 
   void SetWavetable(const WavetableData* table) { mTable = table; }
 
   void SetSampleRate(float sampleRate)
   {
-    // Sample-rate aware smoothing: ~10ms
-    mSmoothCoeff = 1.0f - std::exp(-1.0f / (0.01f * sampleRate));
+    mSampleRate = sampleRate;
+    mNyquist = sampleRate * 0.5f;
+    // Position smoothing: 10ms time constant for glitch-free morphing
+    // This prevents audible clicks when the WT Position knob is moved quickly
+    mSmoothCoeff = calcSmoothingCoeff(0.01f, sampleRate);
   }
 
   void SetFrequency(float freq, float sampleRate)
   {
     mPhaseInc = freq / sampleRate;
+    mFrequency = freq;
+    mNyquist = sampleRate * 0.5f;
   }
 
   void SetPosition(float pos)
@@ -58,39 +102,88 @@ public:
   {
     if (!mTable) return 0.0f;
 
-    // Smooth position
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 1: Smooth the morph position (one-pole lowpass filter)
+    // This prevents clicks when the position changes rapidly
+    // ─────────────────────────────────────────────────────────────────────────
     mPosition += mSmoothCoeff * (mTargetPosition - mPosition);
 
-    // Frame interpolation
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 2: Calculate mip level based on playback frequency and Nyquist
+    // We select the mip level that has enough harmonics without aliasing.
+    // Formula: mip = log2(baseHarmonics * frequency / Nyquist)
+    //
+    // Example at 48kHz (Nyquist = 24kHz), 128 base harmonics:
+    //   100Hz: log2(128 * 100 / 24000) = log2(0.53) ≈ -0.9 → mip 0 (128 harmonics)
+    //   440Hz: log2(128 * 440 / 24000) = log2(2.35) ≈ 1.2 → mip 1 (64 harmonics)
+    //   2kHz:  log2(128 * 2000 / 24000) = log2(10.7) ≈ 3.4 → mip 3 (16 harmonics)
+    // ─────────────────────────────────────────────────────────────────────────
+    constexpr float kBaseHarmonics = 128.0f;
+    float mipFloat = std::log2(std::max(1.0f, kBaseHarmonics * mFrequency / mNyquist));
+    mipFloat = std::max(0.0f, std::min(mipFloat, static_cast<float>(kNumMipLevels - 1)));
+
+    int mip0 = static_cast<int>(mipFloat);
+    int mip1 = std::min(mip0 + 1, kNumMipLevels - 1);
+    float mipFrac = mipFloat - mip0;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 3: Calculate frame indices for morph interpolation
+    // ─────────────────────────────────────────────────────────────────────────
     int frame0 = static_cast<int>(mPosition);
-    int frame1 = frame0 + 1;
-    if (frame1 >= kWavetableFrames) frame1 = kWavetableFrames - 1;
+    int frame1 = std::min(frame0 + 1, kWavetableFrames - 1);
     float frameFrac = mPosition - frame0;
 
-    // Sample interpolation (linear)
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 4: Calculate sample indices with wrapping
+    // Using bitwise AND for fast modulo (works because size is power of 2)
+    // ─────────────────────────────────────────────────────────────────────────
     float samplePos = mPhase * kWavetableSizeF;
-    int idx0 = static_cast<int>(samplePos);
-    int idx1 = idx0 + 1;
-    if (idx0 >= kWavetableSize) idx0 = 0;
-    if (idx1 >= kWavetableSize) idx1 = 0;
-    float sampleFrac = samplePos - static_cast<int>(samplePos);
+    int idx0 = static_cast<int>(samplePos) & (kWavetableSize - 1);
+    int idx1 = (idx0 + 1) & (kWavetableSize - 1);
+    float sampleFrac = samplePos - std::floor(samplePos);
 
-    // Bilinear interpolation
-    const auto& t0 = (*mTable)[frame0];
-    const auto& t1 = (*mTable)[frame1];
-    float s0 = t0[idx0] + sampleFrac * (t0[idx1] - t0[idx0]);
-    float s1 = t1[idx0] + sampleFrac * (t1[idx1] - t1[idx0]);
-    float sample = s0 + frameFrac * (s1 - s0);
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 5: Trilinear interpolation (mip × frame × sample)
+    // We interpolate along 3 axes for smooth output:
+    // - Between adjacent samples (removes stepping artifacts)
+    // - Between adjacent frames (smooth morphing)
+    // - Between adjacent mip levels (smooth anti-aliasing transition)
+    //
+    // Linear interpolation formula: result = a + frac * (b - a)
+    // Quality note: Linear gives ~-40dB THD. Cubic Hermite would give ~-80dB.
+    // ─────────────────────────────────────────────────────────────────────────
+    auto sampleFrame = [&](int mip, int frame) {
+      const auto& t = (*mTable)[mip][frame];
+      return t[idx0] + sampleFrac * (t[idx1] - t[idx0]);
+    };
 
-    // Advance phase
+    // Interpolate within each mip level (frame + sample)
+    float s_mip0_f0 = sampleFrame(mip0, frame0);
+    float s_mip0_f1 = sampleFrame(mip0, frame1);
+    float s_mip0 = s_mip0_f0 + frameFrac * (s_mip0_f1 - s_mip0_f0);
+
+    float s_mip1_f0 = sampleFrame(mip1, frame0);
+    float s_mip1_f1 = sampleFrame(mip1, frame1);
+    float s_mip1 = s_mip1_f0 + frameFrac * (s_mip1_f1 - s_mip1_f0);
+
+    // Final mip interpolation
+    float sample = s_mip0 + mipFrac * (s_mip1 - s_mip0);
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 6: Advance phase accumulator
+    // Phase wraps from 0.0 to 1.0, representing one cycle of the waveform
+    // ─────────────────────────────────────────────────────────────────────────
     mPhase += mPhaseInc;
-    while (mPhase >= 1.0f) mPhase -= 1.0f;
+    if (mPhase >= 1.0f) mPhase -= 1.0f;
 
     return sample;
   }
 
 private:
   const WavetableData* mTable = nullptr;
+  float mSampleRate = 48000.0f;
+  float mNyquist = 24000.0f;  // Half sample rate, for mip level calculation
+  float mFrequency = 440.0f;
   float mSmoothCoeff = 0.01f;
   float mPhase = 0.0f;
   float mPhaseInc = 0.0f;
@@ -99,7 +192,19 @@ private:
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// WAVETABLE GENERATOR - Simple waveform morphing
+// WAVETABLE GENERATOR - Band-Limited Additive Synthesis
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// WHY ADDITIVE SYNTHESIS?
+// Naive waveforms (e.g., saw = 2*phase - 1) contain infinite harmonics, causing
+// aliasing at high frequencies. Additive synthesis builds waveforms from individual
+// sine harmonics, allowing us to stop before reaching Nyquist.
+//
+// FOURIER SERIES REFERENCE:
+// - Saw:      Σ sin(n·x) / n           (all harmonics)
+// - Square:   Σ sin(n·x) / n           (odd harmonics only: 1, 3, 5, ...)
+// - Triangle: Σ (-1)^k · sin(n·x) / n² (odd harmonics, alternating sign)
+//
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class WavetableGenerator
@@ -109,44 +214,114 @@ public:
   static constexpr float kPi = 3.14159265359f;
   static constexpr float k2Pi = 2.0f * kPi;
 
-  // Generate "Basic Shapes": Sine → Triangle → Saw → Square
-  static WavetableData GenerateBasicShapes()
+  // Harmonics per mip level - halves each octave to stay below Nyquist
+  // At 48kHz, mip 0 (20-40Hz) can have 48000/2/40 = 600 harmonics max
+  // We use 128 for rich bass content (harmonics up to 10kHz at 80Hz)
+  static constexpr int kBaseHarmonics = 128;
+  static int GetMaxHarmonics(int mipLevel)
   {
-    WavetableData table{};
+    return std::max(1, kBaseHarmonics >> mipLevel);
+  }
 
-    for (int frame = 0; frame < kWavetableFrames; frame++)
+  // ─────────────────────────────────────────────────────────────────────────────
+  // BAND-LIMITED WAVEFORM GENERATORS
+  // Each function computes the Fourier series sum for one sample position
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Sawtooth: sum of all harmonics with 1/n amplitude rolloff
+  // Fourier: saw(x) = -(2/π) · Σ sin(n·x)/n, n=1 to ∞
+  static float GenerateBandLimitedSaw(float phase, int maxHarmonics)
+  {
+    float sample = 0.0f;
+    for (int h = 1; h <= maxHarmonics; h++)
     {
-      float t = static_cast<float>(frame) / (kWavetableFrames - 1);
+      sample -= std::sin(phase * k2Pi * h) / static_cast<float>(h);
+    }
+    return sample * (2.0f / kPi);  // Normalize to [-1, 1]
+  }
 
-      for (int i = 0; i < kWavetableSize; i++)
+  // Square: odd harmonics only (1, 3, 5, ...) with 1/n amplitude
+  // Fourier: square(x) = (4/π) · Σ sin(n·x)/n, n=1,3,5,...
+  static float GenerateBandLimitedSquare(float phase, int maxHarmonics)
+  {
+    float sample = 0.0f;
+    for (int h = 1; h <= maxHarmonics; h += 2)  // Odd harmonics only
+    {
+      sample += std::sin(phase * k2Pi * h) / static_cast<float>(h);
+    }
+    return sample * (4.0f / kPi);  // Normalize to [-1, 1]
+  }
+
+  // Triangle: odd harmonics with 1/n² rolloff and alternating signs
+  // Fourier: tri(x) = (8/π²) · Σ (-1)^k · sin(n·x)/n², n=1,3,5,..., k=(n-1)/2
+  static float GenerateBandLimitedTriangle(float phase, int maxHarmonics)
+  {
+    float sample = 0.0f;
+    for (int h = 1; h <= maxHarmonics; h += 2)  // Odd harmonics only
+    {
+      // Alternating sign: +1 for h=1, -1 for h=3, +1 for h=5, ...
+      float sign = ((h - 1) / 2 % 2 == 0) ? 1.0f : -1.0f;
+      sample += sign * std::sin(phase * k2Pi * h) / static_cast<float>(h * h);
+    }
+    return sample * (8.0f / (kPi * kPi));  // Normalize to [-1, 1]
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // WAVETABLE GENERATION
+  // Creates a complete mipmapped wavetable with morphing between 4 shapes
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  static const WavetableData& GenerateBasicShapes()
+  {
+    // STATIC ALLOCATION: Table lives in data segment, not stack!
+    // This is critical for WASM where stack is limited to ~64KB
+    static WavetableData table{};
+    static bool generated = false;
+
+    if (generated) return table;  // Return cached reference (no copy)
+    generated = true;
+
+    // Generate each mip level with appropriate harmonic content
+    for (int mip = 0; mip < kNumMipLevels; mip++)
+    {
+      int maxHarmonics = GetMaxHarmonics(mip);
+
+      for (int frame = 0; frame < kWavetableFrames; frame++)
       {
-        float phase = static_cast<float>(i) / kWavetableSize;
+        // Map frame index to morph position [0, 1]
+        float t = static_cast<float>(frame) / (kWavetableFrames - 1);
 
-        // Simple waveforms (no additive - fast!)
-        float sine = std::sin(phase * k2Pi);
-        float triangle = 4.0f * std::abs(phase - 0.5f) - 1.0f;
-        float saw = 2.0f * phase - 1.0f;
-        float square = phase < 0.5f ? 1.0f : -1.0f;
+        for (int i = 0; i < kWavetableSize; i++)
+        {
+          float phase = static_cast<float>(i) / kWavetableSize;
 
-        // Morph between shapes
-        float sample;
-        if (t < 0.333f)
-        {
-          float blend = t / 0.333f;
-          sample = sine + blend * (triangle - sine);
-        }
-        else if (t < 0.666f)
-        {
-          float blend = (t - 0.333f) / 0.333f;
-          sample = triangle + blend * (saw - triangle);
-        }
-        else
-        {
-          float blend = (t - 0.666f) / 0.334f;
-          sample = saw + blend * (square - saw);
-        }
+          // Generate all 4 band-limited waveforms at this phase
+          float sine = std::sin(phase * k2Pi);  // Sine has no harmonics to limit
+          float triangle = GenerateBandLimitedTriangle(phase, maxHarmonics);
+          float saw = GenerateBandLimitedSaw(phase, maxHarmonics);
+          float square = GenerateBandLimitedSquare(phase, maxHarmonics);
 
-        table[frame][i] = sample;
+          // ─────────────────────────────────────────────────────────────────
+          // DATA-DRIVEN MORPHING
+          // Maps morph position t ∈ [0,1] to interpolation between 4 shapes:
+          //   t = 0.00 → Sine
+          //   t = 0.33 → Triangle
+          //   t = 0.66 → Saw
+          //   t = 1.00 → Square
+          //
+          // Using named constants instead of magic numbers for clarity
+          // ─────────────────────────────────────────────────────────────────
+          float shapePos = t * (kNumWaveShapes - 1);  // 0 to 3
+          int shape0 = static_cast<int>(shapePos);
+          int shape1 = std::min(shape0 + 1, kNumWaveShapes - 1);
+          float blend = shapePos - shape0;
+
+          // Get waveform values for the two shapes we're blending between
+          float shapes[kNumWaveShapes] = {sine, triangle, saw, square};
+          float sample = shapes[shape0] + blend * (shapes[shape1] - shapes[shape0]);
+
+          table[mip][frame][i] = sample;
+        }
       }
     }
     return table;
@@ -196,6 +371,7 @@ public:
     void Trigger(double level, bool isRetrigger) override
     {
       // Capture current envelope level BEFORE creating new envelope
+      // This is needed for smooth retriggering (legato playing)
       float currentLevel = mActive ? mEnv.current() : 0.0f;
 
       mActive = true;
@@ -203,20 +379,26 @@ public:
 
       if (!isRetrigger)
       {
-        // New note - reset phase
+        // New note - reset oscillator phase for consistent attack
         mPhase = q::phase_iterator{};
         mWavetableOsc.Reset();
       }
 
-      // Create fresh envelope
+      // Create fresh envelope generator at current sample rate
       mEnv = q::adsr_envelope_gen{mEnvConfig, static_cast<float>(mSampleRate)};
       mEnv.attack();
 
-      // Retrigger smoothing - prevents clicks when retriggering from non-zero level
+      // ─────────────────────────────────────────────────────────────────────────
+      // RETRIGGER SMOOTHING
+      // When retriggering a voice that's still sounding, we need to smoothly
+      // transition from the current level to avoid clicks. We use a fast
+      // exponential decay (~5ms) to bridge the gap.
+      // ─────────────────────────────────────────────────────────────────────────
       if (currentLevel > 0.01f)
       {
         mRetriggerOffset = currentLevel;
-        mRetriggerDecay = 0.999f;  // ~7ms decay at 44.1kHz
+        // Calculate decay coefficient for ~5ms fade (sample-rate independent)
+        mRetriggerDecay = 1.0f - calcSmoothingCoeff(0.005f, static_cast<float>(mSampleRate));
       }
       else
       {
@@ -357,13 +539,13 @@ public:
 #pragma mark - DSP
   PluginInstanceDSP(int nVoices = 8)
   {
-    // Generate wavetable at startup
-    mWavetable = WavetableGenerator::GenerateBasicShapes();
+    // Get pointer to static wavetable (no copy!)
+    mWavetable = &WavetableGenerator::GenerateBasicShapes();
 
     for (int i = 0; i < nVoices; i++)
     {
       Voice* voice = new Voice();
-      voice->SetWavetable(&mWavetable);  // Share wavetable data
+      voice->SetWavetable(mWavetable);  // Share wavetable data
       mSynth.AddVoice(voice, 0);
     }
   }
@@ -379,11 +561,15 @@ public:
     // MidiSynth processes MIDI queue and calls voice ProcessSamplesAccumulating
     mSynth.ProcessBlock(inputs, outputs, 0, nOutputs, nFrames);
 
-    // Apply master gain with smoothing
+    // ─────────────────────────────────────────────────────────────────────────
+    // MASTER GAIN WITH SMOOTHING
+    // We use a one-pole lowpass filter to smooth gain changes, preventing
+    // clicks when the user moves the gain knob. The smoothing coefficient
+    // is calculated in Reset() to be sample-rate independent (~20ms time).
+    // ─────────────────────────────────────────────────────────────────────────
     for (int s = 0; s < nFrames; s++)
     {
-      constexpr float kSmoothCoeff = 0.0005f;
-      mGainSmoothed += kSmoothCoeff * (mGain - mGainSmoothed);
+      mGainSmoothed += mGainSmoothCoeff * (mGain - mGainSmoothed);
 
       // Fixed poly scale for 8 voices
       constexpr float kPolyScale = 0.35f;
@@ -405,6 +591,10 @@ public:
     mSynth.SetSampleRateAndBlockSize(sampleRate, blockSize);
     mSynth.Reset();
     mGainSmoothed = mGain;
+
+    // Calculate gain smoothing coefficient for ~20ms time constant
+    // This ensures consistent smoothing behavior across all sample rates
+    mGainSmoothCoeff = calcSmoothingCoeff(0.02f, static_cast<float>(sampleRate));
   }
 
   void ProcessMidiMsg(const IMidiMsg& msg)
@@ -463,7 +653,8 @@ public:
 
 private:
   MidiSynth mSynth{VoiceAllocator::kPolyModePoly};
-  WavetableOscillator::WavetableData mWavetable;  // Shared wavetable data
+  const WavetableOscillator::WavetableData* mWavetable = nullptr;  // Pointer to static table
   float mGain = 0.8f;
   float mGainSmoothed = 0.8f;
+  float mGainSmoothCoeff = 0.001f;  // Sample-rate aware, set in Reset()
 };
