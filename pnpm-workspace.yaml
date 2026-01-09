@@ -2,6 +2,7 @@ packages:
   - shared-web-ui
   - Effect/resources/web
   - Instrument/resources/web
+  - GoldenSynth/resources/web
   - DrumMachine/resources/web
 
 ignoredBuiltDependencies:
