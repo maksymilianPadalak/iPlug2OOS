@@ -1,6 +1,7 @@
 packages:
   - shared-web-ui
   - Effect/resources/web
+  - GoldenEffect/resources/web
   - Instrument/resources/web
   - GoldenSynth/resources/web
   - DrumMachine/resources/web
