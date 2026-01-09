@@ -12,6 +12,7 @@ enum EParams
 {
   kParamGain = 0,
   kParamWaveform,
+  kParamWavetablePosition,  // Morph position within wavetable (0-100%)
   kParamAttack,
   kParamDecay,
   kParamSustain,

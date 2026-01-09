@@ -5,7 +5,9 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
 {
   GetParam(kParamGain)->InitDouble("Gain", 80., 0., 100.0, 0.01, "%");
-  GetParam(kParamWaveform)->InitEnum("Waveform", 0, 4, "", IParam::kFlagsNone, "", "Sine", "Saw", "Square", "Triangle");
+  GetParam(kParamWaveform)->InitEnum("Waveform", 0, 5, "", IParam::kFlagsNone, "",
+    "Sine", "Saw", "Square", "Triangle", "Wavetable");
+  GetParam(kParamWavetablePosition)->InitDouble("WT Position", 0., 0., 100., 0.1, "%");
   GetParam(kParamAttack)->InitDouble("Attack", 10., 1., 1000., 0.1, "ms");
   GetParam(kParamDecay)->InitDouble("Decay", 100., 1., 2000., 0.1, "ms");
   GetParam(kParamSustain)->InitDouble("Sustain", 70., 0., 100., 0.1, "%");
