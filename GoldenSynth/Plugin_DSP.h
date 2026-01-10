@@ -486,8 +486,9 @@ public:
   static constexpr float k2Pi = 2.0f * kPi;
 
   // Harmonics per mip level - halves each octave to stay below Nyquist
-  // At 48kHz, mip 0 (20-40Hz) can have 48000/2/40 = 600 harmonics max
-  // We use 128 for rich bass content (harmonics up to 10kHz at 80Hz)
+  // Mip 0 has 128 harmonics (used for fundamentals up to ~187Hz at 48kHz)
+  // Formula: maxFreq = Nyquist / harmonics = 24000 / 128 ≈ 187Hz
+  // Each mip halves harmonics: mip1=64, mip2=32, ... mip7=1
   static constexpr int kBaseHarmonics = 128;
   static int GetMaxHarmonics(int mipLevel)
   {
@@ -599,20 +600,78 @@ public:
   }
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// WAVEFORM TYPES
+// ═══════════════════════════════════════════════════════════════════════════════
+// Defines available oscillator modes. The first 4 use Q library's direct
+// oscillators (computed mathematically). kWaveformWavetable uses our mipmapped
+// wavetable with morphing between Sine→Triangle→Saw→Square.
+//
+// MORPH ORDER RATIONALE (Sine→Triangle→Saw→Square):
+// Ordered by increasing harmonic richness and timbral complexity:
+//   Sine:     1 harmonic  (fundamental only) - pure, clean
+//   Triangle: Odd harmonics, 1/n² rolloff   - soft, flute-like
+//   Saw:      All harmonics, 1/n rolloff    - rich, full (128 harmonics)
+//   Square:   Odd harmonics, 1/n rolloff    - hollow, nasal (64 harmonics)
+// Note: Saw has MORE harmonics than Square (all vs odd-only), but Square
+// sounds harsher/buzzier due to its hollow spectrum. This order goes from
+// pure → soft → rich → hollow, a natural timbral progression for sweeps.
+// ═══════════════════════════════════════════════════════════════════════════════
 enum EWaveform
 {
-  kWaveformSine = 0,
-  kWaveformSaw,
-  kWaveformSquare,
-  kWaveformTriangle,
-  kWaveformWavetable,  // NEW: Wavetable mode
+  kWaveformSine = 0,    // Pure sine - 1 harmonic
+  kWaveformSaw,         // Sawtooth - all harmonics
+  kWaveformSquare,      // Square - odd harmonics
+  kWaveformTriangle,    // Triangle - odd harmonics, 1/n² rolloff
+  kWaveformWavetable,   // Morphing wavetable (Sine→Triangle→Saw→Square)
   kNumWaveforms
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PLUGIN DSP ENGINE
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// ARCHITECTURE OVERVIEW:
+// PluginInstanceDSP is the main DSP engine that manages synthesis and audio output.
+// It uses iPlug2's MidiSynth infrastructure for voice allocation and MIDI handling.
+//
+// SIGNAL FLOW:
+//   MIDI → MidiSynth → Voice[] → Mix → Master Gain → Output
+//
+//   1. MIDI events are queued via ProcessMidiMsg()
+//   2. MidiSynth allocates/triggers voices (polyphonic, 8 voices default)
+//   3. Each Voice generates: Oscillator → Filter → Envelope → output
+//   4. Voice outputs are summed (accumulated) into the output buffer
+//   5. Master gain is applied with smoothing for click-free automation
+//
+// VOICE ARCHITECTURE:
+//   Each Voice contains independent instances of all DSP components,
+//   allowing per-note filtering and envelope behavior. Voices accumulate
+//   their output (+=) rather than overwriting, enabling polyphony.
+//
+// ═══════════════════════════════════════════════════════════════════════════════
 template<typename T>
 class PluginInstanceDSP
 {
 public:
+  // ─────────────────────────────────────────────────────────────────────────────
+  // VOICE - Single Polyphonic Voice
+  // ─────────────────────────────────────────────────────────────────────────────
+  // A Voice represents one "note" in the polyphonic synth. Each voice has:
+  //   - Its own oscillator (phase, frequency, waveform selection)
+  //   - Its own filter (cutoff/resonance applied per-note)
+  //   - Its own ADSR envelope (attack/decay/sustain/release)
+  //
+  // Voices are managed by iPlug2's MidiSynth/VoiceAllocator. When a MIDI note-on
+  // arrives, VoiceAllocator finds a free voice (or steals one) and calls Trigger().
+  // When note-off arrives, it calls Release(). Voices accumulate their output
+  // into the shared buffer, enabling polyphony.
+  //
+  // RETRIGGER BEHAVIOR:
+  // When a voice is retriggered while still sounding (isRetrigger=true), we
+  // preserve the oscillator phase for smooth legato, but reset the envelope
+  // with a brief crossfade to avoid clicks. See Trigger() for details.
+  // ─────────────────────────────────────────────────────────────────────────────
 #pragma mark - Voice
   class Voice : public SynthVoice
   {
@@ -622,8 +681,9 @@ public:
       mEnvConfig = q::adsr_envelope_gen::config{
         q::duration{0.01f},   // 10ms attack
         q::duration{0.1f},    // 100ms decay
-        q::lin_to_db(0.7f),   // 70% sustain
-        50_s,                 // sustain hold
+        q::lin_to_db(0.7f),   // 70% sustain level (in dB via lin_to_db)
+        50_s,                 // Sustain hold time - how long to hold at sustain level
+                              // before auto-release. 50s = effectively "forever" (until note-off)
         q::duration{0.2f}     // 200ms release
       };
     }
@@ -704,15 +764,27 @@ public:
         // Get envelope amplitude
         float envAmp = mEnv();
 
-        // Apply retrigger offset for smooth transitions
+        // ─────────────────────────────────────────────────────────────────────────
+        // RETRIGGER CROSSFADE
+        // When a voice is retriggered, the new envelope starts from zero while
+        // the previous note may have been at full amplitude. This causes a click.
+        // Solution: We capture the previous level in mRetriggerOffset (see Trigger())
+        // and crossfade from it to the new envelope over ~5ms.
+        //
+        // Logic: If envelope is below the offset, use the offset. The offset
+        // decays exponentially, so once the new envelope catches up, we follow it.
+        // ─────────────────────────────────────────────────────────────────────────
         if (mRetriggerOffset > 0.001f)
         {
+          // Hold at previous level until new envelope catches up
           if (envAmp < mRetriggerOffset)
             envAmp = mRetriggerOffset;
+          // Exponential decay towards zero (~5ms time constant)
           mRetriggerOffset *= mRetriggerDecay;
         }
         else
         {
+          // Below threshold - clear to avoid denormals
           mRetriggerOffset = 0.0f;
         }
 
@@ -811,7 +883,7 @@ public:
     q::adsr_envelope_gen mEnv{q::adsr_envelope_gen::config{}, 44100.0f};
     q::adsr_envelope_gen::config mEnvConfig;
     WavetableOscillator mWavetableOsc;  // Wavetable oscillator
-    ResonantFilter mFilter;              // Per-voice resonant filter (Q library reso_filter)
+    ResonantFilter mFilter;              // Per-voice resonant filter (Q library biquads)
     double mSampleRate = 44100.0;
     float mVelocity = 0.0f;
     bool mActive = false;
@@ -858,7 +930,11 @@ public:
     {
       mGainSmoothed += mGainSmoothCoeff * (mGain - mGainSmoothed);
 
-      // Fixed poly scale for 8 voices
+      // Polyphony headroom compensation: reduces amplitude to manage clipping
+      // Worst-case (8 voices × full velocity × full envelope): 8.0 amplitude
+      // With kPolyScale=0.35: 8 × 0.35 = 2.8, exceeds 1.0 so will hard-clip.
+      // Typical use (3-4 voices, varied velocities): ~1.0-1.5, minimal clipping.
+      // The safety clamp below catches peaks; per-voice filter saturation also helps.
       constexpr float kPolyScale = 0.35f;
       float gainScale = kPolyScale * mGainSmoothed;
 
