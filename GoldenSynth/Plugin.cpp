@@ -24,7 +24,7 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   GetParam(kParamPulseWidth)->InitDouble("Pulse Width", 50., 5., 95., 0.1, "%");
 
   // FM synthesis parameters (only affects FM waveform)
-  GetParam(kParamFMRatio)->InitDouble("FM Ratio", 2., 0.5, 8., 0.01, ":1");  // Modulator:Carrier ratio
+  GetParam(kParamFMRatio)->InitDouble("FM Ratio", 2., 0.5, 8., 0.1, ":1");  // Modulator:Carrier ratio
   GetParam(kParamFMDepth)->InitDouble("FM Depth", 50., 0., 100., 0.1, "%");  // Modulation index
 
 #if IPLUG_EDITOR
