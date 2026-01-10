@@ -310,6 +310,120 @@ using namespace q::literals;
 //
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// UNISON ENGINE - Multiple Detuned Voices for Massive Sound
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// WHAT IS UNISON?
+// Unison stacks multiple copies of the same oscillator, each slightly detuned,
+// to create a thick, chorused, "wall of sound" effect. This is THE defining
+// feature of modern synthesizer sounds, especially EDM supersaws and leads.
+//
+// WITHOUT UNISON (1 voice):
+//   440Hz ─────────────────────────────────► Thin, single tone
+//
+// WITH UNISON (7 voices, symmetric spread):
+//   Voice 1: 437.0Hz ─┐  (leftmost, lowest)
+//   Voice 2: 438.5Hz ─┤
+//   Voice 3: 439.5Hz ─┤
+//   Voice 4: 440.0Hz ─┼─────────────────────► MASSIVE, chorused, wide
+//   Voice 5: 440.5Hz ─┤
+//   Voice 6: 441.5Hz ─┤
+//   Voice 7: 443.0Hz ─┘  (rightmost, highest)
+//
+// The slight frequency differences create "beating" - the voices drift in and
+// out of phase, creating constant movement and thickness. This is fundamentally
+// different from reverb or delay - it's a pitch-based chorus effect.
+//
+// DETUNE SPREAD ALGORITHM:
+// We use a symmetric spread around the center frequency. For N voices:
+//   - Voice 0 (center): no detune
+//   - Voices 1,2,...: alternating +/- detune, increasing outward
+//
+// Detune amount in cents: spreadCents × (voiceIndex / (numVoices - 1))
+// where spreadCents = detuneParam × kMaxUnisonDetuneCents
+//
+// STEREO WIDTH:
+// Outer voices are panned to create stereo spread:
+//   - Center voice: mono (center)
+//   - Voice pairs: panned L/R symmetrically
+//   - Width parameter controls how far they're panned
+//
+// This creates the "huge" stereo image of modern synth sounds.
+//
+// BLEND CONTROL:
+// Controls the mix between the center voice and the detuned voices:
+//   - 0%: Only center voice (thin, but stable pitch)
+//   - 50%: Equal mix (balanced thickness)
+//   - 100%: Only detuned voices (maximum thickness, but pitch can sound wobbly)
+//
+// CLASSIC SYNTHS WITH UNISON:
+// - Roland JP-8000: Invented the "Supersaw" (7-voice unison saw)
+// - Access Virus: Up to 9 unison voices
+// - Xfer Serum: 16 unison voices per oscillator
+// - Vital: 16 unison voices with advanced spread modes
+//
+// IMPLEMENTATION NOTES:
+// - We support up to 8 unison voices (good balance of CPU vs. sound)
+// - Each unison voice has its own phase accumulator (free-running)
+// - Unison applies to BOTH oscillators simultaneously
+// - All unison parameters are smoothed to prevent clicks
+// - CPU scales linearly with unison count (8x at max)
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// OSCILLATOR SYNC - Classic Analog Synthesis Technique
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// WHAT IS OSCILLATOR SYNC?
+// Hard sync forces one oscillator (the "slave") to reset its phase whenever
+// another oscillator (the "master") completes a cycle. This creates complex,
+// harmonically rich waveforms that are impossible to achieve otherwise.
+//
+// HARD SYNC VISUALIZATION:
+//
+//   Master (Osc1):  /|  /|  /|  /|  /|  /|    (completes full cycles)
+//                   / | / | / | / | / | / |
+//   ────────────────────────────────────────
+//   Slave (Osc2):   /| /| /| /| /| /| /| /|   (faster, gets reset)
+//    before sync    / |/ |/ |/ |/ |/ |/ |/ |
+//   ────────────────────────────────────────
+//   Slave (Osc2):   /|  /|  /|  /|  /|  /|    (after sync - truncated!)
+//    after sync     / ‾ / ‾ / ‾ / ‾ / ‾ / ‾
+//
+// When the slave is at a higher pitch than the master, each cycle gets
+// "cut off" partway through, creating asymmetrical waveforms with complex
+// harmonic content that changes as you sweep the slave pitch.
+//
+// THE "SYNC SWEEP" SOUND:
+// The classic sync sound is achieved by:
+// 1. Setting both oscillators to sawtooth
+// 2. Enabling hard sync
+// 3. Sweeping Osc2's pitch up (using octave or an envelope)
+//
+// As Osc2's pitch rises, more partial cycles fit into each master cycle,
+// creating a distinctive "tearing" or "ripping" sound that's harmonically
+// related to the master frequency.
+//
+// FAMOUS USES OF SYNC:
+// - The Cars "Let's Go" - that iconic lead sound
+// - Van Halen "Jump" - Oberheim sync brass
+// - Depeche Mode - countless tracks
+// - Gary Numan - signature sound
+//
+// ANTI-ALIASING CONSIDERATION:
+// Naive digital sync creates aliasing because the phase reset introduces a
+// discontinuity. Our implementation uses PolyBLEP-style oscillators which
+// help, but for perfect anti-aliasing you'd need BLIT or oversampling.
+// For this educational synth, we accept minor aliasing at extreme settings.
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Unison configuration
+constexpr int kMaxUnisonVoices = 8;           // Maximum unison voices (CPU-friendly)
+constexpr float kMaxUnisonDetuneCents = 50.0f; // Max detune spread in cents (±25 from center)
+
 // Wavetable dimensions
 constexpr int kWavetableSize = 2048;      // Samples per cycle (power of 2 for fast wrapping)
 constexpr int kWavetableFrames = 16;      // Morph positions (more = smoother morphing)
@@ -320,6 +434,18 @@ constexpr float kWavetableSizeF = static_cast<float>(kWavetableSize);
 constexpr int kNumWaveShapes = 4;         // Sine, Triangle, Saw, Square
 
 // Memory: 2048 × 16 × 8 × 4 bytes = 1MB (static allocation, not stack)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MATHEMATICAL CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════════════
+// Named constants for commonly used values. Improves readability and avoids
+// magic numbers scattered throughout the codebase.
+// ═══════════════════════════════════════════════════════════════════════════════
+constexpr float kPi = 3.14159265358979323846f;
+constexpr float kTwoPi = 2.0f * kPi;              // Full circle in radians
+constexpr float kHalfPi = 0.5f * kPi;             // Quarter circle
+constexpr float kQuarterPi = 0.25f * kPi;         // Eighth circle (used in constant-power pan)
+constexpr float kSqrtHalf = 0.7071067811865476f;  // 1/sqrt(2), equal power stereo
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DSP UTILITIES
@@ -632,6 +758,15 @@ public:
 
   void Reset() { mPhase = 0.0f; }
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // PHASE ACCESS FOR HARD SYNC
+  // Hard sync requires reading Osc1's phase to detect zero-crossings, and
+  // resetting Osc2's phase when sync triggers. These methods expose the
+  // internal phase for that purpose.
+  // ─────────────────────────────────────────────────────────────────────────────
+  float GetPhase() const { return mPhase; }
+  void ResetPhase() { mPhase = 0.0f; }
+
   float Process()
   {
     if (!mTable) return 0.0f;
@@ -719,6 +854,66 @@ public:
     return sample;
   }
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // PROCESS AT EXTERNAL PHASE (for unison voices)
+  // ─────────────────────────────────────────────────────────────────────────────
+  // This method allows unison voices to share the wavetable and morph position
+  // while each having their own phase for detuning. The external phase is passed
+  // by reference and advanced after sampling.
+  //
+  // IMPORTANT: Call Process() first for voice 0 to update the morph position
+  // smoothing, then call ProcessAtPhase() for additional unison voices.
+  // ─────────────────────────────────────────────────────────────────────────────
+  float ProcessAtPhase(float& phase, float phaseInc, float frequency)
+  {
+    if (!mTable) return 0.0f;
+
+    // Use the already-smoothed morph position from the main oscillator
+    // (mPosition was updated by Process() call for voice 0)
+
+    // Calculate mip level for this voice's frequency
+    constexpr float kBaseHarmonics = 128.0f;
+    float mipFloat = std::log2(std::max(1.0f, kBaseHarmonics * frequency / mNyquist));
+    mipFloat = std::max(0.0f, std::min(mipFloat, static_cast<float>(kNumMipLevels - 1)));
+
+    int mip0 = static_cast<int>(mipFloat);
+    int mip1 = std::min(mip0 + 1, kNumMipLevels - 1);
+    float mipFrac = mipFloat - mip0;
+
+    // Frame interpolation (morph position)
+    int frame0 = static_cast<int>(mPosition);
+    int frame1 = std::min(frame0 + 1, kWavetableFrames - 1);
+    float frameFrac = mPosition - frame0;
+
+    // Sample position
+    float samplePos = phase * kWavetableSizeF;
+    int idx0 = static_cast<int>(samplePos) & (kWavetableSize - 1);
+    int idx1 = (idx0 + 1) & (kWavetableSize - 1);
+    float sampleFrac = samplePos - std::floor(samplePos);
+
+    // Trilinear interpolation
+    auto sampleFrame = [&](int mip, int frame) {
+      const auto& t = (*mTable)[mip][frame];
+      return t[idx0] + sampleFrac * (t[idx1] - t[idx0]);
+    };
+
+    float s_mip0_f0 = sampleFrame(mip0, frame0);
+    float s_mip0_f1 = sampleFrame(mip0, frame1);
+    float s_mip0 = s_mip0_f0 + frameFrac * (s_mip0_f1 - s_mip0_f0);
+
+    float s_mip1_f0 = sampleFrame(mip1, frame0);
+    float s_mip1_f1 = sampleFrame(mip1, frame1);
+    float s_mip1 = s_mip1_f0 + frameFrac * (s_mip1_f1 - s_mip1_f0);
+
+    float sample = s_mip0 + mipFrac * (s_mip1 - s_mip0);
+
+    // Advance external phase
+    phase += phaseInc;
+    while (phase >= 1.0f) phase -= 1.0f;
+
+    return sample;
+  }
+
 private:
   const WavetableData* mTable = nullptr;
   float mSampleRate = 48000.0f;
@@ -751,8 +946,7 @@ class WavetableGenerator
 {
 public:
   using WavetableData = WavetableOscillator::WavetableData;
-  static constexpr float kPi = 3.14159265359f;
-  static constexpr float k2Pi = 2.0f * kPi;
+  // Using global kPi and kTwoPi constants defined at file level
 
   // Harmonics per mip level - halves each octave to stay below Nyquist
   // Mip 0 has 128 harmonics (used for fundamentals up to ~187Hz at 48kHz)
@@ -776,7 +970,7 @@ public:
     float sample = 0.0f;
     for (int h = 1; h <= maxHarmonics; h++)
     {
-      sample -= std::sin(phase * k2Pi * h) / static_cast<float>(h);
+      sample -= std::sin(phase * kTwoPi * h) / static_cast<float>(h);
     }
     return sample * (2.0f / kPi);  // Normalize to [-1, 1]
   }
@@ -788,7 +982,7 @@ public:
     float sample = 0.0f;
     for (int h = 1; h <= maxHarmonics; h += 2)  // Odd harmonics only
     {
-      sample += std::sin(phase * k2Pi * h) / static_cast<float>(h);
+      sample += std::sin(phase * kTwoPi * h) / static_cast<float>(h);
     }
     return sample * (4.0f / kPi);  // Normalize to [-1, 1]
   }
@@ -802,7 +996,7 @@ public:
     {
       // Alternating sign: +1 for h=1, -1 for h=3, +1 for h=5, ...
       float sign = ((h - 1) / 2 % 2 == 0) ? 1.0f : -1.0f;
-      sample += sign * std::sin(phase * k2Pi * h) / static_cast<float>(h * h);
+      sample += sign * std::sin(phase * kTwoPi * h) / static_cast<float>(h * h);
     }
     return sample * (8.0f / (kPi * kPi));  // Normalize to [-1, 1]
   }
@@ -837,7 +1031,7 @@ public:
           float phase = static_cast<float>(i) / kWavetableSize;
 
           // Generate all 4 band-limited waveforms at this phase
-          float sine = std::sin(phase * k2Pi);  // Sine has no harmonics to limit
+          float sine = std::sin(phase * kTwoPi);  // Sine has no harmonics to limit
           float triangle = GenerateBandLimitedTriangle(phase, maxHarmonics);
           float saw = GenerateBandLimitedSaw(phase, maxHarmonics);
           float square = GenerateBandLimitedSquare(phase, maxHarmonics);
@@ -963,6 +1157,7 @@ public:
     void SetWavetable(const WavetableOscillator::WavetableData* table)
     {
       mWavetableOsc.SetWavetable(table);
+      mOsc2WavetableOsc.SetWavetable(table);  // Osc2 shares the same wavetable
     }
 
     bool GetBusy() const override
@@ -984,8 +1179,15 @@ public:
         // New note - reset oscillator phase and filter for consistent attack
         mPhase = q::phase_iterator{};
         mWavetableOsc.Reset();
-        mFilter.Reset();  // Clear filter state to avoid artifacts from previous notes
-        mFMModulatorPhase = 0.0f;  // Reset FM modulator for consistent FM timbre on attack
+        mFilterL.Reset();  // Clear filter state to avoid artifacts from previous notes
+        mFilterR.Reset();
+
+        // Reset all per-unison-voice FM modulator phases for consistent FM timbre on attack
+        for (int v = 0; v < kMaxUnisonVoices; v++)
+        {
+          mOsc1FMModulatorPhases[v] = 0.0f;
+          mOsc2FMModulatorPhases[v] = 0.0f;
+        }
       }
 
       // ─────────────────────────────────────────────────────────────────────────
@@ -1055,13 +1257,218 @@ public:
       double pitchBend = mInputs[kVoiceControlPitchBend].endValue;
 
       // Convert to frequency: 440Hz × 2^(pitch + bend)
-      double freq = 440.0 * std::pow(2.0, pitch + pitchBend);
+      double targetFreq = 440.0 * std::pow(2.0, pitch + pitchBend);
+
+      // ─────────────────────────────────────────────────────────────────────────
+      // PORTAMENTO (GLIDE)
+      // ─────────────────────────────────────────────────────────────────────────
+      // Portamento smoothly glides from the previous pitch to the new pitch.
+      // This is a classic synth feature for expressive lead lines and basses.
+      //
+      // We glide in the logarithmic domain (pitch) rather than linear (Hz) because
+      // pitch perception is logarithmic. This ensures equal glide time across octaves.
+      //
+      // When portamento is 0, we snap instantly to the new pitch.
+      // When portamento is > 0, we exponentially approach the target.
+      // ─────────────────────────────────────────────────────────────────────────
+      double baseFreq = targetFreq;
+      if (mPortamentoCoeff < 1.0f && mCurrentBaseFreq > 0.0)
+      {
+        // Exponential glide: multiply current by coefficient and add remainder of target
+        // This creates a smooth asymptotic approach to the target frequency
+        mCurrentBaseFreq += mPortamentoCoeff * (targetFreq - mCurrentBaseFreq);
+        baseFreq = mCurrentBaseFreq;
+      }
+      else
+      {
+        // No portamento or first note - snap to target
+        mCurrentBaseFreq = targetFreq;
+      }
+
+      // ─────────────────────────────────────────────────────────────────────────
+      // OSCILLATOR 1 FREQUENCY CALCULATION
+      // Osc1 now has octave and detune controls for full symmetry with Osc2.
+      // Formula: osc1Freq = baseFreq × 2^(octave + cents/1200)
+      // ─────────────────────────────────────────────────────────────────────────
+      double osc1FreqShift = static_cast<double>(mOsc1Octave) + mOsc1Detune / 1200.0;
+      double freq = baseFreq * std::pow(2.0, osc1FreqShift);
 
       // Update Q library phase iterator with new frequency
       mPhase.set(q::frequency{static_cast<float>(freq)}, static_cast<float>(mSampleRate));
 
       // Update wavetable oscillator frequency (for mip level calculation)
       mWavetableOsc.SetFrequency(static_cast<float>(freq), static_cast<float>(mSampleRate));
+
+      // ─────────────────────────────────────────────────────────────────────────
+      // OSCILLATOR 2 FREQUENCY CALCULATION
+      // Osc2 can be shifted by octaves and detuned by cents for fat, layered sounds.
+      // Formula: osc2Freq = baseFreq × 2^octave × 2^(cents/1200)
+      //        = baseFreq × 2^(octave + cents/1200)
+      //
+      // Example at A4 (440Hz):
+      //   Octave=0, Detune=+7 cents: 440 × 2^(7/1200) = 441.78Hz (+1.78Hz beating)
+      //   Octave=-1, Detune=0: 440 × 2^(-1) = 220Hz (one octave down)
+      //   Octave=+1, Detune=-12 cents: 440 × 2^(1-12/1200) = 877Hz (octave up, slightly flat)
+      // ─────────────────────────────────────────────────────────────────────────
+      double osc2FreqShift = static_cast<double>(mOsc2Octave) + mOsc2Detune / 1200.0;
+      double osc2Freq = baseFreq * std::pow(2.0, osc2FreqShift);
+
+      // Update Osc2 phase iterator (note: phase is NOT reset in Trigger for free-running)
+      mOsc2Phase.set(q::frequency{static_cast<float>(osc2Freq)}, static_cast<float>(mSampleRate));
+
+      // Update Osc2 wavetable frequency
+      mOsc2WavetableOsc.SetFrequency(static_cast<float>(osc2Freq), static_cast<float>(mSampleRate));
+
+      // ─────────────────────────────────────────────────────────────────────────
+      // ─────────────────────────────────────────────────────────────────────────
+      // PRE-COMPUTE UNISON VOICE DATA (Per-Oscillator - Serum-style)
+      // ─────────────────────────────────────────────────────────────────────────
+      // Each oscillator has INDEPENDENT unison settings. This allows combinations
+      // like: thick supersaw lead (Osc1: 8 voices) + clean sub bass (Osc2: 1 voice)
+      //
+      // DETUNE: Symmetric distribution around center pitch using alternating +/-
+      //   Voice 0 (center): no detune
+      //   Voice 1: +spread, Voice 2: -spread, Voice 3: +more, Voice 4: -more, ...
+      //
+      // STEREO PANNING: Perfectly symmetric spread from -width to +width
+      //   - For odd spread voices: includes center (0)
+      //   - For even spread voices: straddles center (no voice at 0)
+      //   This ensures LEFT and RIGHT have equal energy regardless of voice count.
+      //
+      // Example for 8 voices (7 spread voices, odd):
+      //   Pans: -1.0, -0.67, -0.33, 0, +0.33, +0.67, +1.0  (symmetric!)
+      //
+      // Example for 7 voices (6 spread voices, even):
+      //   Pans: -0.83, -0.5, -0.17, +0.17, +0.5, +0.83  (symmetric, straddles 0)
+      // ─────────────────────────────────────────────────────────────────────────
+
+      // OSC1 UNISON SETUP
+      if (mOsc1UnisonVoices > 1)
+      {
+        float spreadCents = mOsc1UnisonDetune * kMaxUnisonDetuneCents;
+        int numSpreadVoices = mOsc1UnisonVoices - 1;  // Voices 1 to N-1
+
+        for (int v = 0; v < mOsc1UnisonVoices; v++)
+        {
+          if (v == 0)
+          {
+            // ─────────────────────────────────────────────────────────────────
+            // CENTER VOICE: No detune, no panning
+            // ─────────────────────────────────────────────────────────────────
+            mOsc1UnisonDetuneOffsets[v] = 0.0f;
+            mOsc1UnisonPans[v] = 0.0f;
+          }
+          else
+          {
+            // ─────────────────────────────────────────────────────────────────
+            // SPREAD VOICES: Symmetric detune and panning
+            // ─────────────────────────────────────────────────────────────────
+
+            // DETUNE: Alternating +/- with increasing magnitude
+            int spreadLevel = (v + 1) / 2;  // 1,1,2,2,3,3,4,4...
+            float detunePosition = static_cast<float>(spreadLevel) / static_cast<float>((mOsc1UnisonVoices) / 2);
+            float detuneSign = (v % 2 == 1) ? 1.0f : -1.0f;
+            mOsc1UnisonDetuneOffsets[v] = detuneSign * detunePosition * spreadCents;
+
+            // PANNING: Perfectly symmetric spread
+            // Formula changes based on odd/even spread voice count
+            float panPosition;
+            float idx = static_cast<float>(v - 1);  // 0-indexed within spread voices
+
+            if (numSpreadVoices % 2 == 1)
+            {
+              // Odd spread voices: linear from -width to +width (includes 0)
+              // pan = (2*idx - (N-1)) / (N-1) * width
+              panPosition = (2.0f * idx - (numSpreadVoices - 1)) / static_cast<float>(numSpreadVoices - 1);
+            }
+            else
+            {
+              // Even spread voices: straddle center (no voice at 0)
+              // pan = (2*idx + 1 - N) / N * width
+              panPosition = (2.0f * idx + 1.0f - numSpreadVoices) / static_cast<float>(numSpreadVoices);
+            }
+            mOsc1UnisonPans[v] = panPosition * mOsc1UnisonWidth;
+          }
+        }
+      }
+
+      // OSC2 UNISON SETUP (Independent from Osc1, same symmetric algorithm)
+      if (mOsc2UnisonVoices > 1)
+      {
+        float spreadCents = mOsc2UnisonDetune * kMaxUnisonDetuneCents;
+        int numSpreadVoices = mOsc2UnisonVoices - 1;  // Voices 1 to N-1
+
+        for (int v = 0; v < mOsc2UnisonVoices; v++)
+        {
+          if (v == 0)
+          {
+            // CENTER VOICE: No detune, no panning
+            mOsc2UnisonDetuneOffsets[v] = 0.0f;
+            mOsc2UnisonPans[v] = 0.0f;
+          }
+          else
+          {
+            // SPREAD VOICES: Symmetric detune and panning
+
+            // DETUNE: Alternating +/- with increasing magnitude
+            int spreadLevel = (v + 1) / 2;
+            float detunePosition = static_cast<float>(spreadLevel) / static_cast<float>((mOsc2UnisonVoices) / 2);
+            float detuneSign = (v % 2 == 1) ? 1.0f : -1.0f;
+            mOsc2UnisonDetuneOffsets[v] = detuneSign * detunePosition * spreadCents;
+
+            // PANNING: Perfectly symmetric spread (same formula as Osc1)
+            float panPosition;
+            float idx = static_cast<float>(v - 1);
+
+            if (numSpreadVoices % 2 == 1)
+            {
+              // Odd spread voices: includes center
+              panPosition = (2.0f * idx - (numSpreadVoices - 1)) / static_cast<float>(numSpreadVoices - 1);
+            }
+            else
+            {
+              // Even spread voices: straddles center
+              panPosition = (2.0f * idx + 1.0f - numSpreadVoices) / static_cast<float>(numSpreadVoices);
+            }
+            mOsc2UnisonPans[v] = panPosition * mOsc2UnisonWidth;
+          }
+        }
+      }
+
+      // ─────────────────────────────────────────────────────────────────────────
+      // SET UP OSC1 UNISON VOICE FREQUENCIES
+      // ─────────────────────────────────────────────────────────────────────────
+      for (int v = 0; v < mOsc1UnisonVoices; v++)
+      {
+        float osc1TotalDetune = mOsc1Detune + mOsc1UnisonDetuneOffsets[v];
+        double osc1UnisonFreqShift = static_cast<double>(mOsc1Octave) + osc1TotalDetune / 1200.0;
+        double osc1UnisonFreq = baseFreq * std::pow(2.0, osc1UnisonFreqShift);
+        mOsc1UnisonPhases[v].set(q::frequency{static_cast<float>(osc1UnisonFreq)}, static_cast<float>(mSampleRate));
+        // Also set up wavetable phases for this unison voice
+        mOsc1WavetablePhaseIncs[v] = static_cast<float>(osc1UnisonFreq / mSampleRate);
+        mOsc1WavetableFreqs[v] = static_cast<float>(osc1UnisonFreq);
+      }
+
+      // ─────────────────────────────────────────────────────────────────────────
+      // SET UP OSC2 UNISON VOICE FREQUENCIES (Independent from Osc1)
+      // ─────────────────────────────────────────────────────────────────────────
+      if (mOsc2Level > 0.001f)
+      {
+        for (int v = 0; v < mOsc2UnisonVoices; v++)
+        {
+          float osc2TotalDetune = mOsc2Detune + mOsc2UnisonDetuneOffsets[v];
+          double osc2UnisonFreqShift = static_cast<double>(mOsc2Octave) + osc2TotalDetune / 1200.0;
+          double osc2UnisonFreq = baseFreq * std::pow(2.0, osc2UnisonFreqShift);
+          mOsc2UnisonPhases[v].set(q::frequency{static_cast<float>(osc2UnisonFreq)}, static_cast<float>(mSampleRate));
+          // Also set up wavetable phases for this unison voice
+          mOsc2WavetablePhaseIncs[v] = static_cast<float>(osc2UnisonFreq / mSampleRate);
+          mOsc2WavetableFreqs[v] = static_cast<float>(osc2UnisonFreq);
+        }
+      }
+
+      // Also update the main phase iterators (used when unison=1 or as voice 0)
+      mPhase.set(q::frequency{static_cast<float>(freq)}, static_cast<float>(mSampleRate));
+      mOsc2Phase.set(q::frequency{static_cast<float>(osc2Freq)}, static_cast<float>(mSampleRate));
 
       for (int i = startIdx; i < startIdx + nFrames; i++)
       {
@@ -1104,117 +1511,402 @@ public:
         }
 
         // ─────────────────────────────────────────────────────────────────────────
-        // SIGNAL CHAIN: OSC → FILTER → AMP
-        // This is the classic subtractive synthesis topology
+        // SIGNAL CHAIN: OSC (with UNISON) → FILTER → AMP
+        // This is the classic subtractive synthesis topology, enhanced with unison.
+        //
+        // When unison > 1, we generate multiple detuned copies of each oscillator
+        // and mix them with stereo panning for the "massive" supersaw sound.
         // ─────────────────────────────────────────────────────────────────────────
 
+        // Smooth pulse width for Osc1 (used by all unison voices)
+        mPulseWidth += mPulseWidthSmoothCoeff * (mPulseWidthTarget - mPulseWidth);
+
+        // Smooth FM parameters for Osc1
+        mFMRatioTarget = mFMRatioCoarse * (1.0f + mFMRatioFine);
+        mFMRatio += mFMSmoothCoeff * (mFMRatioTarget - mFMRatio);
+        mFMDepth += mFMSmoothCoeff * (mFMDepthTarget - mFMDepth);
+
         // ─────────────────────────────────────────────────────────────────────────
-        // STEP 1: Generate oscillator sample
-        // Q library oscillators use PolyBLEP/PolyBLAMP anti-aliasing (see header).
-        // Wavetable uses our mipmapped implementation with trilinear interpolation.
+        // PER-OSCILLATOR UNISON GENERATION (Serum-style)
         // ─────────────────────────────────────────────────────────────────────────
-        float oscValue = 0.0f;
-        switch (mWaveform)
+        // Each oscillator has INDEPENDENT unison settings. We generate Osc1 and
+        // Osc2 in separate loops, each with their own voice count, detune, width,
+        // and blend parameters.
+        // ─────────────────────────────────────────────────────────────────────────
+        float osc1Left = 0.0f;
+        float osc1Right = 0.0f;
+        float osc2Left = 0.0f;
+        float osc2Right = 0.0f;
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // OSC1 UNISON GENERATION
+        // ─────────────────────────────────────────────────────────────────────────
+        for (int v = 0; v < mOsc1UnisonVoices; v++)
         {
-          case kWaveformSine:
-            // Sine: Table lookup (sin_lu) - no aliasing, only 1 harmonic
-            oscValue = q::sin(mPhase++);
-            break;
-          case kWaveformSaw:
-            // Sawtooth: PolyBLEP corrects the falling edge discontinuity
-            // Naive: 2*phase - 1, then subtract poly_blep correction
-            oscValue = q::saw(mPhase++);
-            break;
-          case kWaveformSquare:
-            // Square: PolyBLEP corrects BOTH rising and falling edges
-            // Two discontinuities per cycle require two corrections
-            oscValue = q::square(mPhase++);
-            break;
-          case kWaveformTriangle:
-            // Triangle: PolyBLAMP corrects slope discontinuities (corners)
-            // Uses cubic polynomial (integrated BLEP) for smooth corners
-            oscValue = q::triangle(mPhase++);
-            break;
-          case kWaveformPulse:
-            // Pulse: Variable duty cycle with PolyBLEP on both edges
-            // At 50% = square wave, <50% = narrow pulse, >50% = wide pulse
-            // PWM (pulse width modulation) creates classic chorus/ensemble effects
-            //
-            // Smooth pulse width to prevent clicks when parameter changes rapidly.
-            // Without smoothing, sudden width changes cause the falling edge to
-            // jump position mid-cycle, creating a discontinuity (audible click).
-            mPulseWidth += mPulseWidthSmoothCoeff * (mPulseWidthTarget - mPulseWidth);
-            mPulseOsc.width(mPulseWidth);
-            oscValue = mPulseOsc(mPhase++);
-            break;
-          case kWaveformFM:
+          float osc1Sample = 0.0f;
+          switch (mWaveform)
           {
-            // FM Synthesis: Modulator modulates carrier's phase
-            // Formula: output = sin(carrierPhase + depth * sin(modulatorPhase))
-            //
-            // Combine coarse + fine ratio (DX7-style)
-            // Fine is a percentage offset: ratio = coarse * (1 + fine)
-            // e.g., coarse 2.0 + fine 0.2 (+20%) = ratio 2.4
-            mFMRatioTarget = mFMRatioCoarse * (1.0f + mFMRatioFine);
+            case kWaveformSine:
+              osc1Sample = q::sin(mOsc1UnisonPhases[v]++);
+              break;
+            case kWaveformSaw:
+              osc1Sample = q::saw(mOsc1UnisonPhases[v]++);
+              break;
+            case kWaveformSquare:
+              osc1Sample = q::square(mOsc1UnisonPhases[v]++);
+              break;
+            case kWaveformTriangle:
+              osc1Sample = q::triangle(mOsc1UnisonPhases[v]++);
+              break;
+            case kWaveformPulse:
+              mOsc1UnisonPulseOscs[v].width(mPulseWidth);
+              osc1Sample = mOsc1UnisonPulseOscs[v](mOsc1UnisonPhases[v]++);
+              break;
+            case kWaveformFM:
+            {
+              // ─────────────────────────────────────────────────────────────────
+              // FM SYNTHESIS WITH PER-UNISON-VOICE MODULATOR
+              // Each unison voice has its own modulator phase, ensuring correct
+              // FM behavior when combined with unison detuning.
+              // ─────────────────────────────────────────────────────────────────
+              float phaseIncRadians = static_cast<float>(mOsc1UnisonPhases[v]._step.rep) /
+                                      static_cast<float>(0xFFFFFFFFu) * kTwoPi;
 
-            // Smooth FM parameters to prevent clicks during modulation
-            mFMRatio += mFMSmoothCoeff * (mFMRatioTarget - mFMRatio);
-            mFMDepth += mFMSmoothCoeff * (mFMDepthTarget - mFMDepth);
+              // Use per-voice modulator phase (not shared across voices)
+              mOsc1FMModulatorPhases[v] += phaseIncRadians * mFMRatio;
+              while (mOsc1FMModulatorPhases[v] >= kTwoPi)
+                mOsc1FMModulatorPhases[v] -= kTwoPi;
 
-            // Advance modulator phase (runs at carrier_freq × ratio)
-            // Convert carrier phase increment to radians, then scale by ratio
-            constexpr float kTwoPi = 2.0f * 3.14159265f;
-            float carrierPhaseIncRadians = static_cast<float>(mPhase._step.rep) /
-                                           static_cast<float>(0xFFFFFFFFu) * kTwoPi;
-            mFMModulatorPhase += carrierPhaseIncRadians * mFMRatio;
+              float modulatorValue = std::sin(mOsc1FMModulatorPhases[v]);
+              constexpr float kMaxModIndex = 4.0f * kPi;  // ~12.57 radians max modulation
+              float velScaledDepth = mFMDepth * (0.3f + 0.7f * mVelocity);
+              float phaseModulation = velScaledDepth * kMaxModIndex * modulatorValue;
 
-            // Wrap modulator phase to prevent floating point precision issues
-            // Use while loop because at high frequencies + high ratios,
-            // phase can advance more than 2π per sample (e.g., 20kHz × ratio 8 = 160kHz)
-            while (mFMModulatorPhase >= kTwoPi)
-              mFMModulatorPhase -= kTwoPi;
-
-            // Get modulator output (simple sine)
-            float modulatorValue = std::sin(mFMModulatorPhase);
-
-            // Apply modulation to carrier phase
-            // depth is 0-1, we scale to 0-4π for musically useful range
-            // Velocity sensitivity: harder hits = brighter FM (30% base + 70% velocity)
-            constexpr float kMaxModIndex = 4.0f * 3.14159265f;  // ~12.57 radians
-            float velScaledDepth = mFMDepth * (0.3f + 0.7f * mVelocity);
-            float phaseModulation = velScaledDepth * kMaxModIndex * modulatorValue;
-
-            // Get carrier phase as float (0 to 2π)
-            float carrierPhase = static_cast<float>(mPhase._phase.rep) /
-                                 static_cast<float>(0xFFFFFFFFu) * 2.0f * 3.14159265f;
-
-            // Output = sin(carrierPhase + modulation)
-            oscValue = std::sin(carrierPhase + phaseModulation);
-
-            // Advance carrier phase
-            mPhase++;
-            break;
+              float carrierPhase = static_cast<float>(mOsc1UnisonPhases[v]._phase.rep) /
+                                   static_cast<float>(0xFFFFFFFFu) * kTwoPi;
+              osc1Sample = std::sin(carrierPhase + phaseModulation);
+              mOsc1UnisonPhases[v]++;
+              break;
+            }
+            case kWaveformWavetable:
+              if (v == 0)
+                osc1Sample = mWavetableOsc.Process();
+              else
+                osc1Sample = mWavetableOsc.ProcessAtPhase(mOsc1WavetablePhases[v], mOsc1WavetablePhaseIncs[v], mOsc1WavetableFreqs[v]);
+              break;
+            default:
+              osc1Sample = q::sin(mOsc1UnisonPhases[v]++);
+              break;
           }
-          case kWaveformWavetable:
-            // Wavetable: Perfect band-limiting via mipmapped additive synthesis
-            // Supports morphing between Sine→Triangle→Saw→Square
-            oscValue = mWavetableOsc.Process();
-            break;
-          default:
-            oscValue = q::sin(mPhase++);
-            break;
+
+          // ─────────────────────────────────────────────────────────────────
+          // OSC1 STEREO PANNING
+          // ─────────────────────────────────────────────────────────────────
+          // For single voice (unison=1): Full amplitude to both channels
+          // For unison: Constant-power panning using sin/cos to maintain
+          // equal perceived loudness across the stereo field.
+          //
+          // Constant-power formula: L=cos(angle), R=sin(angle)
+          // This gives: L²+R² = 1 at all pan positions
+          // ─────────────────────────────────────────────────────────────────
+          float leftGain, rightGain;
+          if (mOsc1UnisonVoices == 1)
+          {
+            // Single voice: full amplitude to both channels (mono compatible)
+            leftGain = 1.0f;
+            rightGain = 1.0f;
+          }
+          else if (v == 0)
+          {
+            // Center voice in unison: equal power to both channels (1/sqrt(2))
+            leftGain = kSqrtHalf;
+            rightGain = kSqrtHalf;
+          }
+          else
+          {
+            // Spread voices: constant-power panning
+            float pan = mOsc1UnisonPans[v];
+            float angle = (pan + 1.0f) * kQuarterPi;
+            leftGain = std::cos(angle);
+            rightGain = std::sin(angle);
+          }
+
+          // ─────────────────────────────────────────────────────────────────
+          // VOICE WEIGHT WITH POWER COMPENSATION
+          // ─────────────────────────────────────────────────────────────────
+          // When splitting signal across N voices, amplitude weights that sum
+          // to 1.0 cause power (loudness) to DROP because power = amplitude².
+          //
+          // Example: 8 voices with blend=0.75
+          //   Raw weights: 0.25² + 7×(0.107)² = 0.14 (only 14% power!)
+          //
+          // We compensate by calculating the power sum and scaling up:
+          //   compensation = 1 / sqrt(powerSum)
+          //
+          // This maintains consistent perceived loudness regardless of
+          // unison voice count or blend setting.
+          // ─────────────────────────────────────────────────────────────────
+          float voiceWeight = 1.0f;
+          if (mOsc1UnisonVoices > 1)
+          {
+            float centerWeight = 1.0f - mOsc1UnisonBlend;
+            float spreadWeight = mOsc1UnisonBlend / static_cast<float>(mOsc1UnisonVoices - 1);
+
+            // Calculate power sum for compensation
+            float powerSum = centerWeight * centerWeight +
+                             (mOsc1UnisonVoices - 1) * spreadWeight * spreadWeight;
+            float gainCompensation = 1.0f / std::sqrt(powerSum);
+
+            if (v == 0)
+              voiceWeight = centerWeight * gainCompensation;
+            else
+              voiceWeight = spreadWeight * gainCompensation;
+          }
+
+          osc1Left += osc1Sample * leftGain * voiceWeight;
+          osc1Right += osc1Sample * rightGain * voiceWeight;
         }
 
-        // STEP 2: Apply filter (sculpt the harmonics)
-        float filtered = mFilter.Process(oscValue);
+        // ─────────────────────────────────────────────────────────────────────────
+        // HARD SYNC DETECTION (for Osc2)
+        // ─────────────────────────────────────────────────────────────────────────
+        // Hard sync is a classic analog technique where Osc2's phase resets whenever
+        // Osc1 completes a cycle. This creates aggressive, harmonically rich timbres
+        // that change character as you detune Osc2 relative to Osc1.
+        //
+        // IMPLEMENTATION CHALLENGE:
+        // We need to detect Osc1's zero-crossing regardless of waveform type:
+        // - For standard waveforms: Use Q library phase_iterator (32-bit fixed point)
+        // - For wavetable: Use our float phase (0.0-1.0)
+        //
+        // We track BOTH phase types and check which one is active based on waveform.
+        // ─────────────────────────────────────────────────────────────────────────
+        bool osc1CycleComplete = false;
+        if (mOscSyncMode == 1)
+        {
+          bool cycleDetected = false;
+
+          if (mWaveform == kWaveformWavetable)
+          {
+            // ─────────────────────────────────────────────────────────────────────
+            // WAVETABLE SYNC DETECTION
+            // The main wavetable oscillator tracks its own phase internally.
+            // We use voice 0's wavetable phase for sync detection since that's
+            // the phase being incremented by mWavetableOsc.Process().
+            // ─────────────────────────────────────────────────────────────────────
+            float currentWtPhase = mWavetableOsc.GetPhase();
+            if (currentWtPhase < mPrevOsc1WavetablePhase)
+            {
+              cycleDetected = true;
+            }
+            mPrevOsc1WavetablePhase = currentWtPhase;
+          }
+          else
+          {
+            // ─────────────────────────────────────────────────────────────────────
+            // STANDARD WAVEFORM SYNC DETECTION
+            // Q library phase_iterator uses 32-bit fixed point. When it wraps
+            // from 0xFFFFFFFF to 0x00000000, we detect it as current < previous.
+            // ─────────────────────────────────────────────────────────────────────
+            uint32_t currentPhase = mOsc1UnisonPhases[0]._phase.rep;
+            if (currentPhase < mPrevOsc1PhaseRaw)
+            {
+              cycleDetected = true;
+            }
+            mPrevOsc1PhaseRaw = currentPhase;
+          }
+
+          if (cycleDetected)
+          {
+            osc1CycleComplete = true;
+
+            // ─────────────────────────────────────────────────────────────────────
+            // RESET ALL OSC2 PHASES
+            // Reset both Q library phases AND wavetable phases to ensure sync
+            // works regardless of Osc2's waveform type.
+            // ─────────────────────────────────────────────────────────────────────
+            for (int sv = 0; sv < mOsc2UnisonVoices; sv++)
+            {
+              // Reset Q library phase iterators (for standard waveforms)
+              mOsc2UnisonPhases[sv]._phase.rep = 0;
+
+              // Reset wavetable phases (for wavetable mode)
+              mOsc2WavetablePhases[sv] = 0.0f;
+            }
+
+            // Also reset the main Osc2 wavetable oscillator's internal phase
+            mOsc2WavetableOsc.ResetPhase();
+          }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // OSC2 UNISON GENERATION (Independent from Osc1)
+        // ─────────────────────────────────────────────────────────────────────────
+        if (mOsc2Level > 0.001f)
+        {
+          for (int v = 0; v < mOsc2UnisonVoices; v++)
+          {
+            float osc2Sample = 0.0f;
+            switch (mOsc2Waveform)
+            {
+              case kWaveformSine:
+                osc2Sample = q::sin(mOsc2UnisonPhases[v]++);
+                break;
+              case kWaveformSaw:
+                osc2Sample = q::saw(mOsc2UnisonPhases[v]++);
+                break;
+              case kWaveformSquare:
+                osc2Sample = q::square(mOsc2UnisonPhases[v]++);
+                break;
+              case kWaveformTriangle:
+                osc2Sample = q::triangle(mOsc2UnisonPhases[v]++);
+                break;
+              case kWaveformPulse:
+                mOsc2UnisonPulseOscs[v].width(mOsc2PulseWidth);
+                osc2Sample = mOsc2UnisonPulseOscs[v](mOsc2UnisonPhases[v]++);
+                break;
+              case kWaveformFM:
+              {
+                // ─────────────────────────────────────────────────────────────────
+                // OSC2 FM SYNTHESIS WITH PER-UNISON-VOICE MODULATOR
+                // Same as Osc1: each unison voice gets its own modulator phase.
+                // ─────────────────────────────────────────────────────────────────
+                float phaseIncRadians = static_cast<float>(mOsc2UnisonPhases[v]._step.rep) /
+                                        static_cast<float>(0xFFFFFFFFu) * kTwoPi;
+                float osc2CombinedRatio = mOsc2FMRatio + mOsc2FMFine;
+
+                // Use per-voice modulator phase (not shared across voices)
+                mOsc2FMModulatorPhases[v] += phaseIncRadians * osc2CombinedRatio;
+                while (mOsc2FMModulatorPhases[v] >= kTwoPi)
+                  mOsc2FMModulatorPhases[v] -= kTwoPi;
+
+                float modulatorValue = std::sin(mOsc2FMModulatorPhases[v]);
+                constexpr float kMaxModIndex = 4.0f * kPi;  // ~12.57 radians max modulation
+                float velScaledDepth = mOsc2FMDepth * (0.3f + 0.7f * mVelocity);
+                float phaseModulation = velScaledDepth * kMaxModIndex * modulatorValue;
+
+                float carrierPhase = static_cast<float>(mOsc2UnisonPhases[v]._phase.rep) /
+                                     static_cast<float>(0xFFFFFFFFu) * kTwoPi;
+                osc2Sample = std::sin(carrierPhase + phaseModulation);
+                mOsc2UnisonPhases[v]++;
+                break;
+              }
+              case kWaveformWavetable:
+                if (v == 0)
+                {
+                  mOsc2WavetableOsc.SetPosition(mOsc2MorphPosition);
+                  osc2Sample = mOsc2WavetableOsc.Process();
+                }
+                else
+                  osc2Sample = mOsc2WavetableOsc.ProcessAtPhase(mOsc2WavetablePhases[v], mOsc2WavetablePhaseIncs[v], mOsc2WavetableFreqs[v]);
+                break;
+              default:
+                osc2Sample = q::sin(mOsc2UnisonPhases[v]++);
+                break;
+            }
+
+            // ─────────────────────────────────────────────────────────────────
+            // OSC2 STEREO PANNING (same algorithm as Osc1)
+            // ─────────────────────────────────────────────────────────────────
+            float leftGain, rightGain;
+            if (mOsc2UnisonVoices == 1)
+            {
+              // Single voice: full amplitude to both channels
+              leftGain = 1.0f;
+              rightGain = 1.0f;
+            }
+            else if (v == 0)
+            {
+              // Center voice in unison: equal power (1/sqrt(2))
+              leftGain = kSqrtHalf;
+              rightGain = kSqrtHalf;
+            }
+            else
+            {
+              // Spread voices: constant-power panning
+              float pan = mOsc2UnisonPans[v];
+              float angle = (pan + 1.0f) * kQuarterPi;
+              leftGain = std::cos(angle);
+              rightGain = std::sin(angle);
+            }
+
+            // VOICE WEIGHT WITH POWER COMPENSATION (same as Osc1)
+            float voiceWeight = 1.0f;
+            if (mOsc2UnisonVoices > 1)
+            {
+              float centerWeight = 1.0f - mOsc2UnisonBlend;
+              float spreadWeight = mOsc2UnisonBlend / static_cast<float>(mOsc2UnisonVoices - 1);
+
+              float powerSum = centerWeight * centerWeight +
+                               (mOsc2UnisonVoices - 1) * spreadWeight * spreadWeight;
+              float gainCompensation = 1.0f / std::sqrt(powerSum);
+
+              if (v == 0)
+                voiceWeight = centerWeight * gainCompensation;
+              else
+                voiceWeight = spreadWeight * gainCompensation;
+            }
+
+            osc2Left += osc2Sample * leftGain * voiceWeight;
+            osc2Right += osc2Sample * rightGain * voiceWeight;
+          }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // VOLUME NORMALIZATION
+        // ─────────────────────────────────────────────────────────────────────────
+        // With the corrected blend weights, total voice weights sum to ~1.0:
+        //   center_weight + sum(detuned_weights) = (1-blend) + blend = 1.0
+        //
+        // However, panned voices contribute less per-channel (due to stereo spread).
+        // We compensate slightly to maintain perceived loudness across unison counts.
+        //
+        // sqrt(N) normalization is removed because:
+        //   1. Blend weights already sum to 1.0
+        //   2. Center voice at full amplitude maintains baseline loudness
+        //   3. Adding detuned voices should make sound "bigger", not same volume
+        // ─────────────────────────────────────────────────────────────────────────
+        // No normalization needed - blend weights handle energy distribution
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // MIX OSCILLATORS (stereo)
+        // ─────────────────────────────────────────────────────────────────────────
+        float mixedLeft = mOsc1Level * osc1Left + mOsc2Level * osc2Left;
+        float mixedRight = mOsc1Level * osc1Right + mOsc2Level * osc2Right;
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // FILTER (stereo - separate filters for L/R to preserve stereo image)
+        // ─────────────────────────────────────────────────────────────────────────
+        float filteredLeft = mFilterL.Process(mixedLeft);
+        float filteredRight = mFilterR.Process(mixedRight);
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // DC BLOCKER (high-pass at ~10Hz, sample-rate independent)
+        // ─────────────────────────────────────────────────────────────────────────
+        // FM synthesis, wavetable morphing, and filter resonance can all generate
+        // DC offset. This simple one-pole high-pass filter removes it:
+        //   y[n] = x[n] - x[n-1] + coeff * y[n-1]
+        //
+        // Coefficient is calculated in SetSampleRateAndBlockSize using:
+        //   α = e^(-2πfc/fs) for -3dB at fc Hz
+        // At any sample rate, -3dB at ~10Hz, transparent above 30Hz.
+        // This keeps woofers happy and prevents clipping from DC accumulation.
+        // ─────────────────────────────────────────────────────────────────────────
+        float dcFreeLeft = filteredLeft - mDCBlockerPrevInL + mDCBlockerCoeff * mDCBlockerPrevOutL;
+        float dcFreeRight = filteredRight - mDCBlockerPrevInR + mDCBlockerCoeff * mDCBlockerPrevOutR;
+        mDCBlockerPrevInL = filteredLeft;
+        mDCBlockerPrevInR = filteredRight;
+        mDCBlockerPrevOutL = dcFreeLeft;
+        mDCBlockerPrevOutR = dcFreeRight;
 
         // STEP 3: Apply envelope and velocity (shape the amplitude)
-        float sample = filtered * envAmp * mVelocity;
+        float sampleLeft = dcFreeLeft * envAmp * mVelocity;
+        float sampleRight = dcFreeRight * envAmp * mVelocity;
 
         // Accumulate to outputs (don't overwrite - other voices add here too)
-        outputs[0][i] += sample;
+        outputs[0][i] += sampleLeft;
         if (nOutputs > 1)
-          outputs[1][i] += sample;
+          outputs[1][i] += sampleRight;
       }
     }
 
@@ -1223,13 +1915,21 @@ public:
       mSampleRate = sampleRate;
       mEnv = q::adsr_envelope_gen{mEnvConfig, static_cast<float>(sampleRate)};
       mWavetableOsc.SetSampleRate(static_cast<float>(sampleRate));
-      mFilter.SetSampleRate(static_cast<float>(sampleRate));
+      mOsc2WavetableOsc.SetSampleRate(static_cast<float>(sampleRate));  // Osc2 wavetable
+      mFilterL.SetSampleRate(static_cast<float>(sampleRate));
+      mFilterR.SetSampleRate(static_cast<float>(sampleRate));
 
       // Pulse width smoothing: ~5ms for responsive but click-free modulation
       mPulseWidthSmoothCoeff = calcSmoothingCoeff(0.005f, static_cast<float>(sampleRate));
 
       // FM parameter smoothing: ~5ms for smooth ratio/depth changes
       mFMSmoothCoeff = calcSmoothingCoeff(0.005f, static_cast<float>(sampleRate));
+
+      // DC blocker coefficient: high-pass at ~10Hz (sample-rate independent)
+      // Formula: α = e^(-2πfc/fs) gives -3dB at fc Hz
+      // 10Hz is below audible range but above subsonic rumble from speakers
+      constexpr float kDCBlockerCutoffHz = 10.0f;
+      mDCBlockerCoeff = std::exp(-kTwoPi * kDCBlockerCutoffHz / static_cast<float>(sampleRate));
     }
 
     // Parameter setters called from DSP class
@@ -1266,10 +1966,10 @@ public:
     // Higher values = velocity has more effect on envelope times
     void SetEnvVelocitySensitivity(float amount) { mEnvVelocitySensitivity = amount; }
 
-    // Filter setters
-    void SetFilterCutoff(float freqHz) { mFilter.SetCutoff(freqHz); }
-    void SetFilterResonance(float resonance) { mFilter.SetResonance(resonance); }
-    void SetFilterType(int type) { mFilter.SetType(static_cast<FilterType>(type)); }
+    // Filter setters (stereo - both L/R filters)
+    void SetFilterCutoff(float freqHz) { mFilterL.SetCutoff(freqHz); mFilterR.SetCutoff(freqHz); }
+    void SetFilterResonance(float resonance) { mFilterL.SetResonance(resonance); mFilterR.SetResonance(resonance); }
+    void SetFilterType(int type) { mFilterL.SetType(static_cast<FilterType>(type)); mFilterR.SetType(static_cast<FilterType>(type)); }
 
     // Pulse width setter (0.0-1.0, where 0.5 = square wave)
     // Sets target; actual value is smoothed per-sample to prevent clicks
@@ -1282,6 +1982,76 @@ public:
     void SetFMRatioFine(float fine) { mFMRatioFine = fine; }
     // Depth: modulation intensity (0.0-1.0)
     void SetFMDepth(float depth) { mFMDepthTarget = depth; }
+    // Osc1 level for balancing with Osc2
+    void SetOsc1Level(float level) { mOsc1Level = level; }            // 0.0-1.0
+    // Osc1 octave and detune (for full symmetry with Osc2)
+    void SetOsc1Octave(int octave) { mOsc1Octave = octave; }          // -2 to +2
+    void SetOsc1Detune(float cents) { mOsc1Detune = cents; }          // -100 to +100 cents
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // OSCILLATOR 2 SETTERS (fully independent like Serum)
+    // ─────────────────────────────────────────────────────────────────────────
+    void SetOsc2Waveform(int waveform) { mOsc2Waveform = waveform; }
+    void SetOsc2Octave(int octave) { mOsc2Octave = octave; }       // -2 to +2
+    void SetOsc2Detune(float cents) { mOsc2Detune = cents; }       // -100 to +100 cents
+    void SetOsc2Level(float level) { mOsc2Level = level; }         // 0.0-1.0
+    // Osc2 independent waveform-specific parameters
+    void SetOsc2Morph(float position) { mOsc2MorphPosition = position; }  // 0.0-1.0
+    void SetOsc2PulseWidth(float width) { mOsc2PulseWidth = width; }      // 0.05-0.95
+    void SetOsc2FMRatio(float ratio) { mOsc2FMRatio = ratio; }            // Combined ratio
+    void SetOsc2FMFine(float fine) { mOsc2FMFine = fine; }                // -0.5 to +0.5
+    void SetOsc2FMDepth(float depth) { mOsc2FMDepth = depth; }            // 0.0-1.0
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // OSC1 UNISON SETTERS
+    // Each oscillator has independent unison for Serum-style sound design.
+    // ─────────────────────────────────────────────────────────────────────────
+    void SetOsc1UnisonVoices(int voices)
+    {
+      mOsc1UnisonVoices = std::max(1, std::min(kMaxUnisonVoices, voices));
+    }
+    void SetOsc1UnisonDetune(float detune) { mOsc1UnisonDetune = detune; }  // 0.0-1.0
+    void SetOsc1UnisonWidth(float width) { mOsc1UnisonWidth = width; }      // 0.0-1.0
+    void SetOsc1UnisonBlend(float blend) { mOsc1UnisonBlend = blend; }      // 0.0-1.0
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // OSC2 UNISON SETTERS (Independent from Osc1)
+    // ─────────────────────────────────────────────────────────────────────────
+    void SetOsc2UnisonVoices(int voices)
+    {
+      mOsc2UnisonVoices = std::max(1, std::min(kMaxUnisonVoices, voices));
+    }
+    void SetOsc2UnisonDetune(float detune) { mOsc2UnisonDetune = detune; }  // 0.0-1.0
+    void SetOsc2UnisonWidth(float width) { mOsc2UnisonWidth = width; }      // 0.0-1.0
+    void SetOsc2UnisonBlend(float blend) { mOsc2UnisonBlend = blend; }      // 0.0-1.0
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // OSCILLATOR SYNC SETTER
+    // See the OSCILLATOR SYNC documentation at the top of this file for details.
+    // ─────────────────────────────────────────────────────────────────────────
+    void SetOscSync(int mode) { mOscSyncMode = mode; }                    // 0=Off, 1=Hard
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PORTAMENTO (GLIDE) SETTER
+    // ─────────────────────────────────────────────────────────────────────────
+    // Sets the portamento time. The coefficient is calculated per-sample:
+    //   coeff = 1 - e^(-1 / (time × sampleRate))
+    // At coeff=1.0, portamento is disabled (instant pitch change).
+    // ─────────────────────────────────────────────────────────────────────────
+    void SetPortamentoTime(float timeMs)
+    {
+      if (timeMs < 1.0f)
+      {
+        // Portamento off - instant pitch change
+        mPortamentoCoeff = 1.0f;
+      }
+      else
+      {
+        // Calculate per-sample glide coefficient
+        // Using calcSmoothingCoeff for consistent time constant behavior
+        mPortamentoCoeff = calcSmoothingCoeff(timeMs * 0.001f, static_cast<float>(mSampleRate));
+      }
+    }
 
   private:
     // ─────────────────────────────────────────────────────────────────────────
@@ -1309,11 +2079,11 @@ public:
     float mPulseWidthSmoothCoeff = 0.01f;  // ~5ms smoothing, set in SetSampleRateAndBlockSize
 
     // ─────────────────────────────────────────────────────────────────────────
-    // FM SYNTHESIS - Modulator oscillator and parameters (DX7-style)
+    // FM SYNTHESIS PARAMETERS (DX7-style)
     // The modulator is a hidden sine wave that modulates the carrier's phase.
     // Coarse ratio sets harmonic relationship, Fine allows inharmonic detuning.
+    // NOTE: Modulator phases are now per-unison-voice (see mOsc1FMModulatorPhases[])
     // ─────────────────────────────────────────────────────────────────────────
-    float mFMModulatorPhase = 0.0f;       // Modulator phase (radians, wraps at 2π)
     float mFMRatioCoarse = 2.0f;          // Coarse ratio (0.5, 1, 2, 3, etc.)
     float mFMRatioFine = 0.0f;            // Fine offset (-0.5 to +0.5)
     float mFMRatio = 2.0f;                // Current smoothed combined ratio
@@ -1321,6 +2091,12 @@ public:
     float mFMDepth = 0.5f;                // Current smoothed depth (0-1)
     float mFMDepthTarget = 0.5f;          // Target depth from parameter
     float mFMSmoothCoeff = 0.01f;         // ~5ms smoothing for FM params
+
+    // Osc1 level for balancing with Osc2
+    float mOsc1Level = 1.0f;              // Mix level (1.0 = full, default)
+    // Osc1 octave and detune (for full symmetry with Osc2)
+    int mOsc1Octave = 0;                  // Octave offset: -2 to +2 (0 = no shift)
+    float mOsc1Detune = 0.0f;             // Detune in cents (0 = no detune)
 
     // ADSR envelope generator - controls amplitude over note lifetime
     q::adsr_envelope_gen mEnv{q::adsr_envelope_gen::config{}, 44100.0f};
@@ -1337,7 +2113,20 @@ public:
     float mEnvVelocitySensitivity = 0.5f; // How much velocity affects times (0-1)
 
     WavetableOscillator mWavetableOsc;  // Wavetable oscillator (mipmapped, morphable)
-    ResonantFilter mFilter;              // Per-voice resonant filter (Q library biquads)
+    ResonantFilter mFilterL;             // Left channel filter (stereo processing)
+    ResonantFilter mFilterR;             // Right channel filter (stereo processing)
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DC BLOCKER - Removes DC offset from FM/wavetable/filter
+    // ─────────────────────────────────────────────────────────────────────────
+    // Simple one-pole high-pass: y[n] = x[n] - x[n-1] + coeff * y[n-1]
+    // Coefficient is calculated in SetSampleRateAndBlockSize for ~10Hz cutoff.
+    // ─────────────────────────────────────────────────────────────────────────
+    float mDCBlockerPrevInL = 0.0f;       // Previous input sample (left)
+    float mDCBlockerPrevInR = 0.0f;       // Previous input sample (right)
+    float mDCBlockerPrevOutL = 0.0f;      // Previous output sample (left)
+    float mDCBlockerPrevOutR = 0.0f;      // Previous output sample (right)
+    float mDCBlockerCoeff = 0.9987f;      // Default for 48kHz, recalculated per sample rate
     double mSampleRate = 44100.0;
     float mVelocity = 0.0f;              // MIDI velocity (0-1)
     bool mActive = false;                // Voice is currently sounding
@@ -1351,6 +2140,134 @@ public:
     // ─────────────────────────────────────────────────────────────────────────
     float mRetriggerOffset = 0.0f;
     float mRetriggerDecay = 1.0f;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // OSCILLATOR 2 - Secondary oscillator for fat, layered sounds
+    // FREE-RUNNING: Phase is NOT reset on note trigger for natural beating.
+    // This creates the characteristic "fatness" of dual-oscillator synths.
+    // ─────────────────────────────────────────────────────────────────────────
+    q::phase_iterator mOsc2Phase;           // Free-running phase (not reset on trigger)
+    q::pulse_osc mOsc2PulseOsc{0.5f};       // Osc2's pulse oscillator
+    WavetableOscillator mOsc2WavetableOsc;  // Osc2's wavetable oscillator
+    // NOTE: Osc2 FM modulator phases are now per-unison-voice (see mOsc2FMModulatorPhases[])
+
+    int mOsc2Waveform = kWaveformSaw;       // Default: Saw (classic dual-osc combo)
+    int mOsc2Octave = 0;                    // Octave offset: -2 to +2 (0 = unison)
+    float mOsc2Detune = 7.0f;               // Detune in cents (+7 = classic fat)
+    float mOsc2Level = 0.5f;                // Mix level (0.5 = equal with Osc1)
+
+    // OSC2 INDEPENDENT PARAMETERS (Serum-style full independence)
+    // Each oscillator has its own waveform-specific controls for maximum flexibility.
+    // ─────────────────────────────────────────────────────────────────────────
+    float mOsc2MorphPosition = 0.0f;        // Wavetable morph position (0.0-1.0)
+    float mOsc2PulseWidth = 0.5f;           // Pulse width (0.05-0.95), 0.5 = square
+    float mOsc2FMRatio = 2.0f;              // FM frequency ratio (carrier/modulator)
+    float mOsc2FMFine = 0.0f;               // FM fine ratio offset (-0.5 to +0.5)
+    float mOsc2FMDepth = 0.5f;              // FM modulation depth (0.0-1.0)
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PER-OSCILLATOR UNISON ENGINE (Serum-style)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Each oscillator has its own independent unison with separate:
+    //   - Voice count (1-8)
+    //   - Detune spread
+    //   - Stereo width
+    //   - Blend (center vs detuned mix)
+    //
+    // This allows powerful combinations like:
+    //   - Thick supersaw lead (Osc1: 8 voices) + clean sub bass (Osc2: 1 voice)
+    //   - Both oscillators with different widths for depth
+    //   - One narrow for focus, one wide for atmosphere
+    //
+    // PHASE ACCUMULATORS:
+    // - mOsc1UnisonPhases[]: Phase iterators for Osc1 unison voices
+    // - mOsc2UnisonPhases[]: Phase iterators for Osc2 unison voices
+    // - Both are FREE-RUNNING (not reset on note trigger) for natural beating
+    // ─────────────────────────────────────────────────────────────────────────
+    std::array<q::phase_iterator, kMaxUnisonVoices> mOsc1UnisonPhases;     // Osc1 unison phases
+    std::array<q::phase_iterator, kMaxUnisonVoices> mOsc2UnisonPhases;     // Osc2 unison phases
+    std::array<q::pulse_osc, kMaxUnisonVoices> mOsc1UnisonPulseOscs;       // Osc1 pulse oscillators
+    std::array<q::pulse_osc, kMaxUnisonVoices> mOsc2UnisonPulseOscs;       // Osc2 pulse oscillators
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PER-UNISON-VOICE FM MODULATOR PHASES
+    // ─────────────────────────────────────────────────────────────────────────
+    // Each unison voice needs its own FM modulator phase. Without this, all
+    // unison voices would share a single modulator that gets advanced multiple
+    // times per sample (once per voice), causing incorrect FM behavior.
+    //
+    // With independent phases, each unison voice generates its own FM timbre
+    // that's correctly detuned, creating the expected thick FM+unison sound.
+    // ─────────────────────────────────────────────────────────────────────────
+    std::array<float, kMaxUnisonVoices> mOsc1FMModulatorPhases{};         // Osc1 FM modulator phases (radians)
+    std::array<float, kMaxUnisonVoices> mOsc2FMModulatorPhases{};         // Osc2 FM modulator phases (radians)
+
+    // Osc1 Unison parameters
+    int mOsc1UnisonVoices = 1;              // Number of unison voices (1 = off, 2-8 = enabled)
+    float mOsc1UnisonDetune = 0.25f;        // Detune spread (0.0-1.0), mapped to cents
+    float mOsc1UnisonWidth = 0.8f;          // Stereo width (0.0-1.0)
+    float mOsc1UnisonBlend = 0.75f;         // Center vs detuned mix (0.0-1.0)
+
+    // Osc2 Unison parameters (independent from Osc1)
+    int mOsc2UnisonVoices = 1;              // Number of unison voices (1 = off, 2-8 = enabled)
+    float mOsc2UnisonDetune = 0.25f;        // Detune spread (0.0-1.0), mapped to cents
+    float mOsc2UnisonWidth = 0.8f;          // Stereo width (0.0-1.0)
+    float mOsc2UnisonBlend = 0.75f;         // Center vs detuned mix (0.0-1.0)
+
+    // Pre-computed unison voice data for Osc1 (updated when parameters change)
+    std::array<float, kMaxUnisonVoices> mOsc1UnisonDetuneOffsets{};  // Cents offset per voice
+    std::array<float, kMaxUnisonVoices> mOsc1UnisonPans{};           // Pan position (-1=L, 0=C, +1=R)
+
+    // Pre-computed unison voice data for Osc2 (independent from Osc1)
+    std::array<float, kMaxUnisonVoices> mOsc2UnisonDetuneOffsets{};  // Cents offset per voice
+    std::array<float, kMaxUnisonVoices> mOsc2UnisonPans{};           // Pan position (-1=L, 0=C, +1=R)
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // WAVETABLE UNISON PHASES
+    // ─────────────────────────────────────────────────────────────────────────
+    // Wavetable oscillators use their own phase format (0.0-1.0 float) rather
+    // than the Q library's phase_iterator. Each unison voice needs its own
+    // phase and phase increment to properly track detuned wavetable positions.
+    // ─────────────────────────────────────────────────────────────────────────
+    std::array<float, kMaxUnisonVoices> mOsc1WavetablePhases{};      // Osc1 wavetable phases (0.0-1.0)
+    std::array<float, kMaxUnisonVoices> mOsc1WavetablePhaseIncs{};   // Osc1 phase increment per sample
+    std::array<float, kMaxUnisonVoices> mOsc1WavetableFreqs{};       // Osc1 frequency for mip calculation
+    std::array<float, kMaxUnisonVoices> mOsc2WavetablePhases{};      // Osc2 wavetable phases (0.0-1.0)
+    std::array<float, kMaxUnisonVoices> mOsc2WavetablePhaseIncs{};   // Osc2 phase increment per sample
+    std::array<float, kMaxUnisonVoices> mOsc2WavetableFreqs{};       // Osc2 frequency for mip calculation
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // OSCILLATOR SYNC
+    // ─────────────────────────────────────────────────────────────────────────
+    // Hard sync resets Osc2's phase when Osc1 completes a cycle. We detect
+    // zero-crossings by checking if current phase < previous phase (wrap-around).
+    //
+    // DUAL TRACKING: We track BOTH phase types because Osc1 could be:
+    // - Standard waveform: Uses Q library phase_iterator (32-bit fixed point)
+    // - Wavetable: Uses float phase (0.0-1.0)
+    //
+    // The sync detection code checks which type Osc1 is using and reads the
+    // appropriate previous phase value.
+    // ─────────────────────────────────────────────────────────────────────────
+    int mOscSyncMode = 0;                   // 0 = Off, 1 = Hard Sync
+    uint32_t mPrevOsc1PhaseRaw = 0;         // Previous Osc1 phase (Q library, 32-bit fixed)
+    float mPrevOsc1WavetablePhase = 0.0f;   // Previous Osc1 phase (wavetable, 0.0-1.0)
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PORTAMENTO (GLIDE)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Portamento smoothly glides between pitches instead of jumping instantly.
+    // Classic synth feature for expressive leads and basses.
+    //
+    // mPortamentoCoeff: Per-sample smoothing coefficient (0-1)
+    //   1.0 = instant (no portamento)
+    //   0.001 = slow glide (~500ms)
+    //
+    // mCurrentBaseFreq: The current (gliding) base frequency
+    //   Updated each sample towards the target frequency
+    // ─────────────────────────────────────────────────────────────────────────
+    float mPortamentoCoeff = 1.0f;          // 1.0 = off (instant), lower = slower glide
+    double mCurrentBaseFreq = 0.0;          // Current gliding frequency (Hz)
   };
 
 public:
@@ -1401,9 +2318,39 @@ public:
       {
         outputs[c][s] *= gainScale;
 
-        // Safety clamp - prevents digital overs
-        if (outputs[c][s] > 1.0f) outputs[c][s] = 1.0f;
-        if (outputs[c][s] < -1.0f) outputs[c][s] = -1.0f;
+        // ───────────────────────────────────────────────────────────────────────
+        // SOFT SATURATION WITH SMOOTH BLEND
+        // ───────────────────────────────────────────────────────────────────────
+        // Instead of harsh digital clipping (which creates odd harmonics and
+        // sounds brittle), we use soft saturation via a fast tanh approximation.
+        //
+        // SMOOTH BLEND: Unlike a hard threshold (which creates a discontinuity
+        // in the transfer function at the threshold), we smoothly crossfade
+        // from dry to saturated starting at 0.5. This preserves dynamics at
+        // low levels while providing transparent limiting at high levels.
+        //
+        //   Blend curve:  0 at |x|=0.5, 1 at |x|=1.0, smoothly interpolated
+        //
+        // Benefits:
+        //   - No discontinuity in the transfer function
+        //   - More transparent limiting
+        //   - Warmer, more "analog" sound when driven hard
+        //   - Graceful degradation instead of sudden distortion
+        // ───────────────────────────────────────────────────────────────────────
+        float& sample = outputs[c][s];
+        float absVal = std::abs(sample);
+        if (absVal > 0.5f)
+        {
+          // Smooth blend from dry to saturated: 0% at 0.5, 100% at 1.0+
+          float blend = (absVal - 0.5f) * 2.0f;  // 0→1 as |sample| goes 0.5→1.0
+          blend = std::min(1.0f, blend);         // Clamp to 1.0 for signals > 1.0
+
+          // Apply saturation with gentle drive
+          float saturated = softSaturate(sample * 1.2f);
+
+          // Crossfade: dry + blend × (wet - dry) = dry × (1-blend) + wet × blend
+          sample = sample + blend * (saturated - sample);
+        }
       }
     }
   }
@@ -1523,6 +2470,168 @@ public:
         mSynth.ForEachVoice([value](SynthVoice& voice) {
           // Convert 0-100% to 0.0-1.0
           dynamic_cast<Voice&>(voice).SetFMDepth(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      case kParamOsc1Level:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert 0-100% to 0.0-1.0
+          dynamic_cast<Voice&>(voice).SetOsc1Level(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      case kParamOsc1Octave:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert enum index (0-4) to octave offset (-2 to +2)
+          int octave = static_cast<int>(value) - 2;
+          dynamic_cast<Voice&>(voice).SetOsc1Octave(octave);
+        });
+        break;
+
+      case kParamOsc1Detune:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Value is already in cents (-100 to +100)
+          dynamic_cast<Voice&>(voice).SetOsc1Detune(static_cast<float>(value));
+        });
+        break;
+
+      // Oscillator 2 parameters
+      case kParamOsc2Waveform:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          dynamic_cast<Voice&>(voice).SetOsc2Waveform(static_cast<int>(value));
+        });
+        break;
+
+      case kParamOsc2Octave:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert enum index (0-4) to octave offset (-2 to +2)
+          int octave = static_cast<int>(value) - 2;
+          dynamic_cast<Voice&>(voice).SetOsc2Octave(octave);
+        });
+        break;
+
+      case kParamOsc2Detune:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Value is already in cents (-100 to +100)
+          dynamic_cast<Voice&>(voice).SetOsc2Detune(static_cast<float>(value));
+        });
+        break;
+
+      case kParamOsc2Level:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert 0-100% to 0.0-1.0
+          dynamic_cast<Voice&>(voice).SetOsc2Level(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      // Osc2 independent waveform-specific parameters (Serum-style)
+      case kParamOsc2Morph:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert 0-100% to 0.0-1.0
+          dynamic_cast<Voice&>(voice).SetOsc2Morph(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      case kParamOsc2PulseWidth:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert 5-95% to 0.05-0.95
+          dynamic_cast<Voice&>(voice).SetOsc2PulseWidth(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      case kParamOsc2FMRatio:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Enum index to ratio: 0=0.5, 1=1, 2=2, 3=3, 4=4, 5=5, 6=6, 7=7, 8=8
+          static const float kRatios[] = {0.5f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
+          int idx = static_cast<int>(value);
+          float ratio = (idx >= 0 && idx < 9) ? kRatios[idx] : 2.0f;
+          dynamic_cast<Voice&>(voice).SetOsc2FMRatio(ratio);
+        });
+        break;
+
+      case kParamOsc2FMFine:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert -50% to +50% → -0.5 to +0.5 offset
+          dynamic_cast<Voice&>(voice).SetOsc2FMFine(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      case kParamOsc2FMDepth:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert 0-100% to 0.0-1.0
+          dynamic_cast<Voice&>(voice).SetOsc2FMDepth(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      // ─────────────────────────────────────────────────────────────────────────
+      // OSC1 UNISON PARAMETERS
+      // Per-oscillator unison for Serum-style sound design flexibility.
+      // ─────────────────────────────────────────────────────────────────────────
+      case kParamOsc1UnisonVoices:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Enum index directly maps to voice count: 0=1, 1=2, ..., 7=8
+          int voices = static_cast<int>(value) + 1;
+          dynamic_cast<Voice&>(voice).SetOsc1UnisonVoices(voices);
+        });
+        break;
+
+      case kParamOsc1UnisonDetune:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert 0-100% to 0.0-1.0 (spreads up to kMaxUnisonDetuneCents)
+          dynamic_cast<Voice&>(voice).SetOsc1UnisonDetune(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      case kParamOsc1UnisonWidth:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert 0-100% to 0.0-1.0 (stereo spread)
+          dynamic_cast<Voice&>(voice).SetOsc1UnisonWidth(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      case kParamOsc1UnisonBlend:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert 0-100% to 0.0-1.0 (center vs detuned mix)
+          dynamic_cast<Voice&>(voice).SetOsc1UnisonBlend(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      // ─────────────────────────────────────────────────────────────────────────
+      // OSC2 UNISON PARAMETERS (Independent from Osc1)
+      // ─────────────────────────────────────────────────────────────────────────
+      case kParamOsc2UnisonVoices:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          int voices = static_cast<int>(value) + 1;
+          dynamic_cast<Voice&>(voice).SetOsc2UnisonVoices(voices);
+        });
+        break;
+
+      case kParamOsc2UnisonDetune:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          dynamic_cast<Voice&>(voice).SetOsc2UnisonDetune(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      case kParamOsc2UnisonWidth:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          dynamic_cast<Voice&>(voice).SetOsc2UnisonWidth(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      case kParamOsc2UnisonBlend:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          dynamic_cast<Voice&>(voice).SetOsc2UnisonBlend(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      // ─────────────────────────────────────────────────────────────────────────
+      // OSCILLATOR SYNC
+      // Classic analog sync - Osc2 resets when Osc1 completes a cycle.
+      // ─────────────────────────────────────────────────────────────────────────
+      case kParamOscSync:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Enum: 0=Off, 1=Hard
+          dynamic_cast<Voice&>(voice).SetOscSync(static_cast<int>(value));
         });
         break;
 
