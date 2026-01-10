@@ -21,6 +21,54 @@ namespace q = cycfi::q;
 using namespace q::literals;
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Q LIBRARY OSCILLATORS - PolyBLEP/PolyBLAMP Anti-Aliasing
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// WHAT ARE q::sin, q::saw, q::square, q::triangle?
+// These are Q library's real-time oscillators that use PolyBLEP (Polynomial
+// Band-Limited Step) anti-aliasing. They generate waveforms sample-by-sample
+// with minimal aliasing at low CPU cost.
+//
+// HOW POLYBLEP WORKS:
+// 1. Generate a "naive" waveform (e.g., saw = 2*phase - 1)
+// 2. Detect discontinuities (jumps) in the waveform
+// 3. Apply a polynomial correction near transitions to "round the corners"
+//
+// The correction polynomial (2nd order) is applied for ~2 samples around each
+// discontinuity: `t + t - t*t - 1` smooths the step function.
+//
+// POLYBLAMP (for triangle):
+// Triangle waves don't have amplitude discontinuities, but have SLOPE
+// discontinuities (sharp corners). PolyBLAMP (Band-Limited rAMP) is the
+// integrated version of PolyBLEP, using a cubic polynomial to smooth corners.
+//
+// POLYBLEP vs WAVETABLE (COMPARISON):
+// ┌─────────────────────┬──────────────────────┬──────────────────────┐
+// │ Aspect              │ PolyBLEP (Q library) │ Wavetable (ours)     │
+// ├─────────────────────┼──────────────────────┼──────────────────────┤
+// │ CPU per sample      │ Very low (O(1))      │ Low (table lookup)   │
+// │ Memory              │ None                 │ ~1MB for mipmaps     │
+// │ Anti-aliasing       │ Good (some residual) │ Perfect (band-limit) │
+// │ High frequencies    │ Some aliasing        │ No aliasing          │
+// │ Morphing support    │ No                   │ Yes (wavetable)      │
+// │ Best for            │ Classic analog sound │ Complex/morphing     │
+// └─────────────────────┴──────────────────────┴──────────────────────┘
+//
+// PHASE ITERATOR (q::phase_iterator):
+// Q library represents phase as a 32-bit unsigned integer (fixed-point 1.31).
+// - Full cycle = 2^32 (natural wraparound via integer overflow)
+// - Step = (2^32 × frequency) / sampleRate
+// - `mPhase++` advances phase by one step and returns oscillator output
+// - `mPhase.set(freq, sps)` updates the step size for a new frequency
+//
+// REFERENCES:
+// - Välimäki & Pekonen, "Perceptually informed synthesis of bandlimited
+//   classical waveforms using integrated polynomial interpolation" (2012)
+// - Q library source: q/synth/saw_osc.hpp, q/utility/antialiasing.hpp
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // WAVETABLE OSCILLATOR - Band-Limited with Mip Levels
 // ═══════════════════════════════════════════════════════════════════════════════
 //
@@ -748,15 +796,28 @@ public:
                                      int nInputs, int nOutputs,
                                      int startIdx, int nFrames) override
     {
-      // Get pitch from voice allocator (1V/octave format)
+      // ─────────────────────────────────────────────────────────────────────────
+      // PITCH CALCULATION (1V/Octave Format)
+      // iPlug2's MidiSynth provides pitch in "1V/octave" format where:
+      //   pitch = 0 → A4 (440Hz)
+      //   pitch = 1 → A5 (880Hz)  - one octave up
+      //   pitch = -1 → A3 (220Hz) - one octave down
+      //
+      // The formula freq = 440 × 2^pitch converts this to Hz.
+      // MIDI note 69 (A4) gives pitch=0, each semitone is pitch += 1/12.
+      //
+      // Pitch bend is added before exponentiation for correct tuning behavior.
+      // ─────────────────────────────────────────────────────────────────────────
       double pitch = mInputs[kVoiceControlPitch].endValue;
       double pitchBend = mInputs[kVoiceControlPitchBend].endValue;
 
-      // Convert to frequency: 440 * 2^pitch
+      // Convert to frequency: 440Hz × 2^(pitch + bend)
       double freq = 440.0 * std::pow(2.0, pitch + pitchBend);
+
+      // Update Q library phase iterator with new frequency
       mPhase.set(q::frequency{static_cast<float>(freq)}, static_cast<float>(mSampleRate));
 
-      // Update wavetable oscillator frequency
+      // Update wavetable oscillator frequency (for mip level calculation)
       mWavetableOsc.SetFrequency(static_cast<float>(freq), static_cast<float>(mSampleRate));
 
       for (int i = startIdx; i < startIdx + nFrames; i++)
@@ -804,23 +865,36 @@ public:
         // This is the classic subtractive synthesis topology
         // ─────────────────────────────────────────────────────────────────────────
 
+        // ─────────────────────────────────────────────────────────────────────────
         // STEP 1: Generate oscillator sample
+        // Q library oscillators use PolyBLEP/PolyBLAMP anti-aliasing (see header).
+        // Wavetable uses our mipmapped implementation with trilinear interpolation.
+        // ─────────────────────────────────────────────────────────────────────────
         float oscValue = 0.0f;
         switch (mWaveform)
         {
           case kWaveformSine:
+            // Sine: Table lookup (sin_lu) - no aliasing, only 1 harmonic
             oscValue = q::sin(mPhase++);
             break;
           case kWaveformSaw:
+            // Sawtooth: PolyBLEP corrects the falling edge discontinuity
+            // Naive: 2*phase - 1, then subtract poly_blep correction
             oscValue = q::saw(mPhase++);
             break;
           case kWaveformSquare:
+            // Square: PolyBLEP corrects BOTH rising and falling edges
+            // Two discontinuities per cycle require two corrections
             oscValue = q::square(mPhase++);
             break;
           case kWaveformTriangle:
+            // Triangle: PolyBLAMP corrects slope discontinuities (corners)
+            // Uses cubic polynomial (integrated BLEP) for smooth corners
             oscValue = q::triangle(mPhase++);
             break;
           case kWaveformWavetable:
+            // Wavetable: Perfect band-limiting via mipmapped additive synthesis
+            // Supports morphing between Sine→Triangle→Saw→Square
             oscValue = mWavetableOsc.Process();
             break;
           default:
@@ -879,17 +953,33 @@ public:
     void SetFilterType(int type) { mFilter.SetType(static_cast<FilterType>(type)); }
 
   private:
+    // ─────────────────────────────────────────────────────────────────────────
+    // PHASE ITERATOR - Q library's oscillator driver
+    // Fixed-point 1.31 format: 32-bit unsigned int where full cycle = 2^32
+    // - _phase: Current position in cycle (0 to 2^32-1)
+    // - _step: Phase increment per sample = (2^32 × freq) / sampleRate
+    // Natural wraparound via integer overflow eliminates modulo operations.
+    // Usage: q::sin(mPhase++) returns sine value and advances phase.
+    // ─────────────────────────────────────────────────────────────────────────
     q::phase_iterator mPhase;
+
+    // ADSR envelope generator - controls amplitude over note lifetime
     q::adsr_envelope_gen mEnv{q::adsr_envelope_gen::config{}, 44100.0f};
     q::adsr_envelope_gen::config mEnvConfig;
-    WavetableOscillator mWavetableOsc;  // Wavetable oscillator
+
+    WavetableOscillator mWavetableOsc;  // Wavetable oscillator (mipmapped, morphable)
     ResonantFilter mFilter;              // Per-voice resonant filter (Q library biquads)
     double mSampleRate = 44100.0;
-    float mVelocity = 0.0f;
-    bool mActive = false;
-    int mWaveform = kWaveformSine;
+    float mVelocity = 0.0f;              // MIDI velocity (0-1)
+    bool mActive = false;                // Voice is currently sounding
+    int mWaveform = kWaveformSine;       // Current waveform selection
 
-    // Retrigger smoothing
+    // ─────────────────────────────────────────────────────────────────────────
+    // RETRIGGER SMOOTHING
+    // When a voice is retriggered while still sounding, we crossfade from
+    // the previous amplitude to avoid clicks. mRetriggerOffset holds the
+    // level to fade from, mRetriggerDecay controls the ~5ms fade speed.
+    // ─────────────────────────────────────────────────────────────────────────
     float mRetriggerOffset = 0.0f;
     float mRetriggerDecay = 1.0f;
   };
