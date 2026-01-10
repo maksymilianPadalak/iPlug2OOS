@@ -58,8 +58,8 @@ export function PluginBody() {
             </div>
           </Section>
 
-          {/* Middle Row: Oscillator + Filter */}
-          <Section title="Oscillator" size="wide">
+          {/* Middle Row: Oscillator 1 + Oscillator 2 */}
+          <Section title="Oscillator 1" size="wide">
             <SubGroup layout="row">
               <WaveSelector paramId={EParams.kParamWaveform} label="Waveform" />
               <Knob paramId={EParams.kParamPulseWidth} label="PW" color="cyan" />
@@ -67,14 +67,56 @@ export function PluginBody() {
               <Knob paramId={EParams.kParamFMFine} label="Fine" color="cyan" />
               <Knob paramId={EParams.kParamFMDepth} label="Depth" color="cyan" />
               <Knob paramId={EParams.kParamWavetablePosition} label="WT Pos" color="cyan" />
+              <Dropdown paramId={EParams.kParamOsc1Octave} label="Octave" />
+              <Knob paramId={EParams.kParamOsc1Detune} label="Detune" color="cyan" />
+              <Knob paramId={EParams.kParamOsc1Level} label="Level" color="cyan" />
+            </SubGroup>
+            {/* Osc1 Unison - per-oscillator unison (Serum-style) */}
+            <SubGroup layout="row">
+              <Dropdown paramId={EParams.kParamOsc1UnisonVoices} label="Unison" />
+              <Knob paramId={EParams.kParamOsc1UnisonDetune} label="Uni Det" color="cyan" />
+              <Knob paramId={EParams.kParamOsc1UnisonWidth} label="Uni Wid" color="cyan" />
+              <Knob paramId={EParams.kParamOsc1UnisonBlend} label="Uni Bld" color="cyan" />
             </SubGroup>
           </Section>
 
+          <Section title="Oscillator 2" size="wide">
+            <SubGroup layout="row">
+              <WaveSelector paramId={EParams.kParamOsc2Waveform} label="Waveform" />
+              <Knob paramId={EParams.kParamOsc2PulseWidth} label="PW" color="green" />
+              <Dropdown paramId={EParams.kParamOsc2FMRatio} label="Ratio" />
+              <Knob paramId={EParams.kParamOsc2FMFine} label="Fine" color="green" />
+              <Knob paramId={EParams.kParamOsc2FMDepth} label="Depth" color="green" />
+              <Knob paramId={EParams.kParamOsc2Morph} label="WT Pos" color="green" />
+              <Dropdown paramId={EParams.kParamOsc2Octave} label="Octave" />
+              <Knob paramId={EParams.kParamOsc2Detune} label="Detune" color="green" />
+              <Knob paramId={EParams.kParamOsc2Level} label="Level" color="green" />
+              <Dropdown paramId={EParams.kParamOscSync} label="Sync" />
+            </SubGroup>
+            {/* Osc2 Unison - independent from Osc1 */}
+            <SubGroup layout="row">
+              <Dropdown paramId={EParams.kParamOsc2UnisonVoices} label="Unison" />
+              <Knob paramId={EParams.kParamOsc2UnisonDetune} label="Uni Det" color="green" />
+              <Knob paramId={EParams.kParamOsc2UnisonWidth} label="Uni Wid" color="green" />
+              <Knob paramId={EParams.kParamOsc2UnisonBlend} label="Uni Bld" color="green" />
+            </SubGroup>
+          </Section>
+
+          {/* Filter + LFO Row */}
           <Section title="Filter" size="wide">
             <SubGroup layout="row">
               <Dropdown paramId={EParams.kParamFilterType} label="Type" />
               <Knob paramId={EParams.kParamFilterCutoff} label="Cutoff" color="orange" />
               <Knob paramId={EParams.kParamFilterResonance} label="Reso" color="orange" />
+            </SubGroup>
+          </Section>
+
+          <Section title="LFO" size="wide">
+            <SubGroup layout="row">
+              <Dropdown paramId={EParams.kParamLFOWaveform} label="Wave" />
+              <Knob paramId={EParams.kParamLFORate} label="Rate" color="orange" />
+              <Knob paramId={EParams.kParamLFODepth} label="Depth" color="orange" />
+              <Dropdown paramId={EParams.kParamLFORetrigger} label="Retrig" />
             </SubGroup>
           </Section>
 

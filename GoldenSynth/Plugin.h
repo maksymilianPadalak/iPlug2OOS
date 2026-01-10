@@ -24,10 +24,48 @@ enum EParams
   kParamFilterType,         // Filter type (LP, HP, BP, Notch)
   // Pulse width modulation
   kParamPulseWidth,         // Pulse width (5-95%), 50% = square wave
-  // FM synthesis parameters
+  // FM synthesis parameters (Osc1)
   kParamFMRatio,            // Coarse ratio: 0.5, 1, 2, 3, 4, 5, 6, 7, 8 (harmonic)
   kParamFMFine,             // Fine ratio offset: -50% to +50% (allows inharmonic)
   kParamFMDepth,            // Modulation depth/index (0-100%)
+  kParamOsc1Level,          // Osc1 mix level (0-100%) for balancing with Osc2
+  kParamOsc1Octave,         // Osc1 octave offset: -2, -1, 0, +1, +2
+  kParamOsc1Detune,         // Osc1 fine detune in cents (-100 to +100)
+  // Oscillator 2 parameters (fully independent like Serum)
+  kParamOsc2Waveform,       // Osc2 waveform (same options as Osc1)
+  kParamOsc2Octave,         // Osc2 octave offset: -2, -1, 0, +1, +2
+  kParamOsc2Detune,         // Osc2 fine detune in cents (-100 to +100)
+  kParamOsc2Level,          // Osc2 mix level (0-100%)
+  kParamOsc2Morph,          // Osc2 wavetable morph position (0-100%)
+  kParamOsc2PulseWidth,     // Osc2 pulse width (5-95%)
+  kParamOsc2FMRatio,        // Osc2 FM coarse ratio (0.5-8)
+  kParamOsc2FMFine,         // Osc2 FM fine ratio offset (-50% to +50%)
+  kParamOsc2FMDepth,        // Osc2 FM modulation depth (0-100%)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // OSC1 UNISON - Stack multiple detuned voices for massive sound
+  // ═══════════════════════════════════════════════════════════════════════════
+  kParamOsc1UnisonVoices,   // Osc1 unison voices (1-8), 1 = off
+  kParamOsc1UnisonDetune,   // Osc1 detune spread (0-100%)
+  kParamOsc1UnisonWidth,    // Osc1 stereo spread (0-100%)
+  kParamOsc1UnisonBlend,    // Osc1 center vs detuned mix (0-100%)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // OSC2 UNISON - Independent unison for second oscillator (Serum-style)
+  // ═══════════════════════════════════════════════════════════════════════════
+  kParamOsc2UnisonVoices,   // Osc2 unison voices (1-8), 1 = off
+  kParamOsc2UnisonDetune,   // Osc2 detune spread (0-100%)
+  kParamOsc2UnisonWidth,    // Osc2 stereo spread (0-100%)
+  kParamOsc2UnisonBlend,    // Osc2 center vs detuned mix (0-100%)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // OSCILLATOR SYNC - Classic analog sync sound
+  // ═══════════════════════════════════════════════════════════════════════════
+  kParamOscSync,            // Sync mode: Off, Hard (Osc2 syncs to Osc1)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LFO - Low Frequency Oscillator for modulation
+  // ═══════════════════════════════════════════════════════════════════════════
+  kParamLFORate,            // LFO rate (0.01-20 Hz)
+  kParamLFODepth,           // LFO depth to filter cutoff (0-100%)
+  kParamLFOWaveform,        // LFO waveform (Sine, Tri, SawUp, SawDown, Square, S&H)
+  kParamLFORetrigger,       // LFO retrigger mode (Off=free-running, On=retrigger)
   kNumParams
 };
 

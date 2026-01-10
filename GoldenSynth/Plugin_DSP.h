@@ -16,6 +16,8 @@
 #include <q/synth/triangle_osc.hpp>
 #include <q/synth/pulse_osc.hpp>
 #include <q/synth/envelope_gen.hpp>
+#include <q/synth/noise_gen.hpp>
+#include <q/fx/dc_block.hpp>
 
 using namespace iplug;
 namespace q = cycfi::q;
@@ -726,6 +728,207 @@ private:
   FilterType mType = FilterType::Lowpass;
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// LFO (Low Frequency Oscillator) - Modulation Source
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// WHAT IS AN LFO?
+// An LFO is an oscillator running at sub-audio frequencies (typically 0.01-20 Hz)
+// used to modulate other parameters over time. It creates movement and life in
+// sounds that would otherwise be static.
+//
+// COMMON LFO DESTINATIONS:
+// ┌─────────────────────┬────────────────────────────────────────────────────────┐
+// │ Destination         │ Effect                                                 │
+// ├─────────────────────┼────────────────────────────────────────────────────────┤
+// │ Filter Cutoff       │ Wah-wah, dubstep wobble, evolving pads                 │
+// │ Pitch               │ Vibrato (subtle), siren (extreme)                      │
+// │ Amplitude           │ Tremolo, helicopter effect                             │
+// │ Pulse Width         │ Classic analog PWM pad sound                           │
+// │ FM Depth            │ Evolving FM timbres                                    │
+// │ Wavetable Position  │ Morphing wavetable sounds                              │
+// └─────────────────────┴────────────────────────────────────────────────────────┘
+//
+// WAVEFORM CHARACTERISTICS:
+// ┌─────────────────────┬────────────────────────────────────────────────────────┐
+// │ Waveform            │ Character                                              │
+// ├─────────────────────┼────────────────────────────────────────────────────────┤
+// │ Sine                │ Smooth, gentle, natural sounding modulation            │
+// │ Triangle            │ Linear ramps, slightly more "pointed" than sine        │
+// │ Saw Up              │ Rising ramp then drop - "building" feel                │
+// │ Saw Down            │ Drop then rising ramp - "falling" feel                 │
+// │ Square              │ Abrupt on/off switching - gated/trance effects         │
+// │ Sample & Hold       │ Random stepped values - classic analog randomness      │
+// └─────────────────────┴────────────────────────────────────────────────────────┘
+//
+// RATE RANGE:
+//   0.01 Hz = 100 second cycle (glacially slow evolving pads)
+//   0.1 Hz  = 10 second cycle (slow atmospheric sweeps)
+//   1 Hz    = 1 second cycle (typical wobble bass rate)
+//   5 Hz    = Fast wobble, approaching vibrato territory
+//   10+ Hz  = Vibrato, tremolo, audio-rate effects
+//
+// RETRIGGER vs FREE-RUNNING:
+//   - Free-running: LFO continues regardless of notes. Each note starts at a
+//     random point in the LFO cycle. Good for evolving pads.
+//   - Retrigger: LFO resets to phase 0 on each note-on. Every note has identical
+//     modulation shape. Good for consistent bass/lead sounds.
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LFO WAVEFORM TYPES
+// ═══════════════════════════════════════════════════════════════════════════════
+enum class LFOWaveform
+{
+  Sine = 0,
+  Triangle,
+  SawUp,
+  SawDown,
+  Square,
+  SampleAndHold,
+  kNumWaveforms
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LFO CLASS - Using Q Library Oscillators
+// ═══════════════════════════════════════════════════════════════════════════════
+// This LFO uses the Q library's oscillator functions and phase_iterator for
+// efficient, well-tested waveform generation. At LFO rates (0.01-20 Hz),
+// aliasing is not a concern, so we use the basic (non-bandwidth-limited)
+// oscillators for optimal performance.
+//
+// Q LIBRARY COMPONENTS USED:
+//   q::phase_iterator - Fixed-point 1.31 phase accumulator with automatic wrap
+//   q::sin            - Lookup table sine oscillator (fast, accurate)
+//   q::basic_triangle - Non-bandlimited triangle (no aliasing at LFO rates)
+//   q::basic_saw      - Non-bandlimited sawtooth
+//   q::basic_square   - Non-bandlimited square
+//   q::white_noise_gen- Fast PRNG for Sample & Hold random values
+//
+// WHY USE Q LIBRARY FOR LFO?
+//   1. Consistent API with audio oscillators (same phase_iterator pattern)
+//   2. Well-tested implementations from production-grade DSP library
+//   3. q::sin uses lookup table - faster than std::sin for audio
+//   4. q::white_noise_gen is optimized for audio (known good distribution)
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+class LFO
+{
+public:
+  void SetRate(float hz)
+  {
+    mRate = std::max(0.001f, hz);  // Minimum rate to avoid division issues
+    UpdatePhaseIterator();
+  }
+
+  void SetWaveform(LFOWaveform waveform)
+  {
+    mWaveform = waveform;
+  }
+
+  void SetSampleRate(float sampleRate)
+  {
+    mSampleRate = sampleRate;
+    UpdatePhaseIterator();
+  }
+
+  // Reset phase to 0 (for retrigger mode)
+  void Reset()
+  {
+    mPhase = mPhase.begin();  // Reset to phase 0
+    // Generate initial S&H value for consistent retriggered behavior
+    mSHValue = mNoiseGen();
+  }
+
+  // Process one sample, returns value in range [-1, +1]
+  float Process()
+  {
+    float output = 0.0f;
+
+    // Check if we're about to complete a cycle (for S&H update)
+    bool wasLastSample = mPhase.last();
+
+    switch (mWaveform)
+    {
+      case LFOWaveform::Sine:
+        // Q library sine uses lookup table - faster than std::sin
+        output = q::sin(mPhase++);
+        break;
+
+      case LFOWaveform::Triangle:
+        // Q library basic_triangle: non-bandlimited (perfect for LFO)
+        output = q::basic_triangle(mPhase++);
+        break;
+
+      case LFOWaveform::SawUp:
+        // Q library basic_saw: rising sawtooth -1 to +1
+        output = q::basic_saw(mPhase++);
+        break;
+
+      case LFOWaveform::SawDown:
+        // Inverted saw for falling sawtooth +1 to -1
+        output = -q::basic_saw(mPhase++);
+        break;
+
+      case LFOWaveform::Square:
+        // Q library basic_square: +1 for first half, -1 for second half
+        output = q::basic_square(mPhase++);
+        break;
+
+      case LFOWaveform::SampleAndHold:
+        // Return held value, update at cycle boundary
+        output = mSHValue;
+        ++mPhase;  // Advance phase but don't use its output
+        break;
+
+      default:
+        output = q::sin(mPhase++);
+        break;
+    }
+
+    // For S&H, sample new random value at start of each cycle
+    if (wasLastSample && mWaveform == LFOWaveform::SampleAndHold)
+    {
+      mSHValue = mNoiseGen();
+    }
+
+    return output;
+  }
+
+private:
+  // Update phase iterator when rate or sample rate changes
+  void UpdatePhaseIterator()
+  {
+    if (mSampleRate > 0.0f)
+    {
+      mPhase.set(q::frequency{static_cast<double>(mRate)}, mSampleRate);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Q LIBRARY PHASE ITERATOR
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Fixed-point 1.31 format: 32-bit unsigned where full cycle = 2^32.
+  // Natural wraparound via integer overflow eliminates modulo operations.
+  // Usage: q::sin(mPhase++) returns sine value and advances phase.
+  // ─────────────────────────────────────────────────────────────────────────────
+  q::phase_iterator mPhase;
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Q LIBRARY WHITE NOISE GENERATOR
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Fast PRNG for Sample & Hold. Uses optimized algorithm from musicdsp.org.
+  // Output range: [-1, +1] with uniform distribution.
+  // ─────────────────────────────────────────────────────────────────────────────
+  q::white_noise_gen mNoiseGen;
+
+  float mRate = 1.0f;               // Rate in Hz
+  float mSampleRate = 48000.0f;     // Sample rate
+  LFOWaveform mWaveform = LFOWaveform::Sine;
+  float mSHValue = 0.0f;            // Held value for Sample & Hold
+};
+
 class WavetableOscillator
 {
 public:
@@ -1214,6 +1417,16 @@ public:
       mEnv.attack();
 
       // ─────────────────────────────────────────────────────────────────────────
+      // LFO RETRIGGER
+      // If retrigger mode is enabled, reset LFO phase on every note-on for
+      // consistent modulation shape. Otherwise, LFO free-runs for evolving sounds.
+      // ─────────────────────────────────────────────────────────────────────────
+      if (mLFORetrigger)
+      {
+        mLFO.Reset();
+      }
+
+      // ─────────────────────────────────────────────────────────────────────────
       // RETRIGGER SMOOTHING
       // When retriggering a voice that's still sounding, we need to smoothly
       // transition from the current level to avoid clicks. We use a fast
@@ -1346,48 +1559,69 @@ public:
       if (mOsc1UnisonVoices > 1)
       {
         float spreadCents = mOsc1UnisonDetune * kMaxUnisonDetuneCents;
-        int numSpreadVoices = mOsc1UnisonVoices - 1;  // Voices 1 to N-1
 
-        for (int v = 0; v < mOsc1UnisonVoices; v++)
+        // ─────────────────────────────────────────────────────────────────────
+        // SPECIAL CASE: 2 VOICES - Symmetric spread (no center voice)
+        // ─────────────────────────────────────────────────────────────────────
+        // For 2 voices, blend controls BOTH pitch spread AND stereo spread:
+        //   blend = 0%: Both voices at center pitch AND center position (like 1 voice)
+        //   blend = 100%: Full detune spread AND full stereo spread
+        // This makes blend=0 sound identical to 1 voice, matching 3+ voice behavior.
+        // ─────────────────────────────────────────────────────────────────────
+        if (mOsc1UnisonVoices == 2)
         {
-          if (v == 0)
+          // Apply blend to detune spread (blend=0 means no detune, like 1 voice)
+          float blendedSpreadCents = spreadCents * mOsc1UnisonBlend;
+          // Voice 0: left, negative detune
+          mOsc1UnisonDetuneOffsets[0] = -blendedSpreadCents;
+          mOsc1UnisonPans[0] = -mOsc1UnisonWidth;
+          // Voice 1: right, positive detune
+          mOsc1UnisonDetuneOffsets[1] = blendedSpreadCents;
+          mOsc1UnisonPans[1] = mOsc1UnisonWidth;
+        }
+        else
+        {
+          // 3+ VOICES: Center voice + symmetric spread voices
+          int numSpreadVoices = mOsc1UnisonVoices - 1;  // Voices 1 to N-1
+
+          for (int v = 0; v < mOsc1UnisonVoices; v++)
           {
-            // ─────────────────────────────────────────────────────────────────
-            // CENTER VOICE: No detune, no panning
-            // ─────────────────────────────────────────────────────────────────
-            mOsc1UnisonDetuneOffsets[v] = 0.0f;
-            mOsc1UnisonPans[v] = 0.0f;
-          }
-          else
-          {
-            // ─────────────────────────────────────────────────────────────────
-            // SPREAD VOICES: Symmetric detune and panning
-            // ─────────────────────────────────────────────────────────────────
-
-            // DETUNE: Alternating +/- with increasing magnitude
-            int spreadLevel = (v + 1) / 2;  // 1,1,2,2,3,3,4,4...
-            float detunePosition = static_cast<float>(spreadLevel) / static_cast<float>((mOsc1UnisonVoices) / 2);
-            float detuneSign = (v % 2 == 1) ? 1.0f : -1.0f;
-            mOsc1UnisonDetuneOffsets[v] = detuneSign * detunePosition * spreadCents;
-
-            // PANNING: Perfectly symmetric spread
-            // Formula changes based on odd/even spread voice count
-            float panPosition;
-            float idx = static_cast<float>(v - 1);  // 0-indexed within spread voices
-
-            if (numSpreadVoices % 2 == 1)
+            if (v == 0)
             {
-              // Odd spread voices: linear from -width to +width (includes 0)
-              // pan = (2*idx - (N-1)) / (N-1) * width
-              panPosition = (2.0f * idx - (numSpreadVoices - 1)) / static_cast<float>(numSpreadVoices - 1);
+              // ─────────────────────────────────────────────────────────────────
+              // CENTER VOICE: No detune, no panning
+              // ─────────────────────────────────────────────────────────────────
+              mOsc1UnisonDetuneOffsets[v] = 0.0f;
+              mOsc1UnisonPans[v] = 0.0f;
             }
             else
             {
-              // Even spread voices: straddle center (no voice at 0)
-              // pan = (2*idx + 1 - N) / N * width
-              panPosition = (2.0f * idx + 1.0f - numSpreadVoices) / static_cast<float>(numSpreadVoices);
+              // ─────────────────────────────────────────────────────────────────
+              // SPREAD VOICES: Symmetric detune and panning
+              // ─────────────────────────────────────────────────────────────────
+
+              // DETUNE: Alternating +/- with increasing magnitude
+              int spreadLevel = (v + 1) / 2;  // 1,1,2,2,3,3,4,4...
+              float detunePosition = static_cast<float>(spreadLevel) / static_cast<float>((mOsc1UnisonVoices) / 2);
+              float detuneSign = (v % 2 == 1) ? 1.0f : -1.0f;
+              mOsc1UnisonDetuneOffsets[v] = detuneSign * detunePosition * spreadCents;
+
+              // PANNING: Perfectly symmetric spread
+              float panPosition;
+              float idx = static_cast<float>(v - 1);  // 0-indexed within spread voices
+
+              if (numSpreadVoices % 2 == 1)
+              {
+                // Odd spread voices (3,5,7): linear from -width to +width (includes 0)
+                panPosition = (2.0f * idx - (numSpreadVoices - 1)) / static_cast<float>(numSpreadVoices - 1);
+              }
+              else
+              {
+                // Even spread voices (2,4,6): straddle center (no voice at 0)
+                panPosition = (2.0f * idx + 1.0f - numSpreadVoices) / static_cast<float>(numSpreadVoices);
+              }
+              mOsc1UnisonPans[v] = panPosition * mOsc1UnisonWidth;
             }
-            mOsc1UnisonPans[v] = panPosition * mOsc1UnisonWidth;
           }
         }
       }
@@ -1396,41 +1630,61 @@ public:
       if (mOsc2UnisonVoices > 1)
       {
         float spreadCents = mOsc2UnisonDetune * kMaxUnisonDetuneCents;
-        int numSpreadVoices = mOsc2UnisonVoices - 1;  // Voices 1 to N-1
 
-        for (int v = 0; v < mOsc2UnisonVoices; v++)
+        // SPECIAL CASE: 2 VOICES - Symmetric spread (no center voice)
+        // For 2 voices, blend controls BOTH pitch spread AND stereo spread:
+        //   blend = 0%: Both voices at center pitch AND center position (like 1 voice)
+        //   blend = 100%: Full detune spread AND full stereo spread
+        if (mOsc2UnisonVoices == 2)
         {
-          if (v == 0)
+          // Apply blend to detune spread (blend=0 means no detune, like 1 voice)
+          float blendedSpreadCents = spreadCents * mOsc2UnisonBlend;
+          // Voice 0: left, negative detune
+          mOsc2UnisonDetuneOffsets[0] = -blendedSpreadCents;
+          mOsc2UnisonPans[0] = -mOsc2UnisonWidth;
+          // Voice 1: right, positive detune
+          mOsc2UnisonDetuneOffsets[1] = blendedSpreadCents;
+          mOsc2UnisonPans[1] = mOsc2UnisonWidth;
+        }
+        else
+        {
+          // 3+ VOICES: Center voice + symmetric spread voices
+          int numSpreadVoices = mOsc2UnisonVoices - 1;  // Voices 1 to N-1
+
+          for (int v = 0; v < mOsc2UnisonVoices; v++)
           {
-            // CENTER VOICE: No detune, no panning
-            mOsc2UnisonDetuneOffsets[v] = 0.0f;
-            mOsc2UnisonPans[v] = 0.0f;
-          }
-          else
-          {
-            // SPREAD VOICES: Symmetric detune and panning
-
-            // DETUNE: Alternating +/- with increasing magnitude
-            int spreadLevel = (v + 1) / 2;
-            float detunePosition = static_cast<float>(spreadLevel) / static_cast<float>((mOsc2UnisonVoices) / 2);
-            float detuneSign = (v % 2 == 1) ? 1.0f : -1.0f;
-            mOsc2UnisonDetuneOffsets[v] = detuneSign * detunePosition * spreadCents;
-
-            // PANNING: Perfectly symmetric spread (same formula as Osc1)
-            float panPosition;
-            float idx = static_cast<float>(v - 1);
-
-            if (numSpreadVoices % 2 == 1)
+            if (v == 0)
             {
-              // Odd spread voices: includes center
-              panPosition = (2.0f * idx - (numSpreadVoices - 1)) / static_cast<float>(numSpreadVoices - 1);
+              // CENTER VOICE: No detune, no panning
+              mOsc2UnisonDetuneOffsets[v] = 0.0f;
+              mOsc2UnisonPans[v] = 0.0f;
             }
             else
             {
-              // Even spread voices: straddles center
-              panPosition = (2.0f * idx + 1.0f - numSpreadVoices) / static_cast<float>(numSpreadVoices);
+              // SPREAD VOICES: Symmetric detune and panning
+
+              // DETUNE: Alternating +/- with increasing magnitude
+              int spreadLevel = (v + 1) / 2;
+              float detunePosition = static_cast<float>(spreadLevel) / static_cast<float>((mOsc2UnisonVoices) / 2);
+              float detuneSign = (v % 2 == 1) ? 1.0f : -1.0f;
+              mOsc2UnisonDetuneOffsets[v] = detuneSign * detunePosition * spreadCents;
+
+              // PANNING: Perfectly symmetric spread
+              float panPosition;
+              float idx = static_cast<float>(v - 1);
+
+              if (numSpreadVoices % 2 == 1)
+              {
+                // Odd spread voices (3,5,7): includes center
+                panPosition = (2.0f * idx - (numSpreadVoices - 1)) / static_cast<float>(numSpreadVoices - 1);
+              }
+              else
+              {
+                // Even spread voices (2,4,6): straddles center
+                panPosition = (2.0f * idx + 1.0f - numSpreadVoices) / static_cast<float>(numSpreadVoices);
+              }
+              mOsc2UnisonPans[v] = panPosition * mOsc2UnisonWidth;
             }
-            mOsc2UnisonPans[v] = panPosition * mOsc2UnisonWidth;
           }
         }
       }
@@ -1616,15 +1870,31 @@ public:
             leftGain = 1.0f;
             rightGain = 1.0f;
           }
+          else if (mOsc1UnisonVoices == 2)
+          {
+            // 2 voices: blend controls stereo spread
+            // blend = 0%: both voices centered (mono-compatible)
+            // blend = 100%: full stereo spread based on width
+            float pan = mOsc1UnisonPans[v];
+            float angle = (pan + 1.0f) * kQuarterPi;
+
+            // Full pan gains (at blend = 100%)
+            float fullPanLeft = std::cos(angle);
+            float fullPanRight = std::sin(angle);
+
+            // Interpolate between centered (kSqrtHalf) and full pan based on blend
+            leftGain = kSqrtHalf + mOsc1UnisonBlend * (fullPanLeft - kSqrtHalf);
+            rightGain = kSqrtHalf + mOsc1UnisonBlend * (fullPanRight - kSqrtHalf);
+          }
           else if (v == 0)
           {
-            // Center voice in unison: equal power to both channels (1/sqrt(2))
+            // 3+ voices: Center voice with equal power to both channels (1/sqrt(2))
             leftGain = kSqrtHalf;
             rightGain = kSqrtHalf;
           }
           else
           {
-            // Spread voices: constant-power panning
+            // 3+ voices: Spread voices with constant-power panning
             float pan = mOsc1UnisonPans[v];
             float angle = (pan + 1.0f) * kQuarterPi;
             leftGain = std::cos(angle);
@@ -1647,7 +1917,13 @@ public:
           // unison voice count or blend setting.
           // ─────────────────────────────────────────────────────────────────
           float voiceWeight = 1.0f;
-          if (mOsc1UnisonVoices > 1)
+          if (mOsc1UnisonVoices == 2)
+          {
+            // 2 voices: equal weight, both are spread voices
+            // Power sum = 2 × 0.5² = 0.5, compensation = sqrt(2)
+            voiceWeight = kSqrtHalf;  // 1/sqrt(2) × sqrt(2) = 1 per voice after compensation
+          }
+          else if (mOsc1UnisonVoices > 2)
           {
             float centerWeight = 1.0f - mOsc1UnisonBlend;
             float spreadWeight = mOsc1UnisonBlend / static_cast<float>(mOsc1UnisonVoices - 1);
@@ -1815,9 +2091,25 @@ public:
               leftGain = 1.0f;
               rightGain = 1.0f;
             }
+            else if (mOsc2UnisonVoices == 2)
+            {
+              // 2 voices: blend controls stereo spread
+              // blend = 0%: both voices centered (mono-compatible)
+              // blend = 100%: full stereo spread based on width
+              float pan = mOsc2UnisonPans[v];
+              float angle = (pan + 1.0f) * kQuarterPi;
+
+              // Full pan gains (at blend = 100%)
+              float fullPanLeft = std::cos(angle);
+              float fullPanRight = std::sin(angle);
+
+              // Interpolate between centered (kSqrtHalf) and full pan based on blend
+              leftGain = kSqrtHalf + mOsc2UnisonBlend * (fullPanLeft - kSqrtHalf);
+              rightGain = kSqrtHalf + mOsc2UnisonBlend * (fullPanRight - kSqrtHalf);
+            }
             else if (v == 0)
             {
-              // Center voice in unison: equal power (1/sqrt(2))
+              // Center voice in unison (3+ voices): equal power (1/sqrt(2))
               leftGain = kSqrtHalf;
               rightGain = kSqrtHalf;
             }
@@ -1832,8 +2124,15 @@ public:
 
             // VOICE WEIGHT WITH POWER COMPENSATION (same as Osc1)
             float voiceWeight = 1.0f;
-            if (mOsc2UnisonVoices > 1)
+            if (mOsc2UnisonVoices == 2)
             {
+              // 2 voices: Both are equal spread voices (no center)
+              // Each voice gets 1/sqrt(2) for constant power
+              voiceWeight = kSqrtHalf;
+            }
+            else if (mOsc2UnisonVoices > 2)
+            {
+              // 3+ voices: center + spread voices with blend control
               float centerWeight = 1.0f - mOsc2UnisonBlend;
               float spreadWeight = mOsc2UnisonBlend / static_cast<float>(mOsc2UnisonVoices - 1);
 
@@ -1875,29 +2174,44 @@ public:
         float mixedRight = mOsc1Level * osc1Right + mOsc2Level * osc2Right;
 
         // ─────────────────────────────────────────────────────────────────────────
+        // LFO MODULATION OF FILTER CUTOFF
+        // ─────────────────────────────────────────────────────────────────────────
+        // The LFO modulates the filter cutoff in octaves for musical results.
+        // At 100% depth, the LFO sweeps ±4 octaves around the base cutoff.
+        //
+        // Formula: modulatedCutoff = baseCutoff × 2^(lfoValue × depth × 4)
+        //   - lfoValue: -1 to +1 from LFO
+        //   - depth: 0 to 1 (0% to 100%)
+        //   - 4 octaves max = factor of 16 up or down
+        //
+        // Example at 50% depth, LFO at +1:
+        //   modOctaves = 1 × 0.5 × 4 = 2 octaves up
+        //   1000Hz base → 4000Hz modulated
+        // ─────────────────────────────────────────────────────────────────────────
+        float lfoValue = mLFO.Process();
+        float modOctaves = lfoValue * mLFODepth * 4.0f;
+        float modulatedCutoff = mFilterCutoffBase * std::pow(2.0f, modOctaves);
+        // Clamp to valid filter range
+        modulatedCutoff = std::max(20.0f, std::min(20000.0f, modulatedCutoff));
+        mFilterL.SetCutoff(modulatedCutoff);
+        mFilterR.SetCutoff(modulatedCutoff);
+
+        // ─────────────────────────────────────────────────────────────────────────
         // FILTER (stereo - separate filters for L/R to preserve stereo image)
         // ─────────────────────────────────────────────────────────────────────────
         float filteredLeft = mFilterL.Process(mixedLeft);
         float filteredRight = mFilterR.Process(mixedRight);
 
         // ─────────────────────────────────────────────────────────────────────────
-        // DC BLOCKER (high-pass at ~10Hz, sample-rate independent)
+        // DC BLOCKER - Q Library Implementation
         // ─────────────────────────────────────────────────────────────────────────
-        // FM synthesis, wavetable morphing, and filter resonance can all generate
-        // DC offset. This simple one-pole high-pass filter removes it:
-        //   y[n] = x[n] - x[n-1] + coeff * y[n-1]
-        //
-        // Coefficient is calculated in SetSampleRateAndBlockSize using:
-        //   α = e^(-2πfc/fs) for -3dB at fc Hz
-        // At any sample rate, -3dB at ~10Hz, transparent above 30Hz.
-        // This keeps woofers happy and prevents clipping from DC accumulation.
+        // Uses q::dc_block based on Julius O. Smith's algorithm.
+        // High-pass at ~10Hz, sample-rate independent, transparent above 30Hz.
+        // Removes DC offset from FM synthesis, wavetable morphing, and filter
+        // resonance to keep woofers happy and prevent clipping from DC accumulation.
         // ─────────────────────────────────────────────────────────────────────────
-        float dcFreeLeft = filteredLeft - mDCBlockerPrevInL + mDCBlockerCoeff * mDCBlockerPrevOutL;
-        float dcFreeRight = filteredRight - mDCBlockerPrevInR + mDCBlockerCoeff * mDCBlockerPrevOutR;
-        mDCBlockerPrevInL = filteredLeft;
-        mDCBlockerPrevInR = filteredRight;
-        mDCBlockerPrevOutL = dcFreeLeft;
-        mDCBlockerPrevOutR = dcFreeRight;
+        float dcFreeLeft = mDCBlockerL(filteredLeft);
+        float dcFreeRight = mDCBlockerR(filteredRight);
 
         // STEP 3: Apply envelope and velocity (shape the amplitude)
         float sampleLeft = dcFreeLeft * envAmp * mVelocity;
@@ -1918,6 +2232,7 @@ public:
       mOsc2WavetableOsc.SetSampleRate(static_cast<float>(sampleRate));  // Osc2 wavetable
       mFilterL.SetSampleRate(static_cast<float>(sampleRate));
       mFilterR.SetSampleRate(static_cast<float>(sampleRate));
+      mLFO.SetSampleRate(static_cast<float>(sampleRate));
 
       // Pulse width smoothing: ~5ms for responsive but click-free modulation
       mPulseWidthSmoothCoeff = calcSmoothingCoeff(0.005f, static_cast<float>(sampleRate));
@@ -1925,11 +2240,10 @@ public:
       // FM parameter smoothing: ~5ms for smooth ratio/depth changes
       mFMSmoothCoeff = calcSmoothingCoeff(0.005f, static_cast<float>(sampleRate));
 
-      // DC blocker coefficient: high-pass at ~10Hz (sample-rate independent)
-      // Formula: α = e^(-2πfc/fs) gives -3dB at fc Hz
+      // Update DC blocker cutoff for new sample rate
       // 10Hz is below audible range but above subsonic rumble from speakers
-      constexpr float kDCBlockerCutoffHz = 10.0f;
-      mDCBlockerCoeff = std::exp(-kTwoPi * kDCBlockerCutoffHz / static_cast<float>(sampleRate));
+      mDCBlockerL.cutoff(10_Hz, static_cast<float>(sampleRate));
+      mDCBlockerR.cutoff(10_Hz, static_cast<float>(sampleRate));
     }
 
     // Parameter setters called from DSP class
@@ -1967,7 +2281,8 @@ public:
     void SetEnvVelocitySensitivity(float amount) { mEnvVelocitySensitivity = amount; }
 
     // Filter setters (stereo - both L/R filters)
-    void SetFilterCutoff(float freqHz) { mFilterL.SetCutoff(freqHz); mFilterR.SetCutoff(freqHz); }
+    // NOTE: Cutoff is stored as base value and modulated by LFO in ProcessSamplesAccumulating
+    void SetFilterCutoff(float freqHz) { mFilterCutoffBase = freqHz; }
     void SetFilterResonance(float resonance) { mFilterL.SetResonance(resonance); mFilterR.SetResonance(resonance); }
     void SetFilterType(int type) { mFilterL.SetType(static_cast<FilterType>(type)); mFilterR.SetType(static_cast<FilterType>(type)); }
 
@@ -2053,6 +2368,17 @@ public:
       }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // LFO (Low Frequency Oscillator) SETTERS
+    // ─────────────────────────────────────────────────────────────────────────
+    // The LFO modulates the filter cutoff to create movement and expression.
+    // Depth is scaled in octaves: 100% = ±4 octaves of modulation.
+    // ─────────────────────────────────────────────────────────────────────────
+    void SetLFORate(float hz) { mLFO.SetRate(hz); }
+    void SetLFODepth(float depth) { mLFODepth = depth; }  // 0.0-1.0
+    void SetLFOWaveform(int waveform) { mLFO.SetWaveform(static_cast<LFOWaveform>(waveform)); }
+    void SetLFORetrigger(bool retrigger) { mLFORetrigger = retrigger; }
+
   private:
     // ─────────────────────────────────────────────────────────────────────────
     // PHASE ITERATOR - Q library's oscillator driver
@@ -2115,18 +2441,28 @@ public:
     WavetableOscillator mWavetableOsc;  // Wavetable oscillator (mipmapped, morphable)
     ResonantFilter mFilterL;             // Left channel filter (stereo processing)
     ResonantFilter mFilterR;             // Right channel filter (stereo processing)
+    float mFilterCutoffBase = 10000.0f;  // Base filter cutoff from knob (before LFO modulation)
 
     // ─────────────────────────────────────────────────────────────────────────
-    // DC BLOCKER - Removes DC offset from FM/wavetable/filter
+    // LFO - Modulation source for filter cutoff
     // ─────────────────────────────────────────────────────────────────────────
-    // Simple one-pole high-pass: y[n] = x[n] - x[n-1] + coeff * y[n-1]
-    // Coefficient is calculated in SetSampleRateAndBlockSize for ~10Hz cutoff.
+    // The LFO creates movement by modulating the filter cutoff in octaves.
+    // At 100% depth, the LFO sweeps ±4 octaves around the base cutoff.
     // ─────────────────────────────────────────────────────────────────────────
-    float mDCBlockerPrevInL = 0.0f;       // Previous input sample (left)
-    float mDCBlockerPrevInR = 0.0f;       // Previous input sample (right)
-    float mDCBlockerPrevOutL = 0.0f;      // Previous output sample (left)
-    float mDCBlockerPrevOutR = 0.0f;      // Previous output sample (right)
-    float mDCBlockerCoeff = 0.9987f;      // Default for 48kHz, recalculated per sample rate
+    LFO mLFO;                            // LFO instance
+    float mLFODepth = 0.0f;              // Modulation depth (0.0-1.0)
+    bool mLFORetrigger = false;          // Reset LFO phase on note-on
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DC BLOCKER - Q Library Implementation
+    // ─────────────────────────────────────────────────────────────────────────
+    // Uses Q library's dc_block class based on Julius O. Smith's algorithm.
+    // High-pass at ~10Hz removes DC offset from FM/wavetable/filter.
+    // Separate instances for L/R to preserve stereo processing state.
+    // The q::dc_block handles sample rate in its constructor.
+    // ─────────────────────────────────────────────────────────────────────────
+    q::dc_block mDCBlockerL{10_Hz, 48000.0f};  // Left channel DC blocker
+    q::dc_block mDCBlockerR{10_Hz, 48000.0f};  // Right channel DC blocker
     double mSampleRate = 44100.0;
     float mVelocity = 0.0f;              // MIDI velocity (0-1)
     bool mActive = false;                // Voice is currently sounding
@@ -2632,6 +2968,38 @@ public:
         mSynth.ForEachVoice([value](SynthVoice& voice) {
           // Enum: 0=Off, 1=Hard
           dynamic_cast<Voice&>(voice).SetOscSync(static_cast<int>(value));
+        });
+        break;
+
+      // ─────────────────────────────────────────────────────────────────────────
+      // LFO PARAMETERS
+      // Modulation source for filter cutoff (wobbles, sweeps, movement)
+      // ─────────────────────────────────────────────────────────────────────────
+      case kParamLFORate:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Value is already in Hz (0.01-20)
+          dynamic_cast<Voice&>(voice).SetLFORate(static_cast<float>(value));
+        });
+        break;
+
+      case kParamLFODepth:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert 0-100% to 0.0-1.0
+          dynamic_cast<Voice&>(voice).SetLFODepth(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      case kParamLFOWaveform:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Enum: 0=Sine, 1=Tri, 2=SawUp, 3=SawDown, 4=Square, 5=S&H
+          dynamic_cast<Voice&>(voice).SetLFOWaveform(static_cast<int>(value));
+        });
+        break;
+
+      case kParamLFORetrigger:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Enum: 0=Free, 1=Retrigger
+          dynamic_cast<Voice&>(voice).SetLFORetrigger(static_cast<int>(value) == 1);
         });
         break;
 
