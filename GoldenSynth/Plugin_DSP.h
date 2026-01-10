@@ -44,12 +44,11 @@ using namespace q::literals;
 // Wavetable dimensions
 constexpr int kWavetableSize = 2048;      // Samples per cycle (power of 2 for fast wrapping)
 constexpr int kWavetableFrames = 16;      // Morph positions (more = smoother morphing)
-constexpr int kNumMipLevels = 8;          // One mip per octave (8 octaves = 20Hz to 5kHz+)
+constexpr int kNumMipLevels = 8;          // 8 mip levels: 128→64→32→16→8→4→2→1 harmonics
 constexpr float kWavetableSizeF = static_cast<float>(kWavetableSize);
 
 // Morph configuration - 4 classic waveforms
 constexpr int kNumWaveShapes = 4;         // Sine, Triangle, Saw, Square
-constexpr float kShapeSpacing = 1.0f / (kNumWaveShapes - 1);  // 0.333...
 
 // Memory: 2048 × 16 × 8 × 4 bytes = 1MB (static allocation, not stack)
 
@@ -383,12 +382,17 @@ public:
     //   100Hz: log2(128 * 100 / 24000) = log2(0.53) ≈ -0.9 → mip 0 (128 harmonics)
     //   440Hz: log2(128 * 440 / 24000) = log2(2.35) ≈ 1.2 → mip 1 (64 harmonics)
     //   2kHz:  log2(128 * 2000 / 24000) = log2(10.7) ≈ 3.4 → mip 3 (16 harmonics)
+    //
+    // DESIGN NOTE: We use floor() for mip selection, which prioritizes brightness
+    // over perfect anti-aliasing. At transition points (e.g., 440Hz using mip 1),
+    // some harmonics may slightly exceed Nyquist, but the crossfade to the next
+    // mip level (fewer harmonics) attenuates them. ceil() would be alias-free but darker.
     // ─────────────────────────────────────────────────────────────────────────
     constexpr float kBaseHarmonics = 128.0f;
     float mipFloat = std::log2(std::max(1.0f, kBaseHarmonics * mFrequency / mNyquist));
     mipFloat = std::max(0.0f, std::min(mipFloat, static_cast<float>(kNumMipLevels - 1)));
 
-    int mip0 = static_cast<int>(mipFloat);
+    int mip0 = static_cast<int>(mipFloat);  // floor - prioritizes brightness
     int mip1 = std::min(mip0 + 1, kNumMipLevels - 1);
     float mipFrac = mipFloat - mip0;
 
@@ -438,9 +442,10 @@ public:
     // ─────────────────────────────────────────────────────────────────────────
     // STEP 6: Advance phase accumulator
     // Phase wraps from 0.0 to 1.0, representing one cycle of the waveform
+    // Using while loop handles edge case where phaseInc > 1.0 (freq > sampleRate)
     // ─────────────────────────────────────────────────────────────────────────
     mPhase += mPhaseInc;
-    if (mPhase >= 1.0f) mPhase -= 1.0f;
+    while (mPhase >= 1.0f) mPhase -= 1.0f;
 
     return sample;
   }
