@@ -17,6 +17,10 @@ enum EParams
   kParamDecay,
   kParamSustain,
   kParamRelease,
+  // Filter parameters
+  kParamFilterCutoff,       // Filter cutoff frequency (20-20000 Hz)
+  kParamFilterResonance,    // Filter resonance (0-100%)
+  kParamFilterType,         // Filter type (LP, HP, BP, Notch)
   kNumParams
 };
 

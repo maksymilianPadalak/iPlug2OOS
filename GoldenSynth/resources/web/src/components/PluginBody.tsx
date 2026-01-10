@@ -1,7 +1,7 @@
 /**
  * Plugin Body - Instrument
  *
- * Simple synth with oscillator, ADSR envelope, waveform display, and master section.
+ * Subtractive synth with oscillator, SVF filter, ADSR envelope, and master section.
  */
 
 import { Section } from 'sharedUi/components/Section';
@@ -13,6 +13,7 @@ import { Meter } from 'sharedUi/components/Meter';
 import { WaveformDisplay } from 'sharedUi/components/WaveformDisplay';
 import { WaveSelector } from 'sharedUi/components/WaveSelector';
 import { ADSRDisplay } from 'sharedUi/components/ADSRDisplay';
+import { Dropdown } from 'sharedUi/components/Dropdown';
 import { EParams, EControlTags } from '@/config/runtimeParameters';
 
 export function PluginBody() {
@@ -57,7 +58,7 @@ export function PluginBody() {
             </div>
           </Section>
 
-          {/* Bottom Row: Oscillator + Envelope */}
+          {/* Middle Row: Oscillator + Filter */}
           <Section title="Oscillator" size="wide">
             <SubGroup layout="row">
               <WaveSelector paramId={EParams.kParamWaveform} label="Waveform" />
@@ -65,7 +66,16 @@ export function PluginBody() {
             </SubGroup>
           </Section>
 
-          <Section title="Envelope" size="wide">
+          <Section title="Filter" size="wide">
+            <SubGroup layout="row">
+              <Dropdown paramId={EParams.kParamFilterType} label="Type" />
+              <Knob paramId={EParams.kParamFilterCutoff} label="Cutoff" color="orange" />
+              <Knob paramId={EParams.kParamFilterResonance} label="Reso" color="orange" />
+            </SubGroup>
+          </Section>
+
+          {/* Bottom Row: Envelope */}
+          <Section title="Envelope" size="full">
             <ADSRDisplay
               attackParam={EParams.kParamAttack}
               decayParam={EParams.kParamDecay}

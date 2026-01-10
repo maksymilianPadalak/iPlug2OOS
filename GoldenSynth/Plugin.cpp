@@ -13,6 +13,13 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   GetParam(kParamSustain)->InitDouble("Sustain", 70., 0., 100., 0.1, "%");
   GetParam(kParamRelease)->InitDouble("Release", 200., 1., 5000., 0.1, "ms");
 
+  // Filter parameters
+  GetParam(kParamFilterCutoff)->InitDouble("Filter Cutoff", 10000., 20., 20000., 1., "Hz",
+    IParam::kFlagsNone, "", IParam::ShapePowCurve(3.0));  // Exponential curve for natural feel
+  GetParam(kParamFilterResonance)->InitDouble("Filter Reso", 0., 0., 100., 0.1, "%");
+  GetParam(kParamFilterType)->InitEnum("Filter Type", 0, 4, "", IParam::kFlagsNone, "",
+    "Lowpass", "Highpass", "Bandpass", "Notch");
+
 #if IPLUG_EDITOR
 #if defined(WEBVIEW_EDITOR_DELEGATE)
   SetCustomUrlScheme("iplug2");

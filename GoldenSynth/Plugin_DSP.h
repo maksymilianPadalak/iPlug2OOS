@@ -66,6 +66,272 @@ inline float calcSmoothingCoeff(float timeSeconds, float sampleRate)
   return 1.0f - std::exp(-1.0f / (timeSeconds * sampleRate));
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// DENORMAL PREVENTION
+// ═══════════════════════════════════════════════════════════════════════════════
+// Denormals are tiny floating point numbers (< 1e-38) that occur in filter
+// feedback loops as signals decay. Processing denormals is 10-100x slower
+// than normal floats, causing audio dropouts. We flush them to zero.
+constexpr float kDenormalThreshold = 1e-15f;
+
+inline float flushDenormal(float x)
+{
+  // Simple denormal flush - if |x| < threshold, return 0
+  // More sophisticated approaches exist (FTZ/DAZ CPU flags) but this is portable
+  return (std::abs(x) < kDenormalThreshold) ? 0.0f : x;
+}
+
+// Soft saturation using fast tanh approximation
+// Creates warm, analog-style clipping instead of harsh digital clipping
+inline float softSaturate(float x)
+{
+  // Pade approximant of tanh, accurate to ~0.1% for |x| < 3
+  // Much faster than std::tanh
+  if (x > 3.0f) return 1.0f;
+  if (x < -3.0f) return -1.0f;
+  float x2 = x * x;
+  return x * (27.0f + x2) / (27.0f + 9.0f * x2);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RESONANT FILTER - Using Q Library's Biquad Filters
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// This filter uses Q library's biquad implementations (Audio-EQ Cookbook).
+// - Lowpass, Highpass: True 2nd-order biquad responses
+// - Bandpass: Constant Skirt Gain (CSG) - peak rises with Q
+// - Notch: Complementary filter (input - bandpass_cpg)
+//
+// WHY BIQUADS WITH SMOOTHING?
+// Biquads can cause zipper noise when coefficients change abruptly. We solve
+// this by smoothing the cutoff and resonance parameters before updating
+// coefficients. This gives us:
+// - Full 20Hz-20kHz frequency range (no stability limits)
+// - True filter responses for LP/HP/BP
+// - Click-free parameter automation
+//
+// NOTCH IMPLEMENTATION:
+// We use the complementary filter technique: notch = input - bandpass.
+// The bandpass_cpg (Constant Peak Gain) ensures unity gain at center frequency,
+// so subtraction creates a true notch with full attenuation at cutoff.
+//
+// WHAT IS Q (RESONANCE)?
+// Q controls the "sharpness" of the filter at the cutoff frequency.
+// - Q = 0.707: Butterworth (maximally flat passband)
+// - Q = 1-5: Moderate resonance, musical "sweep" sound
+// - Q = 10+: Sharp peak, near self-oscillation
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#include <q/fx/biquad.hpp>
+
+enum class FilterType
+{
+  Lowpass = 0,
+  Highpass,
+  Bandpass,
+  Notch,
+  kNumFilterTypes
+};
+
+class ResonantFilter
+{
+public:
+  void SetSampleRate(float sampleRate)
+  {
+    mSampleRate = sampleRate;
+    mSmoothCoeff = calcSmoothingCoeff(0.005f, sampleRate);  // 5ms smoothing
+
+    // Biquads are stable up to Nyquist, but we cap at 0.45 * sampleRate
+    // to avoid numerical issues very close to Nyquist
+    mMaxCutoffHz = sampleRate * 0.45f;  // ~21.6kHz at 48kHz
+
+    // Reinitialize all filters at new sample rate
+    UpdateAllFilters();
+  }
+
+  // Set cutoff frequency in Hz (20 - 20000)
+  void SetCutoff(float freqHz)
+  {
+    mTargetCutoffHz = std::max(20.0f, std::min(mMaxCutoffHz, freqHz));
+  }
+
+  // Set resonance (0.0 - 1.0) - mapped to Q range
+  void SetResonance(float resonance)
+  {
+    // Map 0-1 resonance to Q range: 0.5 (gentle) to 15 (near self-oscillation)
+    // Using exponential mapping for more musical feel
+    mTargetResonance = std::max(0.0f, std::min(1.0f, resonance));
+  }
+
+  void SetType(FilterType type)
+  {
+    if (mType != type)
+    {
+      mType = type;
+      // Reset filter states when switching types to avoid artifacts
+      ResetFilterStates();
+      // Ensure the new filter type has current coefficients
+      UpdateAllFilters();
+    }
+  }
+
+  void Reset()
+  {
+    ResetFilterStates();
+    mCurrentCutoffHz = mTargetCutoffHz;
+    mCurrentResonance = mTargetResonance;
+    // Sync biquad coefficients to current values
+    // Without this, the filter uses stale coefficients after note trigger
+    UpdateAllFilters();
+  }
+
+  // Process a single sample through the filter
+  float Process(float input)
+  {
+    // ─────────────────────────────────────────────────────────────────────────
+    // SMOOTH PARAMETERS
+    // Prevents zipper noise by interpolating towards target values
+    // ─────────────────────────────────────────────────────────────────────────
+    bool needsUpdate = false;
+
+    float cutoffDiff = mTargetCutoffHz - mCurrentCutoffHz;
+    if (std::abs(cutoffDiff) > 0.1f)
+    {
+      mCurrentCutoffHz += mSmoothCoeff * cutoffDiff;
+      needsUpdate = true;
+    }
+
+    float resoDiff = mTargetResonance - mCurrentResonance;
+    if (std::abs(resoDiff) > 0.001f)
+    {
+      mCurrentResonance += mSmoothCoeff * resoDiff;
+      needsUpdate = true;
+    }
+
+    // Recalculate coefficients for ALL filters when parameters change
+    // This ensures switching filter types always has correct coefficients
+    if (needsUpdate)
+    {
+      UpdateAllFilters();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FILTER PROCESSING
+    // Each filter type uses its own biquad with correct coefficients
+    // ─────────────────────────────────────────────────────────────────────────
+    float output;
+    switch (mType)
+    {
+      case FilterType::Lowpass:
+        output = mLowpass(input);
+        FlushBiquadDenormals(mLowpass);
+        break;
+
+      case FilterType::Highpass:
+        output = mHighpass(input);
+        FlushBiquadDenormals(mHighpass);
+        break;
+
+      case FilterType::Bandpass:
+        output = mBandpass(input);
+        FlushBiquadDenormals(mBandpass);
+        break;
+
+      case FilterType::Notch:
+        // Notch = input - bandpass_cpg (complementary filter technique)
+        // bandpass_cpg has unity gain at center frequency, so:
+        //   At cutoff: output = input - input = 0 (full attenuation)
+        //   Away from cutoff: output ≈ input (passthrough)
+        {
+          float bpOut = mNotchBandpass(input);
+          FlushBiquadDenormals(mNotchBandpass);
+          output = input - bpOut;
+        }
+        break;
+
+      default:
+        output = mLowpass(input);
+        break;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SOFT SATURATION
+    // At high resonance, filter can exceed unity gain. Apply gentle saturation
+    // to prevent harsh digital clipping while preserving the character.
+    // ─────────────────────────────────────────────────────────────────────────
+    if (mCurrentResonance > 0.5f)
+    {
+      float satAmount = (mCurrentResonance - 0.5f) * 2.0f;
+      float dry = output;
+      float wet = softSaturate(output * 1.5f);
+      output = dry + satAmount * (wet - dry);
+    }
+
+    return output;
+  }
+
+private:
+  // Map resonance (0-1) to Q factor using exponential curve
+  // Formula: Q = 0.5 × 30^resonance
+  //   0.0 → Q = 0.5   (very gentle, below Butterworth)
+  //   0.5 → Q ≈ 2.74  (moderate resonance)
+  //   1.0 → Q = 15    (high resonance, near self-oscillation)
+  float ResonanceToQ(float resonance) const
+  {
+    return 0.5f * std::pow(30.0f, resonance);
+  }
+
+  void UpdateAllFilters()
+  {
+    if (mSampleRate <= 0.0f) return;
+
+    q::frequency freq{mCurrentCutoffHz};
+    double qVal = ResonanceToQ(mCurrentResonance);
+
+    mLowpass.config(freq, mSampleRate, qVal);
+    mHighpass.config(freq, mSampleRate, qVal);
+    mBandpass.config(freq, mSampleRate, qVal);
+    mNotchBandpass.config(freq, mSampleRate, qVal);
+  }
+
+  void ResetFilterStates()
+  {
+    mLowpass.x1 = mLowpass.x2 = mLowpass.y1 = mLowpass.y2 = 0.0f;
+    mHighpass.x1 = mHighpass.x2 = mHighpass.y1 = mHighpass.y2 = 0.0f;
+    mBandpass.x1 = mBandpass.x2 = mBandpass.y1 = mBandpass.y2 = 0.0f;
+    mNotchBandpass.x1 = mNotchBandpass.x2 = mNotchBandpass.y1 = mNotchBandpass.y2 = 0.0f;
+  }
+
+  void FlushBiquadDenormals(q::biquad& bq)
+  {
+    bq.x1 = flushDenormal(bq.x1);
+    bq.x2 = flushDenormal(bq.x2);
+    bq.y1 = flushDenormal(bq.y1);
+    bq.y2 = flushDenormal(bq.y2);
+  }
+
+  float mSampleRate = 48000.0f;
+  float mMaxCutoffHz = 20000.0f;
+  float mTargetCutoffHz = 10000.0f;
+  float mTargetResonance = 0.0f;
+  float mCurrentCutoffHz = 10000.0f;
+  float mCurrentResonance = 0.0f;
+  float mSmoothCoeff = 0.01f;
+
+  // Q library biquad filters - one for each type
+  // Initialized with default values, reconfigured in SetSampleRate()
+  q::lowpass mLowpass{q::frequency{1000.0f}, 48000.0f, 0.707};
+  q::highpass mHighpass{q::frequency{1000.0f}, 48000.0f, 0.707};
+  q::bandpass_csg mBandpass{q::frequency{1000.0f}, 48000.0f, 0.707};
+  // Notch uses bandpass_cpg (Constant Peak Gain) + subtraction
+  // CPG has unity gain at center frequency, so input - bandpass = true notch
+  // (CSG would have variable peak gain, causing incomplete notch attenuation)
+  q::bandpass_cpg mNotchBandpass{q::frequency{1000.0f}, 48000.0f, 0.707};
+
+  FilterType mType = FilterType::Lowpass;
+};
+
 class WavetableOscillator
 {
 public:
@@ -379,9 +645,10 @@ public:
 
       if (!isRetrigger)
       {
-        // New note - reset oscillator phase for consistent attack
+        // New note - reset oscillator phase and filter for consistent attack
         mPhase = q::phase_iterator{};
         mWavetableOsc.Reset();
+        mFilter.Reset();  // Clear filter state to avoid artifacts from previous notes
       }
 
       // Create fresh envelope generator at current sample rate
@@ -455,7 +722,12 @@ public:
           return;
         }
 
-        // Generate oscillator sample
+        // ─────────────────────────────────────────────────────────────────────────
+        // SIGNAL CHAIN: OSC → FILTER → AMP
+        // This is the classic subtractive synthesis topology
+        // ─────────────────────────────────────────────────────────────────────────
+
+        // STEP 1: Generate oscillator sample
         float oscValue = 0.0f;
         switch (mWaveform)
         {
@@ -479,8 +751,11 @@ public:
             break;
         }
 
-        // Apply envelope and velocity
-        float sample = oscValue * envAmp * mVelocity;
+        // STEP 2: Apply filter (sculpt the harmonics)
+        float filtered = mFilter.Process(oscValue);
+
+        // STEP 3: Apply envelope and velocity (shape the amplitude)
+        float sample = filtered * envAmp * mVelocity;
 
         // Accumulate to outputs (don't overwrite - other voices add here too)
         outputs[0][i] += sample;
@@ -494,6 +769,7 @@ public:
       mSampleRate = sampleRate;
       mEnv = q::adsr_envelope_gen{mEnvConfig, static_cast<float>(sampleRate)};
       mWavetableOsc.SetSampleRate(static_cast<float>(sampleRate));
+      mFilter.SetSampleRate(static_cast<float>(sampleRate));
     }
 
     // Parameter setters called from DSP class
@@ -520,11 +796,17 @@ public:
       mEnvConfig.release_rate = q::duration{ms * 0.001f};
     }
 
+    // Filter setters
+    void SetFilterCutoff(float freqHz) { mFilter.SetCutoff(freqHz); }
+    void SetFilterResonance(float resonance) { mFilter.SetResonance(resonance); }
+    void SetFilterType(int type) { mFilter.SetType(static_cast<FilterType>(type)); }
+
   private:
     q::phase_iterator mPhase;
     q::adsr_envelope_gen mEnv{q::adsr_envelope_gen::config{}, 44100.0f};
     q::adsr_envelope_gen::config mEnvConfig;
     WavetableOscillator mWavetableOsc;  // Wavetable oscillator
+    ResonantFilter mFilter;              // Per-voice resonant filter (Q library reso_filter)
     double mSampleRate = 44100.0;
     float mVelocity = 0.0f;
     bool mActive = false;
@@ -643,6 +925,25 @@ public:
       case kParamRelease:
         mSynth.ForEachVoice([value](SynthVoice& voice) {
           dynamic_cast<Voice&>(voice).SetRelease(static_cast<float>(value));
+        });
+        break;
+
+      // Filter parameters
+      case kParamFilterCutoff:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          dynamic_cast<Voice&>(voice).SetFilterCutoff(static_cast<float>(value));
+        });
+        break;
+
+      case kParamFilterResonance:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          dynamic_cast<Voice&>(voice).SetFilterResonance(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      case kParamFilterType:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          dynamic_cast<Voice&>(voice).SetFilterType(static_cast<int>(value));
         });
         break;
 
