@@ -5,8 +5,8 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
 {
   GetParam(kParamGain)->InitDouble("Gain", 80., 0., 100.0, 0.01, "%");
-  GetParam(kParamWaveform)->InitEnum("Waveform", 0, 6, "", IParam::kFlagsNone, "",
-    "Sine", "Saw", "Square", "Triangle", "Pulse", "Wavetable");
+  GetParam(kParamWaveform)->InitEnum("Waveform", 0, 7, "", IParam::kFlagsNone, "",
+    "Sine", "Saw", "Square", "Triangle", "Pulse", "FM", "Wavetable");
   GetParam(kParamWavetablePosition)->InitDouble("WT Position", 0., 0., 100., 0.1, "%");
   GetParam(kParamAttack)->InitDouble("Attack", 10., 1., 1000., 0.1, "ms");
   GetParam(kParamDecay)->InitDouble("Decay", 100., 1., 2000., 0.1, "ms");
@@ -22,6 +22,10 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
 
   // Pulse width modulation (only affects Pulse waveform)
   GetParam(kParamPulseWidth)->InitDouble("Pulse Width", 50., 5., 95., 0.1, "%");
+
+  // FM synthesis parameters (only affects FM waveform)
+  GetParam(kParamFMRatio)->InitDouble("FM Ratio", 2., 0.5, 8., 0.01, ":1");  // Modulator:Carrier ratio
+  GetParam(kParamFMDepth)->InitDouble("FM Depth", 50., 0., 100., 0.1, "%");  // Modulation index
 
 #if IPLUG_EDITOR
 #if defined(WEBVIEW_EDITOR_DELEGATE)

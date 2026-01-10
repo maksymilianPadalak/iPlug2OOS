@@ -23,6 +23,9 @@ enum EParams
   kParamFilterType,         // Filter type (LP, HP, BP, Notch)
   // Pulse width modulation
   kParamPulseWidth,         // Pulse width (5-95%), 50% = square wave
+  // FM synthesis parameters
+  kParamFMRatio,            // Modulator/carrier frequency ratio (0.5-8.0)
+  kParamFMDepth,            // Modulation depth/index (0-100%)
   kNumParams
 };
 

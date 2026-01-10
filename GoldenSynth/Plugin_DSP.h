@@ -119,6 +119,71 @@ using namespace q::literals;
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// FM SYNTHESIS (Frequency Modulation)
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// WHAT IS FM SYNTHESIS?
+// Instead of filtering harmonics (subtractive) or adding them (additive), FM
+// creates harmonics by modulating one oscillator's frequency with another:
+//
+//   Modulator ──┐
+//               ├──► Carrier ──► Output
+//   (hidden)    │    (audible)
+//               └── modulates frequency
+//
+// FORMULA (actually Phase Modulation, but called FM):
+//   output = sin(carrierPhase + depth * sin(modulatorPhase))
+//
+// The modulator's output is added to the carrier's PHASE, not frequency directly.
+// This is mathematically equivalent to FM but easier to implement.
+//
+// KEY PARAMETERS:
+// ┌───────────────┬────────────────────────────────────────────────────────────┐
+// │ Parameter     │ Effect                                                     │
+// ├───────────────┼────────────────────────────────────────────────────────────┤
+// │ Ratio         │ Modulator freq = Carrier freq × Ratio                      │
+// │               │ Ratio 2.0 → Modulator runs at 2× carrier frequency         │
+// │               │ Integer ratios (1, 2, 3) = harmonic tones                  │
+// │               │ Non-integer (1.414, 2.76) = inharmonic/bell-like           │
+// ├───────────────┼────────────────────────────────────────────────────────────┤
+// │ Depth (Index) │ How much the modulator affects the carrier                 │
+// │               │ Low (0-20%): Subtle warmth, adds a few harmonics           │
+// │               │ Medium (20-50%): Rich, evolving timbres                    │
+// │               │ High (50-100%): Bright, metallic, aggressive               │
+// │               │ Internally scaled to 0-4π radians (modulation index ~12)   │
+// └───────────────┴────────────────────────────────────────────────────────────┘
+//
+// COMMON RATIOS AND THEIR SOUNDS (ratio = modulator_freq / carrier_freq):
+//   1.0  - Modulator = carrier freq. Adds odd harmonics, slightly hollow
+//   2.0  - Modulator = 2× carrier. Classic electric piano, bell-like
+//   3.0  - Modulator = 3× carrier. Brighter, more harmonics
+//   0.5  - Modulator = ½ carrier. Sub-harmonic content, bass enhancement
+//   1.414 - Modulator ≈ √2 × carrier. Inharmonic, metallic bell
+//   3.5  - Inharmonic ratio. Gong-like, complex spectrum
+//
+// FM vs SUBTRACTIVE:
+// ┌─────────────────┬──────────────────────┬──────────────────────┐
+// │ Aspect          │ FM                   │ Subtractive          │
+// ├─────────────────┼──────────────────────┼──────────────────────┤
+// │ Harmonics       │ Created by modulation│ Filtered from rich   │
+// │ Character       │ Bell, glass, metallic│ Warm, analog         │
+// │ CPU cost        │ Very low (just sin)  │ Higher (filters)     │
+// │ Classic sounds  │ E-piano, bells, bass │ Pads, leads, brass   │
+// └─────────────────┴──────────────────────┴──────────────────────┘
+//
+// CLASSIC FM SYNTHS:
+// Yamaha DX7 (1983), Yamaha TX81Z, Native Instruments FM8, Dexed (open source)
+//
+// IMPLEMENTATION NOTES:
+// - Uses two sine oscillators: carrier (audible) and modulator (hidden)
+// - Modulator phase runs at carrier_freq × ratio
+// - Depth controls modulation index (scaled to radians internally)
+// - No anti-aliasing needed - pure sine waves have no harmonics to alias
+// - Parameters are smoothed to prevent clicks during modulation
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // WAVETABLE OSCILLATOR - Band-Limited with Mip Levels
 // ═══════════════════════════════════════════════════════════════════════════════
 //
@@ -722,6 +787,7 @@ enum EWaveform
   kWaveformSquare,      // Square - odd harmonics (50% duty cycle)
   kWaveformTriangle,    // Triangle - odd harmonics, 1/n² rolloff
   kWaveformPulse,       // Pulse - variable duty cycle (PWM), PolyBLEP anti-aliased
+  kWaveformFM,          // FM synthesis - modulator modulates carrier phase
   kWaveformWavetable,   // Morphing wavetable (Sine→Triangle→Saw→Square)
   kNumWaveforms
 };
@@ -955,6 +1021,47 @@ public:
             mPulseOsc.width(mPulseWidth);
             oscValue = mPulseOsc(mPhase++);
             break;
+          case kWaveformFM:
+          {
+            // FM Synthesis: Modulator modulates carrier's phase
+            // Formula: output = sin(carrierPhase + depth * sin(modulatorPhase))
+            //
+            // Smooth FM parameters to prevent clicks during modulation
+            mFMRatio += mFMSmoothCoeff * (mFMRatioTarget - mFMRatio);
+            mFMDepth += mFMSmoothCoeff * (mFMDepthTarget - mFMDepth);
+
+            // Advance modulator phase (runs at carrier_freq × ratio)
+            // Convert carrier phase increment to radians, then scale by ratio
+            constexpr float kTwoPi = 2.0f * 3.14159265f;
+            float carrierPhaseIncRadians = static_cast<float>(mPhase._step.rep) /
+                                           static_cast<float>(0xFFFFFFFFu) * kTwoPi;
+            mFMModulatorPhase += carrierPhaseIncRadians * mFMRatio;
+
+            // Wrap modulator phase to prevent floating point precision issues
+            // Use while loop because at high frequencies + high ratios,
+            // phase can advance more than 2π per sample (e.g., 20kHz × ratio 8 = 160kHz)
+            while (mFMModulatorPhase >= kTwoPi)
+              mFMModulatorPhase -= kTwoPi;
+
+            // Get modulator output (simple sine)
+            float modulatorValue = std::sin(mFMModulatorPhase);
+
+            // Apply modulation to carrier phase
+            // depth is 0-1, we scale to 0-4π for musically useful range
+            constexpr float kMaxModIndex = 4.0f * 3.14159265f;  // ~12.57 radians
+            float phaseModulation = mFMDepth * kMaxModIndex * modulatorValue;
+
+            // Get carrier phase as float (0 to 2π)
+            float carrierPhase = static_cast<float>(mPhase._phase.rep) /
+                                 static_cast<float>(0xFFFFFFFFu) * 2.0f * 3.14159265f;
+
+            // Output = sin(carrierPhase + modulation)
+            oscValue = std::sin(carrierPhase + phaseModulation);
+
+            // Advance carrier phase
+            mPhase++;
+            break;
+          }
           case kWaveformWavetable:
             // Wavetable: Perfect band-limiting via mipmapped additive synthesis
             // Supports morphing between Sine→Triangle→Saw→Square
@@ -987,6 +1094,9 @@ public:
 
       // Pulse width smoothing: ~5ms for responsive but click-free modulation
       mPulseWidthSmoothCoeff = calcSmoothingCoeff(0.005f, static_cast<float>(sampleRate));
+
+      // FM parameter smoothing: ~5ms for smooth ratio/depth changes
+      mFMSmoothCoeff = calcSmoothingCoeff(0.005f, static_cast<float>(sampleRate));
     }
 
     // Parameter setters called from DSP class
@@ -1022,6 +1132,12 @@ public:
     // Sets target; actual value is smoothed per-sample to prevent clicks
     void SetPulseWidth(float width) { mPulseWidthTarget = width; }
 
+    // FM synthesis setters
+    // Ratio: modulator frequency = carrier frequency × ratio (0.5-8.0)
+    void SetFMRatio(float ratio) { mFMRatioTarget = ratio; }
+    // Depth: modulation intensity (0.0-1.0)
+    void SetFMDepth(float depth) { mFMDepthTarget = depth; }
+
   private:
     // ─────────────────────────────────────────────────────────────────────────
     // PHASE ITERATOR - Q library's oscillator driver
@@ -1046,6 +1162,18 @@ public:
     float mPulseWidth = 0.5f;           // Current smoothed pulse width
     float mPulseWidthTarget = 0.5f;     // Target from parameter
     float mPulseWidthSmoothCoeff = 0.01f;  // ~5ms smoothing, set in SetSampleRateAndBlockSize
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FM SYNTHESIS - Modulator oscillator and parameters
+    // The modulator is a hidden sine wave that modulates the carrier's phase.
+    // Ratio controls modulator frequency, Depth controls modulation intensity.
+    // ─────────────────────────────────────────────────────────────────────────
+    float mFMModulatorPhase = 0.0f;       // Modulator phase (radians, wraps at 2π)
+    float mFMRatio = 2.0f;                // Current smoothed ratio
+    float mFMRatioTarget = 2.0f;          // Target ratio from parameter
+    float mFMDepth = 0.5f;                // Current smoothed depth (0-1)
+    float mFMDepthTarget = 0.5f;          // Target depth from parameter
+    float mFMSmoothCoeff = 0.01f;         // ~5ms smoothing for FM params
 
     // ADSR envelope generator - controls amplitude over note lifetime
     q::adsr_envelope_gen mEnv{q::adsr_envelope_gen::config{}, 44100.0f};
@@ -1207,6 +1335,21 @@ public:
         mSynth.ForEachVoice([value](SynthVoice& voice) {
           // Convert 5-95% to 0.05-0.95 for Q library pulse_osc
           dynamic_cast<Voice&>(voice).SetPulseWidth(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      // FM synthesis parameters
+      case kParamFMRatio:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Ratio is used directly (0.5-8.0)
+          dynamic_cast<Voice&>(voice).SetFMRatio(static_cast<float>(value));
+        });
+        break;
+
+      case kParamFMDepth:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert 0-100% to 0.0-1.0
+          dynamic_cast<Voice&>(voice).SetFMDepth(static_cast<float>(value / 100.0));
         });
         break;
 
