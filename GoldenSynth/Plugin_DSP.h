@@ -119,7 +119,7 @@ using namespace q::literals;
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// FM SYNTHESIS (Frequency Modulation)
+// FM SYNTHESIS (Frequency Modulation) - DX7-Style Implementation
 // ═══════════════════════════════════════════════════════════════════════════════
 //
 // WHAT IS FM SYNTHESIS?
@@ -135,16 +135,22 @@ using namespace q::literals;
 //   output = sin(carrierPhase + depth * sin(modulatorPhase))
 //
 // The modulator's output is added to the carrier's PHASE, not frequency directly.
-// This is mathematically equivalent to FM but easier to implement.
+// This is mathematically equivalent to FM but easier to implement. The DX7 uses
+// the same technique (PM labeled as FM).
 //
-// KEY PARAMETERS:
+// KEY PARAMETERS (DX7-STYLE COARSE + FINE):
 // ┌───────────────┬────────────────────────────────────────────────────────────┐
 // │ Parameter     │ Effect                                                     │
 // ├───────────────┼────────────────────────────────────────────────────────────┤
-// │ Ratio         │ Modulator freq = Carrier freq × Ratio                      │
-// │               │ Ratio 2.0 → Modulator runs at 2× carrier frequency         │
-// │               │ Integer ratios (1, 2, 3) = harmonic tones                  │
-// │               │ Non-integer (1.414, 2.76) = inharmonic/bell-like           │
+// │ Ratio (Coarse)│ Modulator freq = Carrier freq × Ratio                      │
+// │               │ Preset harmonic values: 0.5, 1, 2, 3, 4, 5, 6, 7, 8        │
+// │               │ Integer ratios produce harmonic partials (musical tones)   │
+// ├───────────────┼────────────────────────────────────────────────────────────┤
+// │ Fine          │ Percentage offset from coarse ratio (-50% to +50%)         │
+// │               │ Final ratio = Coarse × (1 + Fine)                          │
+// │               │ At 0%: Pure harmonic sound                                 │
+// │               │ Non-zero: Inharmonic partials for bells, metallic sounds   │
+// │               │ Example: Coarse 2:1 + Fine +20% = effective ratio 2.4      │
 // ├───────────────┼────────────────────────────────────────────────────────────┤
 // │ Depth (Index) │ How much the modulator affects the carrier                 │
 // │               │ Low (0-20%): Subtle warmth, adds a few harmonics           │
@@ -153,13 +159,18 @@ using namespace q::literals;
 // │               │ Internally scaled to 0-4π radians (modulation index ~12)   │
 // └───────────────┴────────────────────────────────────────────────────────────┘
 //
-// COMMON RATIOS AND THEIR SOUNDS (ratio = modulator_freq / carrier_freq):
-//   1.0  - Modulator = carrier freq. Adds odd harmonics, slightly hollow
-//   2.0  - Modulator = 2× carrier. Classic electric piano, bell-like
-//   3.0  - Modulator = 3× carrier. Brighter, more harmonics
-//   0.5  - Modulator = ½ carrier. Sub-harmonic content, bass enhancement
-//   1.414 - Modulator ≈ √2 × carrier. Inharmonic, metallic bell
-//   3.5  - Inharmonic ratio. Gong-like, complex spectrum
+// SOUND DESIGN GUIDE:
+// ┌─────────────────────────────────────────────────────────────────────────────┐
+// │ Sound Type        │ Coarse │ Fine  │ Depth │ Notes                         │
+// ├───────────────────┼────────┼───────┼───────┼───────────────────────────────┤
+// │ Electric Piano    │ 2:1    │ 0%    │ 30%   │ Classic Rhodes-like tone      │
+// │ Bright Bell       │ 2:1    │ 0%    │ 70%   │ Church bell, chime            │
+// │ Tubular Bell      │ 2:1    │ +41%  │ 60%   │ Fine ≈ √2 ratio (inharmonic)  │
+// │ Gong / Metallic   │ 3:1    │ +17%  │ 80%   │ Complex inharmonic spectrum   │
+// │ Bass Enhancement  │ 0.5:1  │ 0%    │ 40%   │ Sub-harmonic warmth           │
+// │ Hollow/Clarinet   │ 1:1    │ 0%    │ 25%   │ Odd harmonics emphasis        │
+// │ Aggressive Lead   │ 3:1    │ 0%    │ 90%   │ Bright, cutting tone          │
+// └─────────────────────────────────────────────────────────────────────────────┘
 //
 // FM vs SUBTRACTIVE:
 // ┌─────────────────┬──────────────────────┬──────────────────────┐
@@ -176,10 +187,12 @@ using namespace q::literals;
 //
 // IMPLEMENTATION NOTES:
 // - Uses two sine oscillators: carrier (audible) and modulator (hidden)
-// - Modulator phase runs at carrier_freq × ratio
-// - Depth controls modulation index (scaled to radians internally)
+// - Coarse ratio sets harmonic relationship (enum for clean UI)
+// - Fine ratio allows inharmonic detuning (percentage offset)
+// - Combined ratio = Coarse × (1 + Fine/100)
+// - Depth controls modulation index (scaled to 0-4π radians internally)
 // - No anti-aliasing needed - pure sine waves have no harmonics to alias
-// - Parameters are smoothed to prevent clicks during modulation
+// - All parameters are smoothed to prevent clicks during modulation
 //
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1027,6 +1040,11 @@ public:
             // FM Synthesis: Modulator modulates carrier's phase
             // Formula: output = sin(carrierPhase + depth * sin(modulatorPhase))
             //
+            // Combine coarse + fine ratio (DX7-style)
+            // Fine is a percentage offset: ratio = coarse * (1 + fine)
+            // e.g., coarse 2.0 + fine 0.2 (+20%) = ratio 2.4
+            mFMRatioTarget = mFMRatioCoarse * (1.0f + mFMRatioFine);
+
             // Smooth FM parameters to prevent clicks during modulation
             mFMRatio += mFMSmoothCoeff * (mFMRatioTarget - mFMRatio);
             mFMDepth += mFMSmoothCoeff * (mFMDepthTarget - mFMDepth);
@@ -1133,9 +1151,11 @@ public:
     // Sets target; actual value is smoothed per-sample to prevent clicks
     void SetPulseWidth(float width) { mPulseWidthTarget = width; }
 
-    // FM synthesis setters
-    // Ratio: modulator frequency = carrier frequency × ratio (0.5-8.0)
-    void SetFMRatio(float ratio) { mFMRatioTarget = ratio; }
+    // FM synthesis setters (DX7-style coarse + fine)
+    // Coarse ratio: harmonic values (0.5, 1, 2, 3, etc.)
+    void SetFMRatioCoarse(float ratio) { mFMRatioCoarse = ratio; }
+    // Fine ratio: percentage offset (-0.5 to +0.5) for inharmonic sounds
+    void SetFMRatioFine(float fine) { mFMRatioFine = fine; }
     // Depth: modulation intensity (0.0-1.0)
     void SetFMDepth(float depth) { mFMDepthTarget = depth; }
 
@@ -1165,13 +1185,15 @@ public:
     float mPulseWidthSmoothCoeff = 0.01f;  // ~5ms smoothing, set in SetSampleRateAndBlockSize
 
     // ─────────────────────────────────────────────────────────────────────────
-    // FM SYNTHESIS - Modulator oscillator and parameters
+    // FM SYNTHESIS - Modulator oscillator and parameters (DX7-style)
     // The modulator is a hidden sine wave that modulates the carrier's phase.
-    // Ratio controls modulator frequency, Depth controls modulation intensity.
+    // Coarse ratio sets harmonic relationship, Fine allows inharmonic detuning.
     // ─────────────────────────────────────────────────────────────────────────
     float mFMModulatorPhase = 0.0f;       // Modulator phase (radians, wraps at 2π)
-    float mFMRatio = 2.0f;                // Current smoothed ratio
-    float mFMRatioTarget = 2.0f;          // Target ratio from parameter
+    float mFMRatioCoarse = 2.0f;          // Coarse ratio (0.5, 1, 2, 3, etc.)
+    float mFMRatioFine = 0.0f;            // Fine offset (-0.5 to +0.5)
+    float mFMRatio = 2.0f;                // Current smoothed combined ratio
+    float mFMRatioTarget = 2.0f;          // Target combined ratio
     float mFMDepth = 0.5f;                // Current smoothed depth (0-1)
     float mFMDepthTarget = 0.5f;          // Target depth from parameter
     float mFMSmoothCoeff = 0.01f;         // ~5ms smoothing for FM params
@@ -1339,13 +1361,20 @@ public:
         });
         break;
 
-      // FM synthesis parameters
+      // FM synthesis parameters (DX7-style coarse + fine)
       case kParamFMRatio:
         mSynth.ForEachVoice([value](SynthVoice& voice) {
-          // Convert enum index to ratio: 0→0.5, 1→1, 2→2, 3→3, etc.
+          // Convert enum index to coarse ratio: 0→0.5, 1→1, 2→2, 3→3, etc.
           int idx = static_cast<int>(value);
           float ratio = (idx == 0) ? 0.5f : static_cast<float>(idx);
-          dynamic_cast<Voice&>(voice).SetFMRatio(ratio);
+          dynamic_cast<Voice&>(voice).SetFMRatioCoarse(ratio);
+        });
+        break;
+
+      case kParamFMFine:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert -50% to +50% to -0.5 to +0.5
+          dynamic_cast<Voice&>(voice).SetFMRatioFine(static_cast<float>(value / 100.0));
         });
         break;
 

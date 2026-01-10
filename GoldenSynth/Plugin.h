@@ -24,7 +24,8 @@ enum EParams
   // Pulse width modulation
   kParamPulseWidth,         // Pulse width (5-95%), 50% = square wave
   // FM synthesis parameters
-  kParamFMRatio,            // Modulator/carrier frequency ratio (0.5-8.0)
+  kParamFMRatio,            // Coarse ratio: 0.5, 1, 2, 3, 4, 5, 6, 7, 8 (harmonic)
+  kParamFMFine,             // Fine ratio offset: -50% to +50% (allows inharmonic)
   kParamFMDepth,            // Modulation depth/index (0-100%)
   kNumParams
 };
