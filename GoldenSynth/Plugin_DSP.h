@@ -157,6 +157,8 @@ using namespace q::literals;
 // │               │ Medium (20-50%): Rich, evolving timbres                    │
 // │               │ High (50-100%): Bright, metallic, aggressive               │
 // │               │ Internally scaled to 0-4π radians (modulation index ~12)   │
+// │               │ VELOCITY SENSITIVE: Harder hits = brighter sound           │
+// │               │ Formula: effectiveDepth = depth × (0.3 + 0.7 × velocity)   │
 // └───────────────┴────────────────────────────────────────────────────────────┘
 //
 // SOUND DESIGN GUIDE:
@@ -1067,8 +1069,10 @@ public:
 
             // Apply modulation to carrier phase
             // depth is 0-1, we scale to 0-4π for musically useful range
+            // Velocity sensitivity: harder hits = brighter FM (30% base + 70% velocity)
             constexpr float kMaxModIndex = 4.0f * 3.14159265f;  // ~12.57 radians
-            float phaseModulation = mFMDepth * kMaxModIndex * modulatorValue;
+            float velScaledDepth = mFMDepth * (0.3f + 0.7f * mVelocity);
+            float phaseModulation = velScaledDepth * kMaxModIndex * modulatorValue;
 
             // Get carrier phase as float (0 to 2π)
             float carrierPhase = static_cast<float>(mPhase._phase.rep) /
