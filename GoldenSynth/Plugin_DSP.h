@@ -3,6 +3,8 @@
 #include <cmath>
 #include <array>
 #include <algorithm>
+#include <vector>
+#include <atomic>
 
 // iPlug2 Synth Infrastructure
 #include "MidiSynth.h"
@@ -459,7 +461,10 @@ constexpr float kSqrtHalf = 0.7071067811865476f;  // 1/sqrt(2), equal power ster
 // At each sample: smoothed += coeff * (target - smoothed)
 inline float calcSmoothingCoeff(float timeSeconds, float sampleRate)
 {
-  return 1.0f - std::exp(-1.0f / (timeSeconds * sampleRate));
+  // Protect against division by zero if timeSeconds or sampleRate is 0 or negative
+  float product = timeSeconds * sampleRate;
+  if (product <= 0.0f) return 1.0f;  // Instant response (no smoothing)
+  return 1.0f - std::exp(-1.0f / product);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -487,6 +492,50 @@ inline float softSaturate(float x)
   if (x < -3.0f) return -1.0f;
   float x2 = x * x;
   return x * (27.0f + x2) / (27.0f + 9.0f * x2);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NaN/INFINITY PROTECTION - Critical for stable audio processing
+// ═══════════════════════════════════════════════════════════════════════════════
+// NaN (Not a Number) and Infinity can occur from:
+// - Filter instability at high resonance
+// - Division by zero
+// - sqrt of negative numbers
+// - Unbounded feedback loops
+//
+// Once NaN enters the signal chain, it corrupts ALL subsequent calculations.
+// Example: NaN + anything = NaN, NaN * anything = NaN
+// This causes the "oscillator stops working" bug.
+//
+// DETECTION: std::isnan() and std::isinf() are portable but can be slow.
+// We use a fast check based on IEEE 754: NaN and Inf have all exponent bits set.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Fast check for NaN or Infinity using bit pattern
+inline bool isAudioCorrupt(float x)
+{
+  // IEEE 754: exponent bits are 23-30. If all 8 are 1, it's NaN or Inf.
+  // This is faster than std::isnan() + std::isinf() on most platforms.
+  union { float f; uint32_t i; } u;
+  u.f = x;
+  return ((u.i & 0x7F800000) == 0x7F800000);
+}
+
+// Sanitize audio sample: replace NaN/Inf with 0, clamp extreme values
+inline float sanitizeAudio(float x)
+{
+  if (isAudioCorrupt(x)) return 0.0f;
+  // Also clamp to reasonable range to prevent buildup
+  return std::max(-10.0f, std::min(10.0f, x));
+}
+
+// Wrap a phase angle to [0, 2π) using fmod - more robust than while loop
+inline float wrapPhase(float phase)
+{
+  if (isAudioCorrupt(phase)) return 0.0f;
+  phase = std::fmod(phase, kTwoPi);
+  if (phase < 0.0f) phase += kTwoPi;
+  return phase;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -652,6 +701,23 @@ public:
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // NaN/INFINITY PROTECTION & STATE SATURATION
+    // At high resonance, filter states can grow unbounded, eventually producing
+    // NaN or Infinity. Once corrupted, ALL subsequent samples become NaN.
+    // This causes the "oscillator stops working" bug.
+    //
+    // SOLUTION: Saturate filter states to prevent runaway, and check output.
+    // ─────────────────────────────────────────────────────────────────────────
+    SaturateFilterStates();
+
+    // Check for NaN/Infinity in output - if detected, reset filter
+    if (isAudioCorrupt(output))
+    {
+      ResetFilterStates();
+      return 0.0f;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // SOFT SATURATION
     // At high resonance, filter can exceed unity gain. Apply gentle saturation
     // to prevent harsh digital clipping while preserving the character.
@@ -705,6 +771,33 @@ private:
     bq.x2 = flushDenormal(bq.x2);
     bq.y1 = flushDenormal(bq.y1);
     bq.y2 = flushDenormal(bq.y2);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // FILTER STATE SATURATION
+  // Prevents filter states from growing unbounded at high resonance.
+  // Uses soft saturation (tanh-like) to maintain filter character while
+  // preventing runaway. This is more musical than hard clamping.
+  // ─────────────────────────────────────────────────────────────────────────
+  void SaturateBiquadStates(q::biquad& bq)
+  {
+    // Soft saturate states to prevent runaway - threshold at ±4.0
+    constexpr float kStateLimit = 4.0f;
+    auto saturateState = [](float x) {
+      if (x > kStateLimit) return kStateLimit * softSaturate(x / kStateLimit);
+      if (x < -kStateLimit) return kStateLimit * softSaturate(x / kStateLimit);
+      return x;
+    };
+    bq.y1 = saturateState(bq.y1);
+    bq.y2 = saturateState(bq.y2);
+  }
+
+  void SaturateFilterStates()
+  {
+    SaturateBiquadStates(mLowpass);
+    SaturateBiquadStates(mHighpass);
+    SaturateBiquadStates(mBandpass);
+    SaturateBiquadStates(mNotchBandpass);
   }
 
   float mSampleRate = 48000.0f;
@@ -791,6 +884,24 @@ enum class LFOWaveform
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// LFO DESTINATION TYPES
+// ═══════════════════════════════════════════════════════════════════════════════
+// Each LFO can modulate one of these destinations.
+// Multiple LFOs can target the same destination (effects are additive).
+// ═══════════════════════════════════════════════════════════════════════════════
+enum class LFODestination
+{
+  Off = 0,        // No modulation
+  Filter,         // Filter cutoff (±4 octaves at 100% depth)
+  Pitch,          // Global pitch / vibrato (±24 semitones / 2 octaves at 100% depth)
+  PulseWidth,     // Pulse width for both oscillators (±45% at 100% depth)
+  Amplitude,      // Tremolo / amplitude modulation (0-100% at 100% depth)
+  FMDepth,        // FM modulation depth (±100% at 100% depth)
+  WavetablePos,   // Wavetable position (±50% at 100% depth)
+  kNumDestinations
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // LFO CLASS - Using Q Library Oscillators
 // ═══════════════════════════════════════════════════════════════════════════════
 // This LFO uses the Q library's oscillator functions and phase_iterator for
@@ -816,6 +927,13 @@ enum class LFOWaveform
 class LFO
 {
 public:
+  // Constructor: Initialize phase iterator with default values
+  LFO()
+  {
+    // Initialize phase iterator immediately so LFO works even before SetRate/SetSampleRate
+    mPhase.set(q::frequency{static_cast<double>(mRate)}, mSampleRate);
+  }
+
   void SetRate(float hz)
   {
     mRate = std::max(0.001f, hz);  // Minimum rate to avoid division issues
@@ -1058,14 +1176,73 @@ public:
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // PROCESS WITH PITCH MODULATION (for voice 0 with LFO pitch mod)
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Same as Process() but applies a pitch modulation ratio to both the phase
+  // increment and the frequency used for mip level calculation. This allows
+  // voice 0 to receive LFO pitch modulation while still handling morph smoothing.
+  // ─────────────────────────────────────────────────────────────────────────────
+  float ProcessWithPitchMod(float pitchModRatio)
+  {
+    if (!mTable) return 0.0f;
+
+    // Smooth the morph position
+    mPosition += mSmoothCoeff * (mTargetPosition - mPosition);
+
+    // Calculate mip level using modulated frequency
+    float modulatedFreq = mFrequency * pitchModRatio;
+    constexpr float kBaseHarmonics = 128.0f;
+    float mipFloat = std::log2(std::max(1.0f, kBaseHarmonics * modulatedFreq / mNyquist));
+    mipFloat = std::max(0.0f, std::min(mipFloat, static_cast<float>(kNumMipLevels - 1)));
+
+    int mip0 = static_cast<int>(mipFloat);
+    int mip1 = std::min(mip0 + 1, kNumMipLevels - 1);
+    float mipFrac = mipFloat - mip0;
+
+    // Frame interpolation (morph position)
+    int frame0 = static_cast<int>(mPosition);
+    int frame1 = std::min(frame0 + 1, kWavetableFrames - 1);
+    float frameFrac = mPosition - frame0;
+
+    // Sample position
+    float samplePos = mPhase * kWavetableSizeF;
+    int idx0 = static_cast<int>(samplePos) & (kWavetableSize - 1);
+    int idx1 = (idx0 + 1) & (kWavetableSize - 1);
+    float sampleFrac = samplePos - std::floor(samplePos);
+
+    // Trilinear interpolation
+    auto sampleFrame = [&](int mip, int frame) {
+      const auto& t = (*mTable)[mip][frame];
+      return t[idx0] + sampleFrac * (t[idx1] - t[idx0]);
+    };
+
+    float s_mip0_f0 = sampleFrame(mip0, frame0);
+    float s_mip0_f1 = sampleFrame(mip0, frame1);
+    float s_mip0 = s_mip0_f0 + frameFrac * (s_mip0_f1 - s_mip0_f0);
+
+    float s_mip1_f0 = sampleFrame(mip1, frame0);
+    float s_mip1_f1 = sampleFrame(mip1, frame1);
+    float s_mip1 = s_mip1_f0 + frameFrac * (s_mip1_f1 - s_mip1_f0);
+
+    float sample = s_mip0 + mipFrac * (s_mip1 - s_mip0);
+
+    // Advance phase with pitch modulation
+    mPhase += mPhaseInc * pitchModRatio;
+    while (mPhase >= 1.0f) mPhase -= 1.0f;
+
+    return sample;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // PROCESS AT EXTERNAL PHASE (for unison voices)
   // ─────────────────────────────────────────────────────────────────────────────
   // This method allows unison voices to share the wavetable and morph position
   // while each having their own phase for detuning. The external phase is passed
   // by reference and advanced after sampling.
   //
-  // IMPORTANT: Call Process() first for voice 0 to update the morph position
-  // smoothing, then call ProcessAtPhase() for additional unison voices.
+  // IMPORTANT: Call Process() or ProcessWithPitchMod() first for voice 0 to
+  // update the morph position smoothing, then call ProcessAtPhase() for
+  // additional unison voices.
   // ─────────────────────────────────────────────────────────────────────────────
   float ProcessAtPhase(float& phase, float phaseInc, float frequency)
   {
@@ -1110,9 +1287,16 @@ public:
 
     float sample = s_mip0 + mipFrac * (s_mip1 - s_mip0);
 
-    // Advance external phase
+    // Advance external phase with robust wrapping
     phase += phaseInc;
-    while (phase >= 1.0f) phase -= 1.0f;
+    // Use fmod instead of while loop - handles corrupted large values safely
+    if (phase >= 1.0f || phase < 0.0f)
+    {
+      phase = std::fmod(phase, 1.0f);
+      if (phase < 0.0f) phase += 1.0f;
+    }
+    // Additional safety: clamp if still invalid (NaN protection)
+    if (!(phase >= 0.0f && phase < 1.0f)) phase = 0.0f;
 
     return sample;
   }
@@ -1307,7 +1491,7 @@ enum EWaveform
 //   MIDI → MidiSynth → Voice[] → Mix → Master Gain → Output
 //
 //   1. MIDI events are queued via ProcessMidiMsg()
-//   2. MidiSynth allocates/triggers voices (polyphonic, 8 voices default)
+//   2. MidiSynth allocates/triggers voices (polyphonic, 32 voices default)
 //   3. Each Voice generates: Oscillator → Filter → Envelope → output
 //   4. Voice outputs are summed (accumulated) into the output buffer
 //   5. Master gain is applied with smoothing for click-free automation
@@ -1354,6 +1538,30 @@ public:
                               // before auto-release. 50s = effectively "forever" (until note-off)
         q::duration{0.2f}     // 200ms release
       };
+
+      // ─────────────────────────────────────────────────────────────────────────
+      // INITIALIZE UNISON PHASE ITERATORS
+      // Without explicit initialization, phase_iterator arrays contain garbage
+      // values that can cause clicks or undefined behavior on the first note.
+      // We initialize them with a default frequency (will be overwritten in
+      // ProcessSamplesAccumulating, but ensures they're in a valid state).
+      // ─────────────────────────────────────────────────────────────────────────
+      constexpr float kDefaultFreq = 440.0f;
+      constexpr float kDefaultSampleRate = 48000.0f;
+      for (int v = 0; v < kMaxUnisonVoices; v++)
+      {
+        mOsc1UnisonPhases[v].set(q::frequency{kDefaultFreq}, kDefaultSampleRate);
+        mOsc2UnisonPhases[v].set(q::frequency{kDefaultFreq}, kDefaultSampleRate);
+        mOsc1UnisonPulseOscs[v] = q::pulse_osc{0.5f};
+        mOsc2UnisonPulseOscs[v] = q::pulse_osc{0.5f};
+        // Initialize wavetable phases to 0
+        mOsc1WavetablePhases[v] = 0.0f;
+        mOsc2WavetablePhases[v] = 0.0f;
+        mOsc1WavetablePhaseIncs[v] = 0.0f;
+        mOsc2WavetablePhaseIncs[v] = 0.0f;
+        mOsc1WavetableFreqs[v] = kDefaultFreq;
+        mOsc2WavetableFreqs[v] = kDefaultFreq;
+      }
     }
 
     // Set shared wavetable data (called once from DSP class)
@@ -1365,7 +1573,33 @@ public:
 
     bool GetBusy() const override
     {
+      // If marked for recycling, report as not busy so allocator picks this voice
+      // Using memory_order_acquire ensures we see the latest write from MarkForRecycle()
+      if (mForceRecycle.load(std::memory_order_acquire)) return false;
       return mActive && !mEnv.in_idle_phase();
+    }
+
+    // Check if this voice is a good candidate for stealing (releasing but still sounding)
+    bool IsReleasingCandidate() const
+    {
+      return mIsReleasing.load(std::memory_order_acquire) &&
+             mActive &&
+             !mEnv.in_idle_phase() &&
+             !mForceRecycle.load(std::memory_order_acquire);
+    }
+
+    // Get current envelope level (0.0 = silent, 1.0 = peak)
+    // Used to select the best voice to steal (prefer lowest level = closest to silent)
+    float GetEnvelopeLevel() const
+    {
+      return mEnv.current();
+    }
+
+    // Mark this voice for recycling - GetBusy() will return false
+    // Using memory_order_release ensures the write is visible to GetBusy()
+    void MarkForRecycle()
+    {
+      mForceRecycle.store(true, std::memory_order_release);
     }
 
     void Trigger(double level, bool isRetrigger) override
@@ -1376,6 +1610,11 @@ public:
 
       mActive = true;
       mVelocity = static_cast<float>(level);
+
+      // Reset voice stealing flags - this voice is now actively held
+      // Using memory_order_release ensures these writes are visible to other threads
+      mIsReleasing.store(false, std::memory_order_release);
+      mForceRecycle.store(false, std::memory_order_release);
 
       if (!isRetrigger)
       {
@@ -1421,9 +1660,13 @@ public:
       // If retrigger mode is enabled, reset LFO phase on every note-on for
       // consistent modulation shape. Otherwise, LFO free-runs for evolving sounds.
       // ─────────────────────────────────────────────────────────────────────────
-      if (mLFORetrigger)
+      if (mLFO1Retrigger)
       {
-        mLFO.Reset();
+        mLFO1.Reset();
+      }
+      if (mLFO2Retrigger)
+      {
+        mLFO2.Reset();
       }
 
       // ─────────────────────────────────────────────────────────────────────────
@@ -1448,6 +1691,9 @@ public:
     void Release() override
     {
       mEnv.release();
+      // Mark as releasing for smart voice stealing
+      // Using memory_order_release ensures this write is visible to ProcessMidiMsg
+      mIsReleasing.store(true, std::memory_order_release);
     }
 
     void ProcessSamplesAccumulating(T** inputs, T** outputs,
@@ -1765,6 +2011,79 @@ public:
         }
 
         // ─────────────────────────────────────────────────────────────────────────
+        // LFO PROCESSING - Calculate modulation values from both LFOs
+        // ─────────────────────────────────────────────────────────────────────────
+        // Each LFO outputs -1 to +1. Depth scales the effect.
+        // Multiple LFOs can target the same destination (effects are additive).
+        // ─────────────────────────────────────────────────────────────────────────
+        float lfo1Value = mLFO1.Process();
+        float lfo2Value = mLFO2.Process();
+
+        // Initialize modulation accumulators
+        float filterMod = 0.0f;      // Octaves of filter modulation
+        float pitchMod = 0.0f;       // Semitones of pitch modulation
+        float pwMod = 0.0f;          // Pulse width offset (-0.45 to +0.45)
+        float ampMod = 0.0f;         // Amplitude modulation factor
+        float fmDepthMod = 0.0f;     // FM depth offset
+        float wtPosMod = 0.0f;       // Wavetable position offset
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // LFO1 MODULATION ROUTING
+        // ─────────────────────────────────────────────────────────────────────────
+        switch (mLFO1Destination)
+        {
+          case LFODestination::Filter:
+            filterMod += lfo1Value * mLFO1Depth * 4.0f;  // ±4 octaves at 100%
+            break;
+          case LFODestination::Pitch:
+            pitchMod += lfo1Value * mLFO1Depth * 24.0f;  // ±24 semitones (2 octaves) at 100%
+            break;
+          case LFODestination::PulseWidth:
+            pwMod += lfo1Value * mLFO1Depth * 0.45f;     // ±45% at 100%
+            break;
+          case LFODestination::Amplitude:
+            ampMod += lfo1Value * mLFO1Depth;            // -1 to +1 at 100%
+            break;
+          case LFODestination::FMDepth:
+            fmDepthMod += lfo1Value * mLFO1Depth;        // ±100% at 100%
+            break;
+          case LFODestination::WavetablePos:
+            wtPosMod += lfo1Value * mLFO1Depth * 0.5f;   // ±50% at 100%
+            break;
+          case LFODestination::Off:
+          default:
+            break;
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // LFO2 MODULATION ROUTING (additive with LFO1)
+        // ─────────────────────────────────────────────────────────────────────────
+        switch (mLFO2Destination)
+        {
+          case LFODestination::Filter:
+            filterMod += lfo2Value * mLFO2Depth * 4.0f;
+            break;
+          case LFODestination::Pitch:
+            pitchMod += lfo2Value * mLFO2Depth * 24.0f;  // ±24 semitones (2 octaves) at 100%
+            break;
+          case LFODestination::PulseWidth:
+            pwMod += lfo2Value * mLFO2Depth * 0.45f;
+            break;
+          case LFODestination::Amplitude:
+            ampMod += lfo2Value * mLFO2Depth;
+            break;
+          case LFODestination::FMDepth:
+            fmDepthMod += lfo2Value * mLFO2Depth;
+            break;
+          case LFODestination::WavetablePos:
+            wtPosMod += lfo2Value * mLFO2Depth * 0.5f;
+            break;
+          case LFODestination::Off:
+          default:
+            break;
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────
         // SIGNAL CHAIN: OSC (with UNISON) → FILTER → AMP
         // This is the classic subtractive synthesis topology, enhanced with unison.
         //
@@ -1772,13 +2091,30 @@ public:
         // and mix them with stereo panning for the "massive" supersaw sound.
         // ─────────────────────────────────────────────────────────────────────────
 
+        // Apply LFO pitch modulation via phase increment scaling
+        // pitchMod is in semitones, convert to frequency ratio
+        float pitchModRatio = std::pow(2.0f, pitchMod / 12.0f);
+
         // Smooth pulse width for Osc1 (used by all unison voices)
-        mPulseWidth += mPulseWidthSmoothCoeff * (mPulseWidthTarget - mPulseWidth);
+        // Apply LFO pulse width modulation
+        float modulatedPWTarget = std::max(0.05f, std::min(0.95f, mPulseWidthTarget + pwMod));
+        mPulseWidth += mPulseWidthSmoothCoeff * (modulatedPWTarget - mPulseWidth);
+
+        // Apply LFO pulse width modulation for Osc2
+        float modulatedOsc2PW = std::max(0.05f, std::min(0.95f, mOsc2PulseWidth + pwMod));
 
         // Smooth FM parameters for Osc1
         mFMRatioTarget = mFMRatioCoarse * (1.0f + mFMRatioFine);
         mFMRatio += mFMSmoothCoeff * (mFMRatioTarget - mFMRatio);
         mFMDepth += mFMSmoothCoeff * (mFMDepthTarget - mFMDepth);
+
+        // Apply LFO FM depth modulation (clamped to 0-1 range)
+        float modulatedFMDepth = std::max(0.0f, std::min(1.0f, mFMDepth + fmDepthMod));
+        float modulatedOsc2FMDepth = std::max(0.0f, std::min(1.0f, mOsc2FMDepth + fmDepthMod));
+
+        // Apply LFO wavetable position modulation (clamped to 0-1 range)
+        float modulatedWTPos = std::max(0.0f, std::min(1.0f, mWavetablePosition + wtPosMod));
+        float modulatedOsc2WTPos = std::max(0.0f, std::min(1.0f, mOsc2MorphPosition + wtPosMod));
 
         // ─────────────────────────────────────────────────────────────────────────
         // PER-OSCILLATOR UNISON GENERATION (Serum-style)
@@ -1798,23 +2134,33 @@ public:
         for (int v = 0; v < mOsc1UnisonVoices; v++)
         {
           float osc1Sample = 0.0f;
+          // Pre-calculate modulated phase increment for pitch LFO
+          // This applies vibrato effect when LFO destination is set to Pitch
+          uint32_t osc1ModulatedStep = static_cast<uint32_t>(
+              static_cast<float>(mOsc1UnisonPhases[v]._step.rep) * pitchModRatio);
+
           switch (mWaveform)
           {
             case kWaveformSine:
-              osc1Sample = q::sin(mOsc1UnisonPhases[v]++);
+              osc1Sample = q::sin(mOsc1UnisonPhases[v]);
+              mOsc1UnisonPhases[v]._phase.rep += osc1ModulatedStep;
               break;
             case kWaveformSaw:
-              osc1Sample = q::saw(mOsc1UnisonPhases[v]++);
+              osc1Sample = q::saw(mOsc1UnisonPhases[v]);
+              mOsc1UnisonPhases[v]._phase.rep += osc1ModulatedStep;
               break;
             case kWaveformSquare:
-              osc1Sample = q::square(mOsc1UnisonPhases[v]++);
+              osc1Sample = q::square(mOsc1UnisonPhases[v]);
+              mOsc1UnisonPhases[v]._phase.rep += osc1ModulatedStep;
               break;
             case kWaveformTriangle:
-              osc1Sample = q::triangle(mOsc1UnisonPhases[v]++);
+              osc1Sample = q::triangle(mOsc1UnisonPhases[v]);
+              mOsc1UnisonPhases[v]._phase.rep += osc1ModulatedStep;
               break;
             case kWaveformPulse:
               mOsc1UnisonPulseOscs[v].width(mPulseWidth);
-              osc1Sample = mOsc1UnisonPulseOscs[v](mOsc1UnisonPhases[v]++);
+              osc1Sample = mOsc1UnisonPulseOscs[v](mOsc1UnisonPhases[v]);
+              mOsc1UnisonPhases[v]._phase.rep += osc1ModulatedStep;
               break;
             case kWaveformFM:
             {
@@ -1822,34 +2168,42 @@ public:
               // FM SYNTHESIS WITH PER-UNISON-VOICE MODULATOR
               // Each unison voice has its own modulator phase, ensuring correct
               // FM behavior when combined with unison detuning.
+              // Pitch modulation is applied via scaled phase increment.
               // ─────────────────────────────────────────────────────────────────
-              float phaseIncRadians = static_cast<float>(mOsc1UnisonPhases[v]._step.rep) /
+              float phaseIncRadians = static_cast<float>(osc1ModulatedStep) /
                                       static_cast<float>(0xFFFFFFFFu) * kTwoPi;
 
               // Use per-voice modulator phase (not shared across voices)
+              // Using wrapPhase() instead of while loop - more robust against NaN/corruption
               mOsc1FMModulatorPhases[v] += phaseIncRadians * mFMRatio;
-              while (mOsc1FMModulatorPhases[v] >= kTwoPi)
-                mOsc1FMModulatorPhases[v] -= kTwoPi;
+              mOsc1FMModulatorPhases[v] = wrapPhase(mOsc1FMModulatorPhases[v]);
 
               float modulatorValue = std::sin(mOsc1FMModulatorPhases[v]);
               constexpr float kMaxModIndex = 4.0f * kPi;  // ~12.57 radians max modulation
-              float velScaledDepth = mFMDepth * (0.3f + 0.7f * mVelocity);
+              float velScaledDepth = modulatedFMDepth * (0.3f + 0.7f * mVelocity);
               float phaseModulation = velScaledDepth * kMaxModIndex * modulatorValue;
 
               float carrierPhase = static_cast<float>(mOsc1UnisonPhases[v]._phase.rep) /
                                    static_cast<float>(0xFFFFFFFFu) * kTwoPi;
               osc1Sample = std::sin(carrierPhase + phaseModulation);
-              mOsc1UnisonPhases[v]++;
+              mOsc1UnisonPhases[v]._phase.rep += osc1ModulatedStep;
               break;
             }
             case kWaveformWavetable:
+            {
+              // Apply LFO wavetable position modulation
+              mWavetableOsc.SetPosition(modulatedWTPos);
+              // Apply pitch modulation to wavetable phase increment
+              float modulatedWTPhaseInc = mOsc1WavetablePhaseIncs[v] * pitchModRatio;
               if (v == 0)
-                osc1Sample = mWavetableOsc.Process();
+                osc1Sample = mWavetableOsc.ProcessWithPitchMod(pitchModRatio);
               else
-                osc1Sample = mWavetableOsc.ProcessAtPhase(mOsc1WavetablePhases[v], mOsc1WavetablePhaseIncs[v], mOsc1WavetableFreqs[v]);
+                osc1Sample = mWavetableOsc.ProcessAtPhase(mOsc1WavetablePhases[v], modulatedWTPhaseInc, mOsc1WavetableFreqs[v] * pitchModRatio);
               break;
+            }
             default:
-              osc1Sample = q::sin(mOsc1UnisonPhases[v]++);
+              osc1Sample = q::sin(mOsc1UnisonPhases[v]);
+              mOsc1UnisonPhases[v]._phase.rep += osc1ModulatedStep;
               break;
           }
 
@@ -1931,7 +2285,8 @@ public:
             // Calculate power sum for compensation
             float powerSum = centerWeight * centerWeight +
                              (mOsc1UnisonVoices - 1) * spreadWeight * spreadWeight;
-            float gainCompensation = 1.0f / std::sqrt(powerSum);
+            // Protect against division by zero or sqrt of tiny/negative values
+            float gainCompensation = (powerSum > 1e-8f) ? (1.0f / std::sqrt(powerSum)) : 1.0f;
 
             if (v == 0)
               voiceWeight = centerWeight * gainCompensation;
@@ -2023,61 +2378,78 @@ public:
           for (int v = 0; v < mOsc2UnisonVoices; v++)
           {
             float osc2Sample = 0.0f;
+
+            // Pre-calculate modulated phase increment for pitch LFO
+            // This applies vibrato effect when LFO destination is set to Pitch
+            uint32_t osc2ModulatedStep = static_cast<uint32_t>(
+                static_cast<float>(mOsc2UnisonPhases[v]._step.rep) * pitchModRatio);
+
             switch (mOsc2Waveform)
             {
               case kWaveformSine:
-                osc2Sample = q::sin(mOsc2UnisonPhases[v]++);
+                osc2Sample = q::sin(mOsc2UnisonPhases[v]);
+                mOsc2UnisonPhases[v]._phase.rep += osc2ModulatedStep;
                 break;
               case kWaveformSaw:
-                osc2Sample = q::saw(mOsc2UnisonPhases[v]++);
+                osc2Sample = q::saw(mOsc2UnisonPhases[v]);
+                mOsc2UnisonPhases[v]._phase.rep += osc2ModulatedStep;
                 break;
               case kWaveformSquare:
-                osc2Sample = q::square(mOsc2UnisonPhases[v]++);
+                osc2Sample = q::square(mOsc2UnisonPhases[v]);
+                mOsc2UnisonPhases[v]._phase.rep += osc2ModulatedStep;
                 break;
               case kWaveformTriangle:
-                osc2Sample = q::triangle(mOsc2UnisonPhases[v]++);
+                osc2Sample = q::triangle(mOsc2UnisonPhases[v]);
+                mOsc2UnisonPhases[v]._phase.rep += osc2ModulatedStep;
                 break;
               case kWaveformPulse:
-                mOsc2UnisonPulseOscs[v].width(mOsc2PulseWidth);
-                osc2Sample = mOsc2UnisonPulseOscs[v](mOsc2UnisonPhases[v]++);
+                // Apply LFO pulse width modulation to Osc2
+                mOsc2UnisonPulseOscs[v].width(modulatedOsc2PW);
+                osc2Sample = mOsc2UnisonPulseOscs[v](mOsc2UnisonPhases[v]);
+                mOsc2UnisonPhases[v]._phase.rep += osc2ModulatedStep;
                 break;
               case kWaveformFM:
               {
                 // ─────────────────────────────────────────────────────────────────
                 // OSC2 FM SYNTHESIS WITH PER-UNISON-VOICE MODULATOR
                 // Same as Osc1: each unison voice gets its own modulator phase.
+                // Pitch modulation is applied via scaled phase increment.
                 // ─────────────────────────────────────────────────────────────────
-                float phaseIncRadians = static_cast<float>(mOsc2UnisonPhases[v]._step.rep) /
+                float phaseIncRadians = static_cast<float>(osc2ModulatedStep) /
                                         static_cast<float>(0xFFFFFFFFu) * kTwoPi;
                 float osc2CombinedRatio = mOsc2FMRatio + mOsc2FMFine;
 
                 // Use per-voice modulator phase (not shared across voices)
+                // Using wrapPhase() instead of while loop - more robust against NaN/corruption
                 mOsc2FMModulatorPhases[v] += phaseIncRadians * osc2CombinedRatio;
-                while (mOsc2FMModulatorPhases[v] >= kTwoPi)
-                  mOsc2FMModulatorPhases[v] -= kTwoPi;
+                mOsc2FMModulatorPhases[v] = wrapPhase(mOsc2FMModulatorPhases[v]);
 
                 float modulatorValue = std::sin(mOsc2FMModulatorPhases[v]);
                 constexpr float kMaxModIndex = 4.0f * kPi;  // ~12.57 radians max modulation
-                float velScaledDepth = mOsc2FMDepth * (0.3f + 0.7f * mVelocity);
+                float velScaledDepth = modulatedOsc2FMDepth * (0.3f + 0.7f * mVelocity);
                 float phaseModulation = velScaledDepth * kMaxModIndex * modulatorValue;
 
                 float carrierPhase = static_cast<float>(mOsc2UnisonPhases[v]._phase.rep) /
                                      static_cast<float>(0xFFFFFFFFu) * kTwoPi;
                 osc2Sample = std::sin(carrierPhase + phaseModulation);
-                mOsc2UnisonPhases[v]++;
+                mOsc2UnisonPhases[v]._phase.rep += osc2ModulatedStep;
                 break;
               }
               case kWaveformWavetable:
+              {
+                // Apply LFO wavetable position modulation
+                mOsc2WavetableOsc.SetPosition(modulatedOsc2WTPos);
+                // Apply pitch modulation to wavetable phase increment
+                float modulatedWTPhaseInc = mOsc2WavetablePhaseIncs[v] * pitchModRatio;
                 if (v == 0)
-                {
-                  mOsc2WavetableOsc.SetPosition(mOsc2MorphPosition);
-                  osc2Sample = mOsc2WavetableOsc.Process();
-                }
+                  osc2Sample = mOsc2WavetableOsc.ProcessWithPitchMod(pitchModRatio);
                 else
-                  osc2Sample = mOsc2WavetableOsc.ProcessAtPhase(mOsc2WavetablePhases[v], mOsc2WavetablePhaseIncs[v], mOsc2WavetableFreqs[v]);
+                  osc2Sample = mOsc2WavetableOsc.ProcessAtPhase(mOsc2WavetablePhases[v], modulatedWTPhaseInc, mOsc2WavetableFreqs[v] * pitchModRatio);
                 break;
+              }
               default:
-                osc2Sample = q::sin(mOsc2UnisonPhases[v]++);
+                osc2Sample = q::sin(mOsc2UnisonPhases[v]);
+                mOsc2UnisonPhases[v]._phase.rep += osc2ModulatedStep;
                 break;
             }
 
@@ -2138,7 +2510,8 @@ public:
 
               float powerSum = centerWeight * centerWeight +
                                (mOsc2UnisonVoices - 1) * spreadWeight * spreadWeight;
-              float gainCompensation = 1.0f / std::sqrt(powerSum);
+              // Protect against division by zero or sqrt of tiny/negative values
+              float gainCompensation = (powerSum > 1e-8f) ? (1.0f / std::sqrt(powerSum)) : 1.0f;
 
               if (v == 0)
                 voiceWeight = centerWeight * gainCompensation;
@@ -2188,9 +2561,8 @@ public:
         //   modOctaves = 1 × 0.5 × 4 = 2 octaves up
         //   1000Hz base → 4000Hz modulated
         // ─────────────────────────────────────────────────────────────────────────
-        float lfoValue = mLFO.Process();
-        float modOctaves = lfoValue * mLFODepth * 4.0f;
-        float modulatedCutoff = mFilterCutoffBase * std::pow(2.0f, modOctaves);
+        // filterMod is already calculated from LFO routing above (in octaves)
+        float modulatedCutoff = mFilterCutoffBase * std::pow(2.0f, filterMod);
         // Clamp to valid filter range
         modulatedCutoff = std::max(20.0f, std::min(20000.0f, modulatedCutoff));
         mFilterL.SetCutoff(modulatedCutoff);
@@ -2213,9 +2585,33 @@ public:
         float dcFreeLeft = mDCBlockerL(filteredLeft);
         float dcFreeRight = mDCBlockerR(filteredRight);
 
-        // STEP 3: Apply envelope and velocity (shape the amplitude)
-        float sampleLeft = dcFreeLeft * envAmp * mVelocity;
-        float sampleRight = dcFreeRight * envAmp * mVelocity;
+        // ─────────────────────────────────────────────────────────────────────────
+        // AMPLITUDE MODULATION (Tremolo)
+        // ─────────────────────────────────────────────────────────────────────────
+        // ampMod ranges from -depth to +depth (not -1 to +1!)
+        // Tremolo should: keep full volume on positive swing, reduce on negative
+        //   - LFO at +1 (ampMod = +depth): multiplier = 1.0 (full volume)
+        //   - LFO at  0 (ampMod = 0):      multiplier = 1.0 (full volume)
+        //   - LFO at -1 (ampMod = -depth): multiplier = 1-depth (reduced)
+        // This gives classic tremolo that dips down from full volume.
+        // ─────────────────────────────────────────────────────────────────────────
+        float ampMultiplier = 1.0f + std::min(0.0f, ampMod);
+        ampMultiplier = std::max(0.0f, ampMultiplier);  // Safety clamp
+
+        // STEP 3: Apply envelope, velocity, and amplitude modulation
+        float sampleLeft = dcFreeLeft * envAmp * mVelocity * ampMultiplier;
+        float sampleRight = dcFreeRight * envAmp * mVelocity * ampMultiplier;
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // VOICE OUTPUT SANITIZATION
+        // ─────────────────────────────────────────────────────────────────────────
+        // Final protection: sanitize the output sample before accumulation.
+        // If any upstream calculation produced NaN/Infinity (filter instability,
+        // division by zero, etc.), this prevents it from corrupting the output
+        // buffer and all subsequent voices.
+        // ─────────────────────────────────────────────────────────────────────────
+        sampleLeft = sanitizeAudio(sampleLeft);
+        sampleRight = sanitizeAudio(sampleRight);
 
         // Accumulate to outputs (don't overwrite - other voices add here too)
         outputs[0][i] += sampleLeft;
@@ -2232,7 +2628,8 @@ public:
       mOsc2WavetableOsc.SetSampleRate(static_cast<float>(sampleRate));  // Osc2 wavetable
       mFilterL.SetSampleRate(static_cast<float>(sampleRate));
       mFilterR.SetSampleRate(static_cast<float>(sampleRate));
-      mLFO.SetSampleRate(static_cast<float>(sampleRate));
+      mLFO1.SetSampleRate(static_cast<float>(sampleRate));
+      mLFO2.SetSampleRate(static_cast<float>(sampleRate));
 
       // Pulse width smoothing: ~5ms for responsive but click-free modulation
       mPulseWidthSmoothCoeff = calcSmoothingCoeff(0.005f, static_cast<float>(sampleRate));
@@ -2248,7 +2645,7 @@ public:
 
     // Parameter setters called from DSP class
     void SetWaveform(int waveform) { mWaveform = waveform; }
-    void SetWavetablePosition(float pos) { mWavetableOsc.SetPosition(pos); }
+    void SetWavetablePosition(float pos) { mWavetablePosition = pos; mWavetableOsc.SetPosition(pos); }
 
     void SetAttack(float ms)
     {
@@ -2369,15 +2766,23 @@ public:
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // LFO (Low Frequency Oscillator) SETTERS
     // ─────────────────────────────────────────────────────────────────────────
-    // The LFO modulates the filter cutoff to create movement and expression.
-    // Depth is scaled in octaves: 100% = ±4 octaves of modulation.
+    // LFO1 SETTERS
     // ─────────────────────────────────────────────────────────────────────────
-    void SetLFORate(float hz) { mLFO.SetRate(hz); }
-    void SetLFODepth(float depth) { mLFODepth = depth; }  // 0.0-1.0
-    void SetLFOWaveform(int waveform) { mLFO.SetWaveform(static_cast<LFOWaveform>(waveform)); }
-    void SetLFORetrigger(bool retrigger) { mLFORetrigger = retrigger; }
+    void SetLFO1Rate(float hz) { mLFO1.SetRate(hz); }
+    void SetLFO1Depth(float depth) { mLFO1Depth = depth; }  // 0.0-1.0
+    void SetLFO1Waveform(int waveform) { mLFO1.SetWaveform(static_cast<LFOWaveform>(waveform)); }
+    void SetLFO1Retrigger(bool retrigger) { mLFO1Retrigger = retrigger; }
+    void SetLFO1Destination(int dest) { mLFO1Destination = static_cast<LFODestination>(dest); }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // LFO2 SETTERS
+    // ─────────────────────────────────────────────────────────────────────────
+    void SetLFO2Rate(float hz) { mLFO2.SetRate(hz); }
+    void SetLFO2Depth(float depth) { mLFO2Depth = depth; }  // 0.0-1.0
+    void SetLFO2Waveform(int waveform) { mLFO2.SetWaveform(static_cast<LFOWaveform>(waveform)); }
+    void SetLFO2Retrigger(bool retrigger) { mLFO2Retrigger = retrigger; }
+    void SetLFO2Destination(int dest) { mLFO2Destination = static_cast<LFODestination>(dest); }
 
   private:
     // ─────────────────────────────────────────────────────────────────────────
@@ -2444,14 +2849,21 @@ public:
     float mFilterCutoffBase = 10000.0f;  // Base filter cutoff from knob (before LFO modulation)
 
     // ─────────────────────────────────────────────────────────────────────────
-    // LFO - Modulation source for filter cutoff
     // ─────────────────────────────────────────────────────────────────────────
-    // The LFO creates movement by modulating the filter cutoff in octaves.
-    // At 100% depth, the LFO sweeps ±4 octaves around the base cutoff.
+    // LFO1 - First modulation source
     // ─────────────────────────────────────────────────────────────────────────
-    LFO mLFO;                            // LFO instance
-    float mLFODepth = 0.0f;              // Modulation depth (0.0-1.0)
-    bool mLFORetrigger = false;          // Reset LFO phase on note-on
+    LFO mLFO1;                                          // LFO1 instance
+    float mLFO1Depth = 0.0f;                            // Modulation depth (0.0-1.0)
+    bool mLFO1Retrigger = false;                        // Reset LFO1 phase on note-on
+    LFODestination mLFO1Destination = LFODestination::Filter;  // Default: Filter
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // LFO2 - Second modulation source
+    // ─────────────────────────────────────────────────────────────────────────
+    LFO mLFO2;                                          // LFO2 instance
+    float mLFO2Depth = 0.0f;                            // Modulation depth (0.0-1.0)
+    bool mLFO2Retrigger = false;                        // Reset LFO2 phase on note-on
+    LFODestination mLFO2Destination = LFODestination::Off;     // Default: Off
 
     // ─────────────────────────────────────────────────────────────────────────
     // DC BLOCKER - Q Library Implementation
@@ -2467,6 +2879,21 @@ public:
     float mVelocity = 0.0f;              // MIDI velocity (0-1)
     bool mActive = false;                // Voice is currently sounding
     int mWaveform = kWaveformSine;       // Current waveform selection
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SMART VOICE STEALING - Prioritize releasing voices over held voices
+    // When all voices are busy, we prefer to steal voices that are already
+    // in their release phase (note-off received) rather than voices that are
+    // still being held. This prevents held notes from being cut off.
+    //
+    // THREAD SAFETY: Using std::atomic because MIDI messages can potentially
+    // arrive from different threads depending on the host. While iPlug2
+    // typically processes MIDI on the audio thread, some hosts may call
+    // ProcessMidiMsg from a separate MIDI thread. Atomic operations ensure
+    // safe concurrent access with minimal performance overhead.
+    // ─────────────────────────────────────────────────────────────────────────
+    std::atomic<bool> mIsReleasing{false};   // True after Release() called (note-off)
+    std::atomic<bool> mForceRecycle{false};  // When true, GetBusy() returns false
 
     // ─────────────────────────────────────────────────────────────────────────
     // RETRIGGER SMOOTHING
@@ -2495,7 +2922,8 @@ public:
     // OSC2 INDEPENDENT PARAMETERS (Serum-style full independence)
     // Each oscillator has its own waveform-specific controls for maximum flexibility.
     // ─────────────────────────────────────────────────────────────────────────
-    float mOsc2MorphPosition = 0.0f;        // Wavetable morph position (0.0-1.0)
+    float mWavetablePosition = 0.0f;        // Osc1 wavetable morph position (0.0-1.0)
+    float mOsc2MorphPosition = 0.0f;        // Osc2 wavetable morph position (0.0-1.0)
     float mOsc2PulseWidth = 0.5f;           // Pulse width (0.05-0.95), 0.5 = square
     float mOsc2FMRatio = 2.0f;              // FM frequency ratio (carrier/modulator)
     float mOsc2FMFine = 0.0f;               // FM fine ratio offset (-0.5 to +0.5)
@@ -2608,7 +3036,30 @@ public:
 
 public:
 #pragma mark - DSP
-  PluginInstanceDSP(int nVoices = 8)
+  // ─────────────────────────────────────────────────────────────────────────────
+  // VOICE COUNT - 32 voices for professional polyphony (matches Vital)
+  // ─────────────────────────────────────────────────────────────────────────────
+  // iPlug2's voice allocator steals the OLDEST voice when all are busy, regardless
+  // of whether it's still held or in release. With only 8 voices, complex chords
+  // + rapid playing causes held notes to be stolen.
+  //
+  // 32 voices provides comfortable headroom for:
+  //   - Complex chords (left hand) + aggressive playing (right hand)
+  //   - Sustain pedal usage with overlapping notes
+  //   - Long release tails without cutting off held notes
+  //
+  // VOICE COUNT RATIONALE:
+  // - Serum: 16 voices default (configurable)
+  // - Vital: 32 voices default
+  // - Massive: 64 voice cap
+  //
+  // We use 32 voices (matching Vital) because:
+  // - Aggressive playing (smashing chords) can easily need 20+ voices
+  // - Release tails overlap with new notes
+  // - Smart voice stealing handles edge cases (steals releasing voices first)
+  // - Modern CPUs handle 32 voices easily
+  // ─────────────────────────────────────────────────────────────────────────────
+  PluginInstanceDSP(int nVoices = 32)
   {
     // Get pointer to static wavetable (no copy!)
     mWavetable = &WavetableGenerator::GenerateBasicShapes();
@@ -2618,7 +3069,24 @@ public:
       Voice* voice = new Voice();
       voice->SetWavetable(mWavetable);  // Share wavetable data
       mSynth.AddVoice(voice, 0);
+      mVoices.push_back(voice);  // Track for cleanup
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // DESTRUCTOR - Clean up dynamically allocated voices
+  // ─────────────────────────────────────────────────────────────────────────────
+  // IMPORTANT: iPlug2's MidiSynth/VoiceAllocator do NOT delete voices.
+  // We must delete the Voice objects we created with new.
+  // Without this destructor, each plugin instance leaks 32 × sizeof(Voice) bytes.
+  // ─────────────────────────────────────────────────────────────────────────────
+  ~PluginInstanceDSP()
+  {
+    for (Voice* voice : mVoices)
+    {
+      delete voice;
+    }
+    mVoices.clear();
   }
 
   void ProcessBlock(T** inputs, T** outputs, int nOutputs, int nFrames)
@@ -2643,11 +3111,11 @@ public:
       mGainSmoothed += mGainSmoothCoeff * (mGain - mGainSmoothed);
 
       // Polyphony headroom compensation: reduces amplitude to manage clipping
-      // Worst-case (8 voices × full velocity × full envelope): 8.0 amplitude
-      // With kPolyScale=0.35: 8 × 0.35 = 2.8, exceeds 1.0 so will hard-clip.
-      // Typical use (3-4 voices, varied velocities): ~1.0-1.5, minimal clipping.
+      // Worst-case (32 voices × full velocity × full envelope): 32.0 amplitude
+      // With kPolyScale=0.125: 32 × 0.125 = 4.0, handled by soft saturation below.
+      // Typical use (4-8 voices, varied velocities): ~1.0-2.0, minimal clipping.
       // The safety clamp below catches peaks; per-voice filter saturation also helps.
-      constexpr float kPolyScale = 0.35f;
+      constexpr float kPolyScale = 0.125f;
       float gainScale = kPolyScale * mGainSmoothed;
 
       for (int c = 0; c < nOutputs; c++)
@@ -2704,6 +3172,60 @@ public:
 
   void ProcessMidiMsg(const IMidiMsg& msg)
   {
+    // ─────────────────────────────────────────────────────────────────────────
+    // SMART VOICE STEALING (Production-Quality Implementation)
+    //
+    // Before processing a note-on, check if we need to steal a voice.
+    // Prefer stealing voices that are in release phase (note-off received)
+    // over voices that are still being held. This prevents held notes from
+    // being cut off when playing aggressively.
+    //
+    // ALGORITHM (same approach used by Serum, Vital, etc.):
+    // 1. On note-on, count free voices
+    // 2. If no free voices, find the BEST releasing voice to recycle:
+    //    - Must be in release phase (note-off already received)
+    //    - Prefer the voice with LOWEST envelope level (closest to silent)
+    //    - This minimizes audible artifacts when stealing
+    // 3. Mark that voice for recycling (GetBusy() returns false)
+    // 4. iPlug2's allocator will then pick that voice as "free"
+    //
+    // THREAD SAFETY:
+    // This function may be called from the MIDI thread while the audio thread
+    // is processing. All voice state access uses std::atomic with proper
+    // memory ordering to ensure thread-safe operation.
+    // ─────────────────────────────────────────────────────────────────────────
+    if (msg.StatusMsg() == IMidiMsg::kNoteOn && msg.Velocity() > 0)
+    {
+      int freeVoices = 0;
+      Voice* bestStealCandidate = nullptr;
+      float lowestEnvelopeLevel = 1.0f;  // Start with max, find lowest
+
+      for (Voice* voice : mVoices)
+      {
+        if (!voice->GetBusy())
+        {
+          freeVoices++;
+        }
+        else if (voice->IsReleasingCandidate())
+        {
+          // Compare envelope levels - pick the voice closest to silent
+          // Lower envelope = further into release = less audible when cut
+          float envLevel = voice->GetEnvelopeLevel();
+          if (envLevel < lowestEnvelopeLevel)
+          {
+            lowestEnvelopeLevel = envLevel;
+            bestStealCandidate = voice;
+          }
+        }
+      }
+
+      // If no free voices but we have a releasing candidate, mark it for recycling
+      if (freeVoices == 0 && bestStealCandidate)
+      {
+        bestStealCandidate->MarkForRecycle();
+      }
+    }
+
     mSynth.AddMidiMsgToQueue(msg);
   }
 
@@ -2972,34 +3494,68 @@ public:
         break;
 
       // ─────────────────────────────────────────────────────────────────────────
-      // LFO PARAMETERS
-      // Modulation source for filter cutoff (wobbles, sweeps, movement)
+      // LFO1 PARAMETERS
       // ─────────────────────────────────────────────────────────────────────────
-      case kParamLFORate:
+      case kParamLFO1Rate:
         mSynth.ForEachVoice([value](SynthVoice& voice) {
-          // Value is already in Hz (0.01-20)
-          dynamic_cast<Voice&>(voice).SetLFORate(static_cast<float>(value));
+          dynamic_cast<Voice&>(voice).SetLFO1Rate(static_cast<float>(value));
         });
         break;
 
-      case kParamLFODepth:
+      case kParamLFO1Depth:
         mSynth.ForEachVoice([value](SynthVoice& voice) {
-          // Convert 0-100% to 0.0-1.0
-          dynamic_cast<Voice&>(voice).SetLFODepth(static_cast<float>(value / 100.0));
+          dynamic_cast<Voice&>(voice).SetLFO1Depth(static_cast<float>(value / 100.0));
         });
         break;
 
-      case kParamLFOWaveform:
+      case kParamLFO1Waveform:
         mSynth.ForEachVoice([value](SynthVoice& voice) {
-          // Enum: 0=Sine, 1=Tri, 2=SawUp, 3=SawDown, 4=Square, 5=S&H
-          dynamic_cast<Voice&>(voice).SetLFOWaveform(static_cast<int>(value));
+          dynamic_cast<Voice&>(voice).SetLFO1Waveform(static_cast<int>(value));
         });
         break;
 
-      case kParamLFORetrigger:
+      case kParamLFO1Retrigger:
         mSynth.ForEachVoice([value](SynthVoice& voice) {
-          // Enum: 0=Free, 1=Retrigger
-          dynamic_cast<Voice&>(voice).SetLFORetrigger(static_cast<int>(value) == 1);
+          dynamic_cast<Voice&>(voice).SetLFO1Retrigger(static_cast<int>(value) == 1);
+        });
+        break;
+
+      case kParamLFO1Destination:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          dynamic_cast<Voice&>(voice).SetLFO1Destination(static_cast<int>(value));
+        });
+        break;
+
+      // ─────────────────────────────────────────────────────────────────────────
+      // LFO2 PARAMETERS
+      // ─────────────────────────────────────────────────────────────────────────
+      case kParamLFO2Rate:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          dynamic_cast<Voice&>(voice).SetLFO2Rate(static_cast<float>(value));
+        });
+        break;
+
+      case kParamLFO2Depth:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          dynamic_cast<Voice&>(voice).SetLFO2Depth(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      case kParamLFO2Waveform:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          dynamic_cast<Voice&>(voice).SetLFO2Waveform(static_cast<int>(value));
+        });
+        break;
+
+      case kParamLFO2Retrigger:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          dynamic_cast<Voice&>(voice).SetLFO2Retrigger(static_cast<int>(value) == 1);
+        });
+        break;
+
+      case kParamLFO2Destination:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          dynamic_cast<Voice&>(voice).SetLFO2Destination(static_cast<int>(value));
         });
         break;
 
@@ -3010,6 +3566,7 @@ public:
 
 private:
   MidiSynth mSynth{VoiceAllocator::kPolyModePoly};
+  std::vector<Voice*> mVoices;  // Track voices for destructor cleanup
   const WavetableOscillator::WavetableData* mWavetable = nullptr;  // Pointer to static table
   float mGain = 0.8f;
   float mGainSmoothed = 0.8f;
