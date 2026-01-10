@@ -5,8 +5,8 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
 {
   GetParam(kParamGain)->InitDouble("Gain", 80., 0., 100.0, 0.01, "%");
-  GetParam(kParamWaveform)->InitEnum("Waveform", 0, 5, "", IParam::kFlagsNone, "",
-    "Sine", "Saw", "Square", "Triangle", "Wavetable");
+  GetParam(kParamWaveform)->InitEnum("Waveform", 0, 6, "", IParam::kFlagsNone, "",
+    "Sine", "Saw", "Square", "Triangle", "Pulse", "Wavetable");
   GetParam(kParamWavetablePosition)->InitDouble("WT Position", 0., 0., 100., 0.1, "%");
   GetParam(kParamAttack)->InitDouble("Attack", 10., 1., 1000., 0.1, "ms");
   GetParam(kParamDecay)->InitDouble("Decay", 100., 1., 2000., 0.1, "ms");
@@ -19,6 +19,9 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   GetParam(kParamFilterResonance)->InitDouble("Filter Reso", 0., 0., 100., 0.1, "%");
   GetParam(kParamFilterType)->InitEnum("Filter Type", 0, 4, "", IParam::kFlagsNone, "",
     "Lowpass", "Highpass", "Bandpass", "Notch");
+
+  // Pulse width modulation (only affects Pulse waveform)
+  GetParam(kParamPulseWidth)->InitDouble("Pulse Width", 50., 5., 95., 0.1, "%");
 
 #if IPLUG_EDITOR
 #if defined(WEBVIEW_EDITOR_DELEGATE)

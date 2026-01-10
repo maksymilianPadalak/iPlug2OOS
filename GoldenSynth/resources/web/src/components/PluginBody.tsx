@@ -62,6 +62,7 @@ export function PluginBody() {
           <Section title="Oscillator" size="wide">
             <SubGroup layout="row">
               <WaveSelector paramId={EParams.kParamWaveform} label="Waveform" />
+              <Knob paramId={EParams.kParamPulseWidth} label="PW" color="cyan" />
               <Knob paramId={EParams.kParamWavetablePosition} label="WT Pos" color="cyan" />
             </SubGroup>
           </Section>

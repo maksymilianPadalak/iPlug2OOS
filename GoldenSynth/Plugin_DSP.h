@@ -14,6 +14,7 @@
 #include <q/synth/saw_osc.hpp>
 #include <q/synth/square_osc.hpp>
 #include <q/synth/triangle_osc.hpp>
+#include <q/synth/pulse_osc.hpp>
 #include <q/synth/envelope_gen.hpp>
 
 using namespace iplug;
@@ -65,6 +66,55 @@ using namespace q::literals;
 // - Välimäki & Pekonen, "Perceptually informed synthesis of bandlimited
 //   classical waveforms using integrated polynomial interpolation" (2012)
 // - Q library source: q/synth/saw_osc.hpp, q/utility/antialiasing.hpp
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PULSE WIDTH MODULATION (PWM)
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// WHAT IS A PULSE WAVE?
+// A pulse wave alternates between +1 and -1 with variable "duty cycle" (pulse width).
+// Duty cycle = percentage of time the wave is "high" per cycle.
+//
+//   50% (square):  ████████________  ← Only odd harmonics (hollow, clarinet)
+//   25% (narrow):  ████____________  ← All harmonics (brighter, richer)
+//   75% (wide):    ████████████____  ← All harmonics (same as 25%, inverted)
+//
+// HARMONIC CONTENT BY DUTY CYCLE:
+// ┌────────────┬─────────────────────────────────────┬────────────────────────┐
+// │ Duty Cycle │ Harmonics Present                   │ Character              │
+// ├────────────┼─────────────────────────────────────┼────────────────────────┤
+// │ 50%        │ Odd only (1, 3, 5, 7...)            │ Hollow, clarinet-like  │
+// │ 25% / 75%  │ All except every 4th (4, 8, 12...)  │ Brighter, richer       │
+// │ 12.5%      │ All except every 8th                │ Even brighter          │
+// │ 10% / 90%  │ Approaches impulse train            │ Very bright, reedy     │
+// │ 5% / 95%   │ Near impulse                        │ Thin, buzzy            │
+// └────────────┴─────────────────────────────────────┴────────────────────────┘
+//
+// WHY 5-95% LIMITS?
+// At 0% or 100%, the wave is DC (silence). Hardware synths typically limit to
+// 5-95% to avoid silence and the "ripping" sound as the waveform collapses.
+// This is an industry-standard range used by Roland, Moog, Sequential, etc.
+//
+// PWM EFFECT (Pulse Width Modulation):
+// Slowly modulating the pulse width with an LFO creates a shimmering, chorus-like
+// effect as the harmonic content constantly shifts. This is the classic analog
+// synth pad sound heard in countless recordings.
+//
+// Classic PWM synths: Roland Juno-60/106, Sequential Prophet-5, Oberheim OB-X
+//
+// IMPLEMENTATION NOTES:
+// - Uses Q library's pulse_osc with PolyBLEP anti-aliasing on both edges
+// - Pulse width parameter is smoothed (~5ms) to prevent clicks during modulation
+// - Without smoothing, sudden width changes cause the falling edge to jump
+//   mid-cycle, creating an audible discontinuity
+//
+// KNOWN LIMITATION:
+// At very high frequencies (>3kHz fundamental) combined with narrow pulse widths
+// (<10%), both rising and falling edges can occur within a single sample. The
+// PolyBLEP corrections may overlap, causing subtle artifacts. This edge case is
+// rarely musically relevant - most PWM use is in the bass-to-mid frequency range.
 //
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -669,8 +719,9 @@ enum EWaveform
 {
   kWaveformSine = 0,    // Pure sine - 1 harmonic
   kWaveformSaw,         // Sawtooth - all harmonics
-  kWaveformSquare,      // Square - odd harmonics
+  kWaveformSquare,      // Square - odd harmonics (50% duty cycle)
   kWaveformTriangle,    // Triangle - odd harmonics, 1/n² rolloff
+  kWaveformPulse,       // Pulse - variable duty cycle (PWM), PolyBLEP anti-aliased
   kWaveformWavetable,   // Morphing wavetable (Sine→Triangle→Saw→Square)
   kNumWaveforms
 };
@@ -892,6 +943,18 @@ public:
             // Uses cubic polynomial (integrated BLEP) for smooth corners
             oscValue = q::triangle(mPhase++);
             break;
+          case kWaveformPulse:
+            // Pulse: Variable duty cycle with PolyBLEP on both edges
+            // At 50% = square wave, <50% = narrow pulse, >50% = wide pulse
+            // PWM (pulse width modulation) creates classic chorus/ensemble effects
+            //
+            // Smooth pulse width to prevent clicks when parameter changes rapidly.
+            // Without smoothing, sudden width changes cause the falling edge to
+            // jump position mid-cycle, creating a discontinuity (audible click).
+            mPulseWidth += mPulseWidthSmoothCoeff * (mPulseWidthTarget - mPulseWidth);
+            mPulseOsc.width(mPulseWidth);
+            oscValue = mPulseOsc(mPhase++);
+            break;
           case kWaveformWavetable:
             // Wavetable: Perfect band-limiting via mipmapped additive synthesis
             // Supports morphing between Sine→Triangle→Saw→Square
@@ -921,6 +984,9 @@ public:
       mEnv = q::adsr_envelope_gen{mEnvConfig, static_cast<float>(sampleRate)};
       mWavetableOsc.SetSampleRate(static_cast<float>(sampleRate));
       mFilter.SetSampleRate(static_cast<float>(sampleRate));
+
+      // Pulse width smoothing: ~5ms for responsive but click-free modulation
+      mPulseWidthSmoothCoeff = calcSmoothingCoeff(0.005f, static_cast<float>(sampleRate));
     }
 
     // Parameter setters called from DSP class
@@ -952,6 +1018,10 @@ public:
     void SetFilterResonance(float resonance) { mFilter.SetResonance(resonance); }
     void SetFilterType(int type) { mFilter.SetType(static_cast<FilterType>(type)); }
 
+    // Pulse width setter (0.0-1.0, where 0.5 = square wave)
+    // Sets target; actual value is smoothed per-sample to prevent clicks
+    void SetPulseWidth(float width) { mPulseWidthTarget = width; }
+
   private:
     // ─────────────────────────────────────────────────────────────────────────
     // PHASE ITERATOR - Q library's oscillator driver
@@ -962,6 +1032,20 @@ public:
     // Usage: q::sin(mPhase++) returns sine value and advances phase.
     // ─────────────────────────────────────────────────────────────────────────
     q::phase_iterator mPhase;
+
+    // Pulse oscillator - PolyBLEP with variable duty cycle
+    // Width: 0.0-1.0 where 0.5 = square wave, <0.5 = narrow pulse, >0.5 = wide pulse
+    q::pulse_osc mPulseOsc{0.5f};
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PULSE WIDTH SMOOTHING
+    // When pulse width changes suddenly, the falling edge position jumps,
+    // causing a discontinuity (click). We smooth the pulse width over ~5ms
+    // to prevent this. Faster than gain smoothing for responsive modulation.
+    // ─────────────────────────────────────────────────────────────────────────
+    float mPulseWidth = 0.5f;           // Current smoothed pulse width
+    float mPulseWidthTarget = 0.5f;     // Target from parameter
+    float mPulseWidthSmoothCoeff = 0.01f;  // ~5ms smoothing, set in SetSampleRateAndBlockSize
 
     // ADSR envelope generator - controls amplitude over note lifetime
     q::adsr_envelope_gen mEnv{q::adsr_envelope_gen::config{}, 44100.0f};
@@ -1115,6 +1199,14 @@ public:
       case kParamFilterType:
         mSynth.ForEachVoice([value](SynthVoice& voice) {
           dynamic_cast<Voice&>(voice).SetFilterType(static_cast<int>(value));
+        });
+        break;
+
+      // Pulse width modulation
+      case kParamPulseWidth:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert 5-95% to 0.05-0.95 for Q library pulse_osc
+          dynamic_cast<Voice&>(voice).SetPulseWidth(static_cast<float>(value / 100.0));
         });
         break;
 

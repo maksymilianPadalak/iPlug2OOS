@@ -21,6 +21,8 @@ enum EParams
   kParamFilterCutoff,       // Filter cutoff frequency (20-20000 Hz)
   kParamFilterResonance,    // Filter resonance (0-100%)
   kParamFilterType,         // Filter type (LP, HP, BP, Notch)
+  // Pulse width modulation
+  kParamPulseWidth,         // Pulse width (5-95%), 50% = square wave
   kNumParams
 };
 
