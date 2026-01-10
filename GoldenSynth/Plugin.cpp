@@ -24,7 +24,9 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   GetParam(kParamPulseWidth)->InitDouble("Pulse Width", 50., 5., 95., 0.1, "%");
 
   // FM synthesis parameters (only affects FM waveform)
-  GetParam(kParamFMRatio)->InitDouble("FM Ratio", 2., 0.5, 8., 0.1, ":1");  // Modulator:Carrier ratio
+  // Ratio as enum with musically useful values (integer ratios = harmonic partials)
+  GetParam(kParamFMRatio)->InitEnum("FM Ratio", 2, 9, "", IParam::kFlagsNone, "",
+    "0.5:1", "1:1", "2:1", "3:1", "4:1", "5:1", "6:1", "7:1", "8:1");  // Default 2:1 (index 2)
   GetParam(kParamFMDepth)->InitDouble("FM Depth", 50., 0., 100., 0.1, "%");  // Modulation index
 
 #if IPLUG_EDITOR

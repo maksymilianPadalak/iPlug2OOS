@@ -63,7 +63,7 @@ export function PluginBody() {
             <SubGroup layout="row">
               <WaveSelector paramId={EParams.kParamWaveform} label="Waveform" />
               <Knob paramId={EParams.kParamPulseWidth} label="PW" color="cyan" />
-              <Knob paramId={EParams.kParamFMRatio} label="FM Ratio" color="cyan" />
+              <Dropdown paramId={EParams.kParamFMRatio} label="Ratio" />
               <Knob paramId={EParams.kParamFMDepth} label="FM Depth" color="cyan" />
               <Knob paramId={EParams.kParamWavetablePosition} label="WT Pos" color="cyan" />
             </SubGroup>

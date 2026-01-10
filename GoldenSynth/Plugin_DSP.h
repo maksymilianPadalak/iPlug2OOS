@@ -1342,8 +1342,10 @@ public:
       // FM synthesis parameters
       case kParamFMRatio:
         mSynth.ForEachVoice([value](SynthVoice& voice) {
-          // Ratio is used directly (0.5-8.0)
-          dynamic_cast<Voice&>(voice).SetFMRatio(static_cast<float>(value));
+          // Convert enum index to ratio: 0→0.5, 1→1, 2→2, 3→3, etc.
+          int idx = static_cast<int>(value);
+          float ratio = (idx == 0) ? 0.5f : static_cast<float>(idx);
+          dynamic_cast<Voice&>(voice).SetFMRatio(ratio);
         });
         break;
 
