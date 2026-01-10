@@ -879,6 +879,7 @@ public:
         mPhase = q::phase_iterator{};
         mWavetableOsc.Reset();
         mFilter.Reset();  // Clear filter state to avoid artifacts from previous notes
+        mFMModulatorPhase = 0.0f;  // Reset FM modulator for consistent FM timbre on attack
       }
 
       // Create fresh envelope generator at current sample rate
