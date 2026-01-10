@@ -17,6 +17,7 @@ enum EParams
   kParamDecay,
   kParamSustain,
   kParamRelease,
+  kParamEnvVelocity,        // Velocity → envelope time modulation (0-100%)
   // Filter parameters
   kParamFilterCutoff,       // Filter cutoff frequency (20-20000 Hz)
   kParamFilterResonance,    // Filter resonance (0-100%)

@@ -13,6 +13,11 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   GetParam(kParamSustain)->InitDouble("Sustain", 70., 0., 100., 0.1, "%");
   GetParam(kParamRelease)->InitDouble("Release", 200., 1., 5000., 0.1, "ms");
 
+  // Envelope velocity sensitivity: how much MIDI velocity affects envelope times
+  // At 0%: velocity has no effect on envelope (classic organ behavior)
+  // At 100%: harder hits = snappier attack/decay (expressive, piano-like)
+  GetParam(kParamEnvVelocity)->InitDouble("Env Velocity", 50., 0., 100., 1., "%");
+
   // Filter parameters
   GetParam(kParamFilterCutoff)->InitDouble("Filter Cutoff", 10000., 20., 20000., 1., "Hz",
     IParam::kFlagsNone, "", IParam::ShapePowCurve(3.0));  // Exponential curve for natural feel

@@ -199,6 +199,97 @@ using namespace q::literals;
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ADSR ENVELOPE - Amplitude Shaping Over Note Lifetime
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// WHAT IS AN ADSR ENVELOPE?
+// An envelope shapes how a sound's amplitude (volume) changes over time. ADSR
+// stands for the four stages of the envelope:
+//
+//   Amplitude
+//       │
+//     1 │    ╱╲
+//       │   ╱  ╲___________
+//       │  ╱               ╲
+//     0 │ ╱                 ╲________
+//       └──────────────────────────────► Time
+//         │A│ D │    S     │   R   │
+//         ↑   ↑      ↑          ↑
+//       Attack Decay Sustain  Release
+//        (note on)           (note off)
+//
+// STAGE DESCRIPTIONS:
+// ┌─────────┬────────────────────────────────────────────────────────────────────┐
+// │ Stage   │ Behavior                                                           │
+// ├─────────┼────────────────────────────────────────────────────────────────────┤
+// │ Attack  │ Time to rise from 0 to full amplitude (1.0)                        │
+// │         │ Fast attack (1-10ms): Percussive, snappy                           │
+// │         │ Slow attack (100-1000ms): Swells, pads, strings                    │
+// ├─────────┼────────────────────────────────────────────────────────────────────┤
+// │ Decay   │ Time to fall from full amplitude to sustain level                  │
+// │         │ Fast decay: Plucky, staccato                                       │
+// │         │ Slow decay: Gradual transition to sustain                          │
+// ├─────────┼────────────────────────────────────────────────────────────────────┤
+// │ Sustain │ Level held while key is pressed (0-100%)                           │
+// │         │ 0%: Sound decays to silence (organ-like if attack/decay are fast)  │
+// │         │ 100%: No decay, stays at full volume                               │
+// │         │ 70%: Typical for many sounds                                       │
+// ├─────────┼────────────────────────────────────────────────────────────────────┤
+// │ Release │ Time to fall from sustain to 0 after key release                   │
+// │         │ Fast release (10-50ms): Tight, punchy                              │
+// │         │ Slow release (500-5000ms): Reverberant, pad-like                   │
+// └─────────┴────────────────────────────────────────────────────────────────────┘
+//
+// COMMON PRESET PATTERNS:
+// ┌──────────────────┬────────┬───────┬─────────┬─────────┬──────────────────────┐
+// │ Sound Type       │ Attack │ Decay │ Sustain │ Release │ Notes                │
+// ├──────────────────┼────────┼───────┼─────────┼─────────┼──────────────────────┤
+// │ Piano/Keys       │ 1ms    │ 500ms │ 0%      │ 200ms   │ Percussive decay     │
+// │ Organ            │ 5ms    │ 0ms   │ 100%    │ 50ms    │ Instant on/off       │
+// │ Strings/Pad      │ 300ms  │ 100ms │ 80%     │ 500ms   │ Slow swell           │
+// │ Pluck/Guitar     │ 1ms    │ 200ms │ 30%     │ 100ms   │ Fast attack, decay   │
+// │ Brass            │ 50ms   │ 100ms │ 70%     │ 100ms   │ Moderate attack      │
+// │ Percussion       │ 1ms    │ 100ms │ 0%      │ 50ms    │ All in decay         │
+// └──────────────────┴────────┴───────┴─────────┴─────────┴──────────────────────┘
+//
+// Q LIBRARY IMPLEMENTATION:
+// Uses exponential curves for natural-sounding envelopes:
+// - Attack: Exponential rise (fast start, slows near peak)
+// - Decay: Exponential fall (fast start, slows near sustain)
+// - Sustain: Linear (holds level, very slow decay over 50 seconds)
+// - Release: Exponential fall (natural decay to silence)
+//
+// Exponential curves match human perception better than linear ramps.
+// Our ears perceive loudness logarithmically, so exponential amplitude
+// changes sound more "natural" and "smooth" than linear ones.
+//
+// IMPORTANT BEHAVIOR NOTES:
+// 1. PARAMETER CHANGES: Modifying A/D/S/R only affects FUTURE notes.
+//    Currently playing notes continue with their original envelope.
+//    This is standard behavior matching hardware synths.
+//
+// 2. RETRIGGER: When a note is retriggered (legato), we crossfade from
+//    the current amplitude to avoid clicks. See Voice::Trigger().
+//
+// 3. ZERO SUSTAIN: Setting sustain to 0% is valid - the note will decay
+//    to silence and stay silent until released. We clamp to a tiny
+//    positive value (0.001) to avoid floating-point edge cases.
+//
+// 4. VOICE DEACTIVATION: A voice becomes inactive when:
+//    - Envelope reaches idle phase (after release completes), AND
+//    - Amplitude falls below 0.0001 (silence threshold)
+//
+// 5. VELOCITY MODULATION: MIDI velocity can scale envelope times for expressiveness.
+//    The "Env Velocity" parameter (0-100%) controls how much velocity affects times:
+//    - At 0%: Velocity has no effect (organ-like, consistent response)
+//    - At 100%: Hard hits have 10% of normal time (very snappy, piano-like)
+//    - At 50% (default): Moderate scaling for balanced expressiveness
+//    Formula: scaledTime = baseTime × (1 - sensitivity × velocity × 0.9)
+//    This affects Attack, Decay, and Release times. Sustain level is unaffected.
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // WAVETABLE OSCILLATOR - Band-Limited with Mip Levels
 // ═══════════════════════════════════════════════════════════════════════════════
 //
@@ -897,8 +988,27 @@ public:
         mFMModulatorPhase = 0.0f;  // Reset FM modulator for consistent FM timbre on attack
       }
 
-      // Create fresh envelope generator at current sample rate
-      mEnv = q::adsr_envelope_gen{mEnvConfig, static_cast<float>(mSampleRate)};
+      // ─────────────────────────────────────────────────────────────────────────
+      // VELOCITY → ENVELOPE TIME MODULATION
+      // Higher velocity = faster envelope times (snappier, more expressive)
+      // Scale factor ranges from 1.0 (vel=0) to 0.1 (vel=1, full sensitivity)
+      // This gives a 10:1 range which is musically useful without being extreme.
+      //
+      // Formula: scaledTime = baseTime × (1 - sensitivity × velocity × 0.9)
+      //   - At sensitivity=0: times unchanged (organ-like)
+      //   - At sensitivity=1, velocity=1: times reduced to 10% (very snappy)
+      //   - At sensitivity=0.5, velocity=0.5: times reduced to 77.5% (subtle)
+      // ─────────────────────────────────────────────────────────────────────────
+      float velScale = 1.0f - mEnvVelocitySensitivity * mVelocity * 0.9f;
+
+      // Create velocity-scaled envelope config for this note
+      q::adsr_envelope_gen::config velEnvConfig = mEnvConfig;
+      velEnvConfig.attack_rate = q::duration{mBaseAttackMs * 0.001f * velScale};
+      velEnvConfig.decay_rate = q::duration{mBaseDecayMs * 0.001f * velScale};
+      velEnvConfig.release_rate = q::duration{mBaseReleaseMs * 0.001f * velScale};
+
+      // Create fresh envelope generator with velocity-scaled times
+      mEnv = q::adsr_envelope_gen{velEnvConfig, static_cast<float>(mSampleRate)};
       mEnv.attack();
 
       // ─────────────────────────────────────────────────────────────────────────
@@ -1128,23 +1238,33 @@ public:
 
     void SetAttack(float ms)
     {
+      mBaseAttackMs = ms;
       mEnvConfig.attack_rate = q::duration{ms * 0.001f};
     }
 
     void SetDecay(float ms)
     {
+      mBaseDecayMs = ms;
       mEnvConfig.decay_rate = q::duration{ms * 0.001f};
     }
 
     void SetSustain(float level)
     {
+      // Clamp to tiny positive value to avoid -infinity dB from lin_to_db(0)
+      // At 0.001 (-60dB), the sound is effectively silent but math remains stable
+      level = std::max(0.001f, level);
       mEnvConfig.sustain_level = q::lin_to_db(level);
     }
 
     void SetRelease(float ms)
     {
+      mBaseReleaseMs = ms;
       mEnvConfig.release_rate = q::duration{ms * 0.001f};
     }
+
+    // Velocity → envelope time modulation (0.0-1.0)
+    // Higher values = velocity has more effect on envelope times
+    void SetEnvVelocitySensitivity(float amount) { mEnvVelocitySensitivity = amount; }
 
     // Filter setters
     void SetFilterCutoff(float freqHz) { mFilter.SetCutoff(freqHz); }
@@ -1205,6 +1325,16 @@ public:
     // ADSR envelope generator - controls amplitude over note lifetime
     q::adsr_envelope_gen mEnv{q::adsr_envelope_gen::config{}, 44100.0f};
     q::adsr_envelope_gen::config mEnvConfig;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // VELOCITY → ENVELOPE MODULATION
+    // Base times are stored separately so we can apply velocity scaling in Trigger().
+    // Higher velocity = faster attack/decay/release for more expressive playing.
+    // ─────────────────────────────────────────────────────────────────────────
+    float mBaseAttackMs = 10.0f;          // Base attack time from parameter
+    float mBaseDecayMs = 100.0f;          // Base decay time from parameter
+    float mBaseReleaseMs = 200.0f;        // Base release time from parameter
+    float mEnvVelocitySensitivity = 0.5f; // How much velocity affects times (0-1)
 
     WavetableOscillator mWavetableOsc;  // Wavetable oscillator (mipmapped, morphable)
     ResonantFilter mFilter;              // Per-voice resonant filter (Q library biquads)
@@ -1271,7 +1401,7 @@ public:
       {
         outputs[c][s] *= gainScale;
 
-        // Safety clamp
+        // Safety clamp - prevents digital overs
         if (outputs[c][s] > 1.0f) outputs[c][s] = 1.0f;
         if (outputs[c][s] < -1.0f) outputs[c][s] = -1.0f;
       }
@@ -1335,6 +1465,13 @@ public:
       case kParamRelease:
         mSynth.ForEachVoice([value](SynthVoice& voice) {
           dynamic_cast<Voice&>(voice).SetRelease(static_cast<float>(value));
+        });
+        break;
+
+      case kParamEnvVelocity:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert 0-100% to 0.0-1.0
+          dynamic_cast<Voice&>(voice).SetEnvVelocitySensitivity(static_cast<float>(value / 100.0));
         });
         break;
 

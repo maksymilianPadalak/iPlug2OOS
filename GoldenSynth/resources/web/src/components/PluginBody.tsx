@@ -87,11 +87,12 @@ export function PluginBody() {
               releaseParam={EParams.kParamRelease}
               label="Envelope"
             />
-            <SubGroup layout="grid-4">
+            <SubGroup layout="row">
               <Knob paramId={EParams.kParamAttack} label="Attack" color="magenta" />
               <Knob paramId={EParams.kParamDecay} label="Decay" color="magenta" />
               <Knob paramId={EParams.kParamSustain} label="Sustain" color="magenta" />
               <Knob paramId={EParams.kParamRelease} label="Release" color="magenta" />
+              <Knob paramId={EParams.kParamEnvVelocity} label="Vel" color="magenta" />
             </SubGroup>
           </Section>
         </GridFoundation>
