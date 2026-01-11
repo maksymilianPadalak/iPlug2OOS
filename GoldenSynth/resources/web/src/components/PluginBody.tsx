@@ -69,6 +69,7 @@ export function PluginBody() {
               <Knob paramId={EParams.kParamWavetablePosition} label="WT Pos" color="cyan" />
               <Dropdown paramId={EParams.kParamOsc1Octave} label="Octave" />
               <Knob paramId={EParams.kParamOsc1Detune} label="Detune" color="cyan" />
+              <Knob paramId={EParams.kParamOsc1Pan} label="Pan" color="cyan" />
               <Knob paramId={EParams.kParamOsc1Level} label="Level" color="cyan" />
             </SubGroup>
             {/* Osc1 Unison - per-oscillator unison (Serum-style) */}
@@ -90,6 +91,7 @@ export function PluginBody() {
               <Knob paramId={EParams.kParamOsc2Morph} label="WT Pos" color="green" />
               <Dropdown paramId={EParams.kParamOsc2Octave} label="Octave" />
               <Knob paramId={EParams.kParamOsc2Detune} label="Detune" color="green" />
+              <Knob paramId={EParams.kParamOsc2Pan} label="Pan" color="green" />
               <Knob paramId={EParams.kParamOsc2Level} label="Level" color="green" />
               <Dropdown paramId={EParams.kParamOscSync} label="Sync" />
             </SubGroup>
@@ -111,12 +113,27 @@ export function PluginBody() {
             </SubGroup>
           </Section>
 
-          <Section title="LFO" size="wide">
+          <Section title="LFO 1" size="wide">
             <SubGroup layout="row">
-              <Dropdown paramId={EParams.kParamLFOWaveform} label="Wave" />
-              <Knob paramId={EParams.kParamLFORate} label="Rate" color="orange" />
-              <Knob paramId={EParams.kParamLFODepth} label="Depth" color="orange" />
-              <Dropdown paramId={EParams.kParamLFORetrigger} label="Retrig" />
+              <Dropdown paramId={EParams.kParamLFO1Waveform} label="Wave" />
+              <Knob paramId={EParams.kParamLFO1Rate} label="Rate" color="orange" />
+              <Dropdown paramId={EParams.kParamLFO1Sync} label="Sync" />
+              <Knob paramId={EParams.kParamLFO1Low} label="Low" color="orange" />
+              <Knob paramId={EParams.kParamLFO1High} label="High" color="orange" />
+              <Dropdown paramId={EParams.kParamLFO1Retrigger} label="Retrig" />
+              <Dropdown paramId={EParams.kParamLFO1Destination} label="Dest" />
+            </SubGroup>
+          </Section>
+
+          <Section title="LFO 2" size="wide">
+            <SubGroup layout="row">
+              <Dropdown paramId={EParams.kParamLFO2Waveform} label="Wave" />
+              <Knob paramId={EParams.kParamLFO2Rate} label="Rate" color="cyan" />
+              <Dropdown paramId={EParams.kParamLFO2Sync} label="Sync" />
+              <Knob paramId={EParams.kParamLFO2Low} label="Low" color="cyan" />
+              <Knob paramId={EParams.kParamLFO2High} label="High" color="cyan" />
+              <Dropdown paramId={EParams.kParamLFO2Retrigger} label="Retrig" />
+              <Dropdown paramId={EParams.kParamLFO2Destination} label="Dest" />
             </SubGroup>
           </Section>
 

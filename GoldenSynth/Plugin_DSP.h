@@ -260,8 +260,11 @@ using namespace q::literals;
 // Uses exponential curves for natural-sounding envelopes:
 // - Attack: Exponential rise (fast start, slows near peak)
 // - Decay: Exponential fall (fast start, slows near sustain)
-// - Sustain: Linear (holds level, very slow decay over 50 seconds)
+// - Sustain: Holds level indefinitely (sustain_rate set to ~infinite)
 // - Release: Exponential fall (natural decay to silence)
+//
+// NOTE: Q library ADSR is actually ADBDR (piano-like) with optional sustain decay.
+// We disable this by setting sustain_rate to ~100000 seconds for synth behavior.
 //
 // Exponential curves match human perception better than linear ramps.
 // Our ears perceive loudness logarithmically, so exponential amplitude
@@ -461,10 +464,14 @@ constexpr float kSqrtHalf = 0.7071067811865476f;  // 1/sqrt(2), equal power ster
 // At each sample: smoothed += coeff * (target - smoothed)
 inline float calcSmoothingCoeff(float timeSeconds, float sampleRate)
 {
-  // Protect against division by zero if timeSeconds or sampleRate is 0 or negative
+  // Protect against invalid inputs (zero, negative, NaN, Inf)
+  // Returns 1.0f (instant response) for any invalid input
+  if (!(timeSeconds > 0.0f) || !(sampleRate > 0.0f)) return 1.0f;  // Catches NaN too (NaN > x is always false)
   float product = timeSeconds * sampleRate;
-  if (product <= 0.0f) return 1.0f;  // Instant response (no smoothing)
-  return 1.0f - std::exp(-1.0f / product);
+  float result = 1.0f - std::exp(-1.0f / product);
+  // Final sanity check - coefficient must be in (0, 1]
+  if (!(result > 0.0f) || !(result <= 1.0f)) return 1.0f;
+  return result;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1628,8 +1635,9 @@ public:
         q::duration{0.01f},   // 10ms attack
         q::duration{0.1f},    // 100ms decay
         q::lin_to_db(0.7f),   // 70% sustain level (in dB via lin_to_db)
-        50_s,                 // Sustain hold time - how long to hold at sustain level
-                              // before auto-release. 50s = effectively "forever" (until note-off)
+        q::duration{100000.0f}, // Sustain rate: ~infinite (no decay during sustain)
+                              // Q library ADSR is actually ADBDR (piano-like) where sustain
+                              // slowly decays. Set to ~100000 seconds to effectively disable.
         q::duration{0.2f}     // 200ms release
       };
 
@@ -2706,10 +2714,32 @@ public:
         // No normalization needed - blend weights handle energy distribution
 
         // ─────────────────────────────────────────────────────────────────────────
-        // MIX OSCILLATORS (stereo)
+        // MIX OSCILLATORS (stereo) WITH PER-OSCILLATOR PAN
         // ─────────────────────────────────────────────────────────────────────────
-        float mixedLeft = mOsc1Level * osc1Left + mOsc2Level * osc2Left;
-        float mixedRight = mOsc1Level * osc1Right + mOsc2Level * osc2Right;
+        // Per-oscillator pan positions the entire oscillator (including all its
+        // unison voices) in the stereo field. This is standard in Serum, Vital,
+        // Massive, and other professional synths.
+        //
+        // Serum-style: direct application, no per-sample smoothing. Parameter
+        // smoothing is handled at the UI/host level. More CPU efficient and
+        // avoids any potential for drift.
+        //
+        // Linear balance law for stereo sources:
+        //   - Center (0): L = 1.0, R = 1.0 (unchanged)
+        //   - Left (-1):  L = 1.0, R = 0.0 (full left)
+        //   - Right (+1): L = 0.0, R = 1.0 (full right)
+        // ─────────────────────────────────────────────────────────────────────────
+        // Clamp pan to [-1, 1] for safety (prevents negative gains / phase inversion)
+        float pan1 = std::max(-1.0f, std::min(1.0f, mOsc1PanTarget));
+        float pan2 = std::max(-1.0f, std::min(1.0f, mOsc2PanTarget));
+
+        float osc1PanL = pan1 <= 0.0f ? 1.0f : (1.0f - pan1);
+        float osc1PanR = pan1 >= 0.0f ? 1.0f : (1.0f + pan1);
+        float osc2PanL = pan2 <= 0.0f ? 1.0f : (1.0f - pan2);
+        float osc2PanR = pan2 >= 0.0f ? 1.0f : (1.0f + pan2);
+
+        float mixedLeft = mOsc1Level * osc1Left * osc1PanL + mOsc2Level * osc2Left * osc2PanL;
+        float mixedRight = mOsc1Level * osc1Right * osc1PanR + mOsc2Level * osc2Right * osc2PanR;
 
         // ─────────────────────────────────────────────────────────────────────────
         // LFO MODULATION OF FILTER CUTOFF
@@ -2871,6 +2901,7 @@ public:
     // Osc1 octave and detune (for full symmetry with Osc2)
     void SetOsc1Octave(int octave) { mOsc1Octave = octave; }          // -2 to +2
     void SetOsc1Detune(float cents) { mOsc1Detune = cents; }          // -100 to +100 cents
+    void SetOsc1Pan(float pan) { mOsc1PanTarget = pan; }               // -1.0 to +1.0 (direct, no smoothing)
 
     // ─────────────────────────────────────────────────────────────────────────
     // OSCILLATOR 2 SETTERS (fully independent like Serum)
@@ -2885,6 +2916,7 @@ public:
     void SetOsc2FMRatio(float ratio) { mOsc2FMRatio = ratio; }            // Combined ratio
     void SetOsc2FMFine(float fine) { mOsc2FMFine = fine; }                // -0.5 to +0.5
     void SetOsc2FMDepth(float depth) { mOsc2FMDepth = depth; }            // 0.0-1.0
+    void SetOsc2Pan(float pan) { mOsc2PanTarget = pan; }                   // -1.0 to +1.0 (direct, no smoothing)
 
     // ─────────────────────────────────────────────────────────────────────────
     // OSC1 UNISON SETTERS
@@ -2987,6 +3019,7 @@ public:
     // Osc1 octave and detune (for full symmetry with Osc2)
     int mOsc1Octave = 0;                  // Octave offset: -2 to +2 (0 = no shift)
     float mOsc1Detune = 0.0f;             // Detune in cents (0 = no detune)
+    float mOsc1PanTarget = 0.0f;          // Pan position: -1.0 (left) to +1.0 (right)
 
     // ADSR envelope generator - controls amplitude over note lifetime
     q::adsr_envelope_gen mEnv{q::adsr_envelope_gen::config{}, 44100.0f};
@@ -3064,6 +3097,7 @@ public:
     int mOsc2Octave = 0;                    // Octave offset: -2 to +2 (0 = unison)
     float mOsc2Detune = 7.0f;               // Detune in cents (+7 = classic fat)
     float mOsc2Level = 0.5f;                // Mix level (0.5 = equal with Osc1)
+    float mOsc2PanTarget = 0.0f;            // Pan position: -1.0 (left) to +1.0 (right)
 
     // OSC2 INDEPENDENT PARAMETERS (Serum-style full independence)
     // Each oscillator has its own waveform-specific controls for maximum flexibility.
@@ -3625,6 +3659,13 @@ public:
         });
         break;
 
+      case kParamOsc1Pan:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert -100% to +100% to -1.0 to +1.0
+          dynamic_cast<Voice&>(voice).SetOsc1Pan(static_cast<float>(value / 100.0));
+        });
+        break;
+
       // Oscillator 2 parameters
       case kParamOsc2Waveform:
         mSynth.ForEachVoice([value](SynthVoice& voice) {
@@ -3690,6 +3731,13 @@ public:
         mSynth.ForEachVoice([value](SynthVoice& voice) {
           // Convert 0-100% to 0.0-1.0
           dynamic_cast<Voice&>(voice).SetOsc2FMDepth(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      case kParamOsc2Pan:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert -100% to +100% to -1.0 to +1.0
+          dynamic_cast<Voice&>(voice).SetOsc2Pan(static_cast<float>(value / 100.0));
         });
         break;
 

@@ -41,6 +41,8 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   GetParam(kParamOsc1Octave)->InitEnum("Osc1 Octave", 2, 5, "", IParam::kFlagsNone, "",
     "-2", "-1", "0", "+1", "+2");  // Default 0 (index 2)
   GetParam(kParamOsc1Detune)->InitDouble("Osc1 Detune", 0., -100., 100., 0.1, "cents");  // 0 = no detune
+  // Osc1 stereo pan: position the entire oscillator (including all unison voices) in stereo field
+  GetParam(kParamOsc1Pan)->InitDouble("Osc1 Pan", 0., -100., 100., 0.1, "%");  // 0 = center
 
   // Oscillator 2 parameters (fully independent like Serum)
   // Osc2 is mixed with Osc1 to create fatter, layered sounds
@@ -59,6 +61,8 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
     "0.5:1", "1:1", "2:1", "3:1", "4:1", "5:1", "6:1", "7:1", "8:1");  // Default 2:1
   GetParam(kParamOsc2FMFine)->InitDouble("Osc2 FM Fine", 0., -50., 50., 0.1, "%");
   GetParam(kParamOsc2FMDepth)->InitDouble("Osc2 FM Depth", 50., 0., 100., 0.1, "%");
+  // Osc2 stereo pan: position the entire oscillator in stereo field (independent from Osc1)
+  GetParam(kParamOsc2Pan)->InitDouble("Osc2 Pan", 0., -100., 100., 0.1, "%");  // 0 = center
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // OSC1 UNISON PARAMETERS

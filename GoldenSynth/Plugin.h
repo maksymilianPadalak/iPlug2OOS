@@ -31,6 +31,7 @@ enum EParams
   kParamOsc1Level,          // Osc1 mix level (0-100%) for balancing with Osc2
   kParamOsc1Octave,         // Osc1 octave offset: -2, -1, 0, +1, +2
   kParamOsc1Detune,         // Osc1 fine detune in cents (-100 to +100)
+  kParamOsc1Pan,            // Osc1 stereo pan (-100% left to +100% right)
   // Oscillator 2 parameters (fully independent like Serum)
   kParamOsc2Waveform,       // Osc2 waveform (same options as Osc1)
   kParamOsc2Octave,         // Osc2 octave offset: -2, -1, 0, +1, +2
@@ -41,6 +42,7 @@ enum EParams
   kParamOsc2FMRatio,        // Osc2 FM coarse ratio (0.5-8)
   kParamOsc2FMFine,         // Osc2 FM fine ratio offset (-50% to +50%)
   kParamOsc2FMDepth,        // Osc2 FM modulation depth (0-100%)
+  kParamOsc2Pan,            // Osc2 stereo pan (-100% left to +100% right)
   // ═══════════════════════════════════════════════════════════════════════════
   // OSC1 UNISON - Stack multiple detuned voices for massive sound
   // ═══════════════════════════════════════════════════════════════════════════
