@@ -884,20 +884,114 @@ enum class LFOWaveform
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// LFO TEMPO SYNC RATES
+// ═══════════════════════════════════════════════════════════════════════════════
+// Musical note divisions for syncing LFO to host tempo.
+// D = Dotted (1.5x length, 2/3 frequency), T = Triplet (2/3 length, 1.5x frequency)
+// ═══════════════════════════════════════════════════════════════════════════════
+enum class LFOSyncRate
+{
+  Off = 0,      // Use manual Hz rate
+  Bars4,        // 4/1 - 4 bars (16 beats)
+  Bars2,        // 2/1 - 2 bars (8 beats)
+  Bars1,        // 1/1 - 1 bar (4 beats)
+  Half,         // 1/2 - half note (2 beats)
+  HalfDotted,   // 1/2D - dotted half (3 beats)
+  HalfTriplet,  // 1/2T - half triplet (4/3 beats)
+  Quarter,      // 1/4 - quarter note (1 beat)
+  QuarterDotted,// 1/4D - dotted quarter (1.5 beats)
+  QuarterTriplet,// 1/4T - quarter triplet (2/3 beat)
+  Eighth,       // 1/8 - eighth note (0.5 beats)
+  EighthDotted, // 1/8D - dotted eighth (0.75 beats)
+  EighthTriplet,// 1/8T - eighth triplet (1/3 beat)
+  Sixteenth,    // 1/16 - sixteenth (0.25 beats)
+  SixteenthDotted,// 1/16D - dotted sixteenth (0.375 beats)
+  SixteenthTriplet,// 1/16T - sixteenth triplet (1/6 beat)
+  ThirtySecond, // 1/32 - thirty-second (0.125 beats)
+  kNumSyncRates
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TEMPO SYNC HELPER - Convert sync rate to Hz based on BPM
+// ═══════════════════════════════════════════════════════════════════════════════
+// Formula: Hz = BPM / 60 / beats_per_cycle
+// Where beats_per_cycle is the number of quarter notes in one LFO cycle.
+// ═══════════════════════════════════════════════════════════════════════════════
+inline float SyncRateToHz(LFOSyncRate syncRate, float bpm)
+{
+  if (syncRate == LFOSyncRate::Off || bpm <= 0.0f)
+    return 0.0f;
+
+  // Beats per cycle for each sync rate (in quarter notes)
+  float beatsPerCycle = 1.0f;
+
+  switch (syncRate)
+  {
+    case LFOSyncRate::Bars4:           beatsPerCycle = 16.0f; break;      // 4 bars
+    case LFOSyncRate::Bars2:           beatsPerCycle = 8.0f; break;       // 2 bars
+    case LFOSyncRate::Bars1:           beatsPerCycle = 4.0f; break;       // 1 bar
+    case LFOSyncRate::Half:            beatsPerCycle = 2.0f; break;       // 1/2
+    case LFOSyncRate::HalfDotted:      beatsPerCycle = 3.0f; break;       // 1/2D (2 * 1.5)
+    case LFOSyncRate::HalfTriplet:     beatsPerCycle = 4.0f / 3.0f; break;// 1/2T (2 * 2/3)
+    case LFOSyncRate::Quarter:         beatsPerCycle = 1.0f; break;       // 1/4
+    case LFOSyncRate::QuarterDotted:   beatsPerCycle = 1.5f; break;       // 1/4D
+    case LFOSyncRate::QuarterTriplet:  beatsPerCycle = 2.0f / 3.0f; break;// 1/4T
+    case LFOSyncRate::Eighth:          beatsPerCycle = 0.5f; break;       // 1/8
+    case LFOSyncRate::EighthDotted:    beatsPerCycle = 0.75f; break;      // 1/8D
+    case LFOSyncRate::EighthTriplet:   beatsPerCycle = 1.0f / 3.0f; break;// 1/8T
+    case LFOSyncRate::Sixteenth:       beatsPerCycle = 0.25f; break;      // 1/16
+    case LFOSyncRate::SixteenthDotted: beatsPerCycle = 0.375f; break;     // 1/16D
+    case LFOSyncRate::SixteenthTriplet:beatsPerCycle = 1.0f / 6.0f; break;// 1/16T
+    case LFOSyncRate::ThirtySecond:    beatsPerCycle = 0.125f; break;     // 1/32
+    default: return 0.0f;
+  }
+
+  // Hz = beats per minute / 60 seconds / beats per cycle
+  return (bpm / 60.0f) / beatsPerCycle;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // LFO DESTINATION TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
 // Each LFO can modulate one of these destinations.
 // Multiple LFOs can target the same destination (effects are additive).
+//
+// PER-OSCILLATOR ROUTING:
+// Professional synths (Serum, Vital) allow independent modulation per oscillator.
+// This enables techniques like:
+//   - Independent vibrato on Osc1 vs Osc2
+//   - Osc1 with slow WT morph + Osc2 with fast WT morph
+//   - Detuned oscillators with different movement = more "alive" sound
+//
+// We provide both "global" destinations (affect both oscillators) and
+// per-oscillator destinations for maximum flexibility.
 // ═══════════════════════════════════════════════════════════════════════════════
 enum class LFODestination
 {
-  Off = 0,        // No modulation
-  Filter,         // Filter cutoff (±4 octaves at 100% depth)
-  Pitch,          // Global pitch / vibrato (±24 semitones / 2 octaves at 100% depth)
-  PulseWidth,     // Pulse width for both oscillators (±45% at 100% depth)
-  Amplitude,      // Tremolo / amplitude modulation (0-100% at 100% depth)
-  FMDepth,        // FM modulation depth (±100% at 100% depth)
-  WavetablePos,   // Wavetable position (±50% at 100% depth)
+  Off = 0,          // No modulation
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // GLOBAL DESTINATIONS - Affect both oscillators or the entire voice
+  // ─────────────────────────────────────────────────────────────────────────────
+  Filter,           // Filter cutoff (±4 octaves at 100% depth)
+  Pitch,            // Both oscillators pitch (±24 semitones at 100% depth)
+  PulseWidth,       // Both oscillators pulse width (±45% at 100% depth)
+  Amplitude,        // Voice amplitude / tremolo (0-100% at 100% depth)
+  FMDepth,          // Both oscillators FM depth (±100% at 100% depth)
+  WavetablePos,     // Both oscillators WT position (±50% at 100% depth)
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // PER-OSCILLATOR DESTINATIONS - Independent control for Osc1 and Osc2
+  // ─────────────────────────────────────────────────────────────────────────────
+  Osc1Pitch,        // Osc1 only pitch modulation (±24 semitones)
+  Osc2Pitch,        // Osc2 only pitch modulation (±24 semitones)
+  Osc1PulseWidth,   // Osc1 only pulse width (±45%)
+  Osc2PulseWidth,   // Osc2 only pulse width (±45%)
+  Osc1FMDepth,      // Osc1 only FM depth (±100%)
+  Osc2FMDepth,      // Osc2 only FM depth (±100%)
+  Osc1WTPos,        // Osc1 only wavetable position (±50%)
+  Osc2WTPos,        // Osc2 only wavetable position (±50%)
+
   kNumDestinations
 };
 
@@ -1571,6 +1665,9 @@ public:
       mOsc2WavetableOsc.SetWavetable(table);  // Osc2 shares the same wavetable
     }
 
+    // Set parent DSP class pointer (for accessing global LFO buffers)
+    void SetParent(PluginInstanceDSP* parent) { mParent = parent; }
+
     bool GetBusy() const override
     {
       // If marked for recycling, report as not busy so allocator picks this voice
@@ -1655,19 +1752,8 @@ public:
       mEnv = q::adsr_envelope_gen{velEnvConfig, static_cast<float>(mSampleRate)};
       mEnv.attack();
 
-      // ─────────────────────────────────────────────────────────────────────────
-      // LFO RETRIGGER
-      // If retrigger mode is enabled, reset LFO phase on every note-on for
-      // consistent modulation shape. Otherwise, LFO free-runs for evolving sounds.
-      // ─────────────────────────────────────────────────────────────────────────
-      if (mLFO1Retrigger)
-      {
-        mLFO1.Reset();
-      }
-      if (mLFO2Retrigger)
-      {
-        mLFO2.Reset();
-      }
+      // NOTE: LFO retrigger is now handled at the global level in ProcessMidiMsg.
+      // Global LFOs are shared across all voices, so retrigger affects all notes.
 
       // ─────────────────────────────────────────────────────────────────────────
       // RETRIGGER SMOOTHING
@@ -2011,45 +2097,91 @@ public:
         }
 
         // ─────────────────────────────────────────────────────────────────────────
-        // LFO PROCESSING - Calculate modulation values from both LFOs
+        // GLOBAL LFO MODULATION - Read pre-computed values from parent DSP
         // ─────────────────────────────────────────────────────────────────────────
-        // Each LFO outputs -1 to +1. Depth scales the effect.
-        // Multiple LFOs can target the same destination (effects are additive).
+        // LFO values are pre-computed in ProcessBlock for the entire buffer.
+        // This ensures all voices see the same LFO phase (Serum/Vital-style global LFOs).
+        // The buffer values are already mapped from [-1,+1] to [Low,High].
         // ─────────────────────────────────────────────────────────────────────────
-        float lfo1Value = mLFO1.Process();
-        float lfo2Value = mLFO2.Process();
 
         // Initialize modulation accumulators
-        float filterMod = 0.0f;      // Octaves of filter modulation
-        float pitchMod = 0.0f;       // Semitones of pitch modulation
-        float pwMod = 0.0f;          // Pulse width offset (-0.45 to +0.45)
-        float ampMod = 0.0f;         // Amplitude modulation factor
-        float fmDepthMod = 0.0f;     // FM depth offset
-        float wtPosMod = 0.0f;       // Wavetable position offset
+        // GLOBAL modulations (affect both oscillators)
+        float filterMod = 0.0f;        // Octaves of filter modulation
+        float ampMod = 0.0f;           // Amplitude modulation factor
+
+        // PER-OSCILLATOR modulations (independent for Osc1 and Osc2)
+        float osc1PitchMod = 0.0f;     // Osc1 pitch in semitones
+        float osc2PitchMod = 0.0f;     // Osc2 pitch in semitones
+        float osc1PwMod = 0.0f;        // Osc1 pulse width offset
+        float osc2PwMod = 0.0f;        // Osc2 pulse width offset
+        float osc1FmDepthMod = 0.0f;   // Osc1 FM depth offset
+        float osc2FmDepthMod = 0.0f;   // Osc2 FM depth offset
+        float osc1WtPosMod = 0.0f;     // Osc1 wavetable position offset
+        float osc2WtPosMod = 0.0f;     // Osc2 wavetable position offset
+
+        // Read pre-computed LFO values from global buffers (already scaled by Low/High)
+        float lfo1ModAmount = mParent->mLFO1Buffer[i];
+        float lfo2ModAmount = mParent->mLFO2Buffer[i];
 
         // ─────────────────────────────────────────────────────────────────────────
         // LFO1 MODULATION ROUTING
         // ─────────────────────────────────────────────────────────────────────────
-        switch (mLFO1Destination)
+        switch (mParent->mLFO1Destination)
         {
+          // GLOBAL DESTINATIONS
           case LFODestination::Filter:
-            filterMod += lfo1Value * mLFO1Depth * 4.0f;  // ±4 octaves at 100%
+            filterMod += lfo1ModAmount * 4.0f;  // ±4 octaves at ±100%
             break;
           case LFODestination::Pitch:
-            pitchMod += lfo1Value * mLFO1Depth * 24.0f;  // ±24 semitones (2 octaves) at 100%
+            // Global pitch affects BOTH oscillators
+            osc1PitchMod += lfo1ModAmount * 24.0f;  // ±24 semitones at ±100%
+            osc2PitchMod += lfo1ModAmount * 24.0f;
             break;
           case LFODestination::PulseWidth:
-            pwMod += lfo1Value * mLFO1Depth * 0.45f;     // ±45% at 100%
+            // Global PW affects BOTH oscillators
+            osc1PwMod += lfo1ModAmount * 0.45f;  // ±45% PW at ±100%
+            osc2PwMod += lfo1ModAmount * 0.45f;
             break;
           case LFODestination::Amplitude:
-            ampMod += lfo1Value * mLFO1Depth;            // -1 to +1 at 100%
+            ampMod += lfo1ModAmount;
             break;
           case LFODestination::FMDepth:
-            fmDepthMod += lfo1Value * mLFO1Depth;        // ±100% at 100%
+            // Global FM affects BOTH oscillators
+            osc1FmDepthMod += lfo1ModAmount;
+            osc2FmDepthMod += lfo1ModAmount;
             break;
           case LFODestination::WavetablePos:
-            wtPosMod += lfo1Value * mLFO1Depth * 0.5f;   // ±50% at 100%
+            // Global WT position affects BOTH oscillators
+            osc1WtPosMod += lfo1ModAmount * 0.5f;  // ±50% WT at ±100%
+            osc2WtPosMod += lfo1ModAmount * 0.5f;
             break;
+
+          // PER-OSCILLATOR DESTINATIONS
+          case LFODestination::Osc1Pitch:
+            osc1PitchMod += lfo1ModAmount * 24.0f;
+            break;
+          case LFODestination::Osc2Pitch:
+            osc2PitchMod += lfo1ModAmount * 24.0f;
+            break;
+          case LFODestination::Osc1PulseWidth:
+            osc1PwMod += lfo1ModAmount * 0.45f;
+            break;
+          case LFODestination::Osc2PulseWidth:
+            osc2PwMod += lfo1ModAmount * 0.45f;
+            break;
+          case LFODestination::Osc1FMDepth:
+            osc1FmDepthMod += lfo1ModAmount;
+            break;
+          case LFODestination::Osc2FMDepth:
+            osc2FmDepthMod += lfo1ModAmount;
+            break;
+          case LFODestination::Osc1WTPos:
+            osc1WtPosMod += lfo1ModAmount * 0.5f;
+            break;
+          case LFODestination::Osc2WTPos:
+            osc2WtPosMod += lfo1ModAmount * 0.5f;
+            break;
+
           case LFODestination::Off:
           default:
             break;
@@ -2058,26 +2190,58 @@ public:
         // ─────────────────────────────────────────────────────────────────────────
         // LFO2 MODULATION ROUTING (additive with LFO1)
         // ─────────────────────────────────────────────────────────────────────────
-        switch (mLFO2Destination)
+        switch (mParent->mLFO2Destination)
         {
+          // GLOBAL DESTINATIONS
           case LFODestination::Filter:
-            filterMod += lfo2Value * mLFO2Depth * 4.0f;
+            filterMod += lfo2ModAmount * 4.0f;
             break;
           case LFODestination::Pitch:
-            pitchMod += lfo2Value * mLFO2Depth * 24.0f;  // ±24 semitones (2 octaves) at 100%
+            osc1PitchMod += lfo2ModAmount * 24.0f;
+            osc2PitchMod += lfo2ModAmount * 24.0f;
             break;
           case LFODestination::PulseWidth:
-            pwMod += lfo2Value * mLFO2Depth * 0.45f;
+            osc1PwMod += lfo2ModAmount * 0.45f;
+            osc2PwMod += lfo2ModAmount * 0.45f;
             break;
           case LFODestination::Amplitude:
-            ampMod += lfo2Value * mLFO2Depth;
+            ampMod += lfo2ModAmount;
             break;
           case LFODestination::FMDepth:
-            fmDepthMod += lfo2Value * mLFO2Depth;
+            osc1FmDepthMod += lfo2ModAmount;
+            osc2FmDepthMod += lfo2ModAmount;
             break;
           case LFODestination::WavetablePos:
-            wtPosMod += lfo2Value * mLFO2Depth * 0.5f;
+            osc1WtPosMod += lfo2ModAmount * 0.5f;
+            osc2WtPosMod += lfo2ModAmount * 0.5f;
             break;
+
+          // PER-OSCILLATOR DESTINATIONS
+          case LFODestination::Osc1Pitch:
+            osc1PitchMod += lfo2ModAmount * 24.0f;
+            break;
+          case LFODestination::Osc2Pitch:
+            osc2PitchMod += lfo2ModAmount * 24.0f;
+            break;
+          case LFODestination::Osc1PulseWidth:
+            osc1PwMod += lfo2ModAmount * 0.45f;
+            break;
+          case LFODestination::Osc2PulseWidth:
+            osc2PwMod += lfo2ModAmount * 0.45f;
+            break;
+          case LFODestination::Osc1FMDepth:
+            osc1FmDepthMod += lfo2ModAmount;
+            break;
+          case LFODestination::Osc2FMDepth:
+            osc2FmDepthMod += lfo2ModAmount;
+            break;
+          case LFODestination::Osc1WTPos:
+            osc1WtPosMod += lfo2ModAmount * 0.5f;
+            break;
+          case LFODestination::Osc2WTPos:
+            osc2WtPosMod += lfo2ModAmount * 0.5f;
+            break;
+
           case LFODestination::Off:
           default:
             break;
@@ -2092,29 +2256,30 @@ public:
         // ─────────────────────────────────────────────────────────────────────────
 
         // Apply LFO pitch modulation via phase increment scaling
-        // pitchMod is in semitones, convert to frequency ratio
-        float pitchModRatio = std::pow(2.0f, pitchMod / 12.0f);
+        // Per-oscillator pitch modulation allows independent vibrato on each osc
+        float osc1PitchModRatio = std::pow(2.0f, osc1PitchMod / 12.0f);
+        float osc2PitchModRatio = std::pow(2.0f, osc2PitchMod / 12.0f);
 
         // Smooth pulse width for Osc1 (used by all unison voices)
-        // Apply LFO pulse width modulation
-        float modulatedPWTarget = std::max(0.05f, std::min(0.95f, mPulseWidthTarget + pwMod));
+        // Apply per-oscillator LFO pulse width modulation
+        float modulatedPWTarget = std::max(0.05f, std::min(0.95f, mPulseWidthTarget + osc1PwMod));
         mPulseWidth += mPulseWidthSmoothCoeff * (modulatedPWTarget - mPulseWidth);
 
-        // Apply LFO pulse width modulation for Osc2
-        float modulatedOsc2PW = std::max(0.05f, std::min(0.95f, mOsc2PulseWidth + pwMod));
+        // Apply per-oscillator LFO pulse width modulation for Osc2
+        float modulatedOsc2PW = std::max(0.05f, std::min(0.95f, mOsc2PulseWidth + osc2PwMod));
 
         // Smooth FM parameters for Osc1
         mFMRatioTarget = mFMRatioCoarse * (1.0f + mFMRatioFine);
         mFMRatio += mFMSmoothCoeff * (mFMRatioTarget - mFMRatio);
         mFMDepth += mFMSmoothCoeff * (mFMDepthTarget - mFMDepth);
 
-        // Apply LFO FM depth modulation (clamped to 0-1 range)
-        float modulatedFMDepth = std::max(0.0f, std::min(1.0f, mFMDepth + fmDepthMod));
-        float modulatedOsc2FMDepth = std::max(0.0f, std::min(1.0f, mOsc2FMDepth + fmDepthMod));
+        // Apply per-oscillator LFO FM depth modulation (clamped to 0-1 range)
+        float modulatedFMDepth = std::max(0.0f, std::min(1.0f, mFMDepth + osc1FmDepthMod));
+        float modulatedOsc2FMDepth = std::max(0.0f, std::min(1.0f, mOsc2FMDepth + osc2FmDepthMod));
 
-        // Apply LFO wavetable position modulation (clamped to 0-1 range)
-        float modulatedWTPos = std::max(0.0f, std::min(1.0f, mWavetablePosition + wtPosMod));
-        float modulatedOsc2WTPos = std::max(0.0f, std::min(1.0f, mOsc2MorphPosition + wtPosMod));
+        // Apply per-oscillator LFO wavetable position modulation (clamped to 0-1 range)
+        float modulatedWTPos = std::max(0.0f, std::min(1.0f, mWavetablePosition + osc1WtPosMod));
+        float modulatedOsc2WTPos = std::max(0.0f, std::min(1.0f, mOsc2MorphPosition + osc2WtPosMod));
 
         // ─────────────────────────────────────────────────────────────────────────
         // PER-OSCILLATOR UNISON GENERATION (Serum-style)
@@ -2135,9 +2300,9 @@ public:
         {
           float osc1Sample = 0.0f;
           // Pre-calculate modulated phase increment for pitch LFO
-          // This applies vibrato effect when LFO destination is set to Pitch
+          // This applies vibrato effect when LFO destination is Pitch or Osc1Pitch
           uint32_t osc1ModulatedStep = static_cast<uint32_t>(
-              static_cast<float>(mOsc1UnisonPhases[v]._step.rep) * pitchModRatio);
+              static_cast<float>(mOsc1UnisonPhases[v]._step.rep) * osc1PitchModRatio);
 
           switch (mWaveform)
           {
@@ -2193,12 +2358,12 @@ public:
             {
               // Apply LFO wavetable position modulation
               mWavetableOsc.SetPosition(modulatedWTPos);
-              // Apply pitch modulation to wavetable phase increment
-              float modulatedWTPhaseInc = mOsc1WavetablePhaseIncs[v] * pitchModRatio;
+              // Apply pitch modulation to wavetable phase increment (per-oscillator)
+              float modulatedWTPhaseInc = mOsc1WavetablePhaseIncs[v] * osc1PitchModRatio;
               if (v == 0)
-                osc1Sample = mWavetableOsc.ProcessWithPitchMod(pitchModRatio);
+                osc1Sample = mWavetableOsc.ProcessWithPitchMod(osc1PitchModRatio);
               else
-                osc1Sample = mWavetableOsc.ProcessAtPhase(mOsc1WavetablePhases[v], modulatedWTPhaseInc, mOsc1WavetableFreqs[v] * pitchModRatio);
+                osc1Sample = mWavetableOsc.ProcessAtPhase(mOsc1WavetablePhases[v], modulatedWTPhaseInc, mOsc1WavetableFreqs[v] * osc1PitchModRatio);
               break;
             }
             default:
@@ -2380,9 +2545,9 @@ public:
             float osc2Sample = 0.0f;
 
             // Pre-calculate modulated phase increment for pitch LFO
-            // This applies vibrato effect when LFO destination is set to Pitch
+            // This applies vibrato effect when LFO destination is Pitch or Osc2Pitch
             uint32_t osc2ModulatedStep = static_cast<uint32_t>(
-                static_cast<float>(mOsc2UnisonPhases[v]._step.rep) * pitchModRatio);
+                static_cast<float>(mOsc2UnisonPhases[v]._step.rep) * osc2PitchModRatio);
 
             switch (mOsc2Waveform)
             {
@@ -2439,12 +2604,12 @@ public:
               {
                 // Apply LFO wavetable position modulation
                 mOsc2WavetableOsc.SetPosition(modulatedOsc2WTPos);
-                // Apply pitch modulation to wavetable phase increment
-                float modulatedWTPhaseInc = mOsc2WavetablePhaseIncs[v] * pitchModRatio;
+                // Apply pitch modulation to wavetable phase increment (per-oscillator)
+                float modulatedWTPhaseInc = mOsc2WavetablePhaseIncs[v] * osc2PitchModRatio;
                 if (v == 0)
-                  osc2Sample = mOsc2WavetableOsc.ProcessWithPitchMod(pitchModRatio);
+                  osc2Sample = mOsc2WavetableOsc.ProcessWithPitchMod(osc2PitchModRatio);
                 else
-                  osc2Sample = mOsc2WavetableOsc.ProcessAtPhase(mOsc2WavetablePhases[v], modulatedWTPhaseInc, mOsc2WavetableFreqs[v] * pitchModRatio);
+                  osc2Sample = mOsc2WavetableOsc.ProcessAtPhase(mOsc2WavetablePhases[v], modulatedWTPhaseInc, mOsc2WavetableFreqs[v] * osc2PitchModRatio);
                 break;
               }
               default:
@@ -2552,19 +2717,24 @@ public:
         // The LFO modulates the filter cutoff in octaves for musical results.
         // At 100% depth, the LFO sweeps ±4 octaves around the base cutoff.
         //
-        // Formula: modulatedCutoff = baseCutoff × 2^(lfoValue × depth × 4)
-        //   - lfoValue: -1 to +1 from LFO
-        //   - depth: 0 to 1 (0% to 100%)
-        //   - 4 octaves max = factor of 16 up or down
+        // Formula: modulatedCutoff = baseCutoff × 2^(filterMod)
         //
-        // Example at 50% depth, LFO at +1:
-        //   modOctaves = 1 × 0.5 × 4 = 2 octaves up
-        //   1000Hz base → 4000Hz modulated
+        // IMPORTANT: We clamp filterMod (in octaves) BEFORE the exponential
+        // calculation to prevent glitches. Hard-clamping the frequency AFTER
+        // the exponential creates discontinuities (flat spots) in the LFO sweep
+        // that cause audible clicks. By clamping in the octave domain, the
+        // sweep smoothly approaches the limits without discontinuity.
+        //
+        // Example: base=10kHz, filterMod limited to log2(20000/10000)=1 octave up
         // ─────────────────────────────────────────────────────────────────────────
-        // filterMod is already calculated from LFO routing above (in octaves)
+        // Calculate octave limits based on current base cutoff
+        // modulatedCutoff = base * 2^filterMod must stay within [20Hz, 20kHz]
+        float maxFilterMod = std::log2(20000.0f / std::max(20.0f, mFilterCutoffBase));
+        float minFilterMod = std::log2(20.0f / std::max(20.0f, mFilterCutoffBase));
+        // Clamp filterMod to valid octave range (prevents glitches at extremes)
+        filterMod = std::max(minFilterMod, std::min(maxFilterMod, filterMod));
+
         float modulatedCutoff = mFilterCutoffBase * std::pow(2.0f, filterMod);
-        // Clamp to valid filter range
-        modulatedCutoff = std::max(20.0f, std::min(20000.0f, modulatedCutoff));
         mFilterL.SetCutoff(modulatedCutoff);
         mFilterR.SetCutoff(modulatedCutoff);
 
@@ -2588,15 +2758,18 @@ public:
         // ─────────────────────────────────────────────────────────────────────────
         // AMPLITUDE MODULATION (Tremolo)
         // ─────────────────────────────────────────────────────────────────────────
-        // ampMod ranges from -depth to +depth (not -1 to +1!)
-        // Tremolo should: keep full volume on positive swing, reduce on negative
-        //   - LFO at +1 (ampMod = +depth): multiplier = 1.0 (full volume)
-        //   - LFO at  0 (ampMod = 0):      multiplier = 1.0 (full volume)
-        //   - LFO at -1 (ampMod = -depth): multiplier = 1-depth (reduced)
-        // This gives classic tremolo that dips down from full volume.
+        // Symmetric tremolo: LFO modulates volume around a center point.
+        // Maps ampMod from [-1, +1] to amplitude multiplier [0, 1]:
+        //   - ampMod = -1 (LFO min) → multiplier = 0.0 (silence)
+        //   - ampMod =  0 (LFO mid) → multiplier = 0.5 (half volume)
+        //   - ampMod = +1 (LFO max) → multiplier = 1.0 (full volume)
+        //
+        // Use Low/High to control the tremolo range:
+        //   - Low=-100%, High=+100%: Full 0-100% tremolo
+        //   - Low=0%, High=+100%: Subtle 50-100% tremolo (no silence)
+        //   - Low=-100%, High=0%: Ducking effect 0-50%
         // ─────────────────────────────────────────────────────────────────────────
-        float ampMultiplier = 1.0f + std::min(0.0f, ampMod);
-        ampMultiplier = std::max(0.0f, ampMultiplier);  // Safety clamp
+        float ampMultiplier = std::max(0.0f, std::min(1.0f, (1.0f + ampMod) * 0.5f));
 
         // STEP 3: Apply envelope, velocity, and amplitude modulation
         float sampleLeft = dcFreeLeft * envAmp * mVelocity * ampMultiplier;
@@ -2628,8 +2801,7 @@ public:
       mOsc2WavetableOsc.SetSampleRate(static_cast<float>(sampleRate));  // Osc2 wavetable
       mFilterL.SetSampleRate(static_cast<float>(sampleRate));
       mFilterR.SetSampleRate(static_cast<float>(sampleRate));
-      mLFO1.SetSampleRate(static_cast<float>(sampleRate));
-      mLFO2.SetSampleRate(static_cast<float>(sampleRate));
+      // NOTE: LFO sample rates are set globally in PluginInstanceDSP::Reset()
 
       // Pulse width smoothing: ~5ms for responsive but click-free modulation
       mPulseWidthSmoothCoeff = calcSmoothingCoeff(0.005f, static_cast<float>(sampleRate));
@@ -2765,26 +2937,13 @@ public:
       }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // ─────────────────────────────────────────────────────────────────────────
-    // LFO1 SETTERS
-    // ─────────────────────────────────────────────────────────────────────────
-    void SetLFO1Rate(float hz) { mLFO1.SetRate(hz); }
-    void SetLFO1Depth(float depth) { mLFO1Depth = depth; }  // 0.0-1.0
-    void SetLFO1Waveform(int waveform) { mLFO1.SetWaveform(static_cast<LFOWaveform>(waveform)); }
-    void SetLFO1Retrigger(bool retrigger) { mLFO1Retrigger = retrigger; }
-    void SetLFO1Destination(int dest) { mLFO1Destination = static_cast<LFODestination>(dest); }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // LFO2 SETTERS
-    // ─────────────────────────────────────────────────────────────────────────
-    void SetLFO2Rate(float hz) { mLFO2.SetRate(hz); }
-    void SetLFO2Depth(float depth) { mLFO2Depth = depth; }  // 0.0-1.0
-    void SetLFO2Waveform(int waveform) { mLFO2.SetWaveform(static_cast<LFOWaveform>(waveform)); }
-    void SetLFO2Retrigger(bool retrigger) { mLFO2Retrigger = retrigger; }
-    void SetLFO2Destination(int dest) { mLFO2Destination = static_cast<LFODestination>(dest); }
+    // NOTE: LFO setters have been moved to PluginInstanceDSP (global LFOs).
+    // Voice accesses LFO values via mParent->mLFO1Buffer[] etc.
 
   private:
+    // Parent DSP class pointer for accessing global LFO buffers
+    PluginInstanceDSP* mParent = nullptr;
+
     // ─────────────────────────────────────────────────────────────────────────
     // PHASE ITERATOR - Q library's oscillator driver
     // Fixed-point 1.31 format: 32-bit unsigned int where full cycle = 2^32
@@ -2848,22 +3007,9 @@ public:
     ResonantFilter mFilterR;             // Right channel filter (stereo processing)
     float mFilterCutoffBase = 10000.0f;  // Base filter cutoff from knob (before LFO modulation)
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // ─────────────────────────────────────────────────────────────────────────
-    // LFO1 - First modulation source
-    // ─────────────────────────────────────────────────────────────────────────
-    LFO mLFO1;                                          // LFO1 instance
-    float mLFO1Depth = 0.0f;                            // Modulation depth (0.0-1.0)
-    bool mLFO1Retrigger = false;                        // Reset LFO1 phase on note-on
-    LFODestination mLFO1Destination = LFODestination::Filter;  // Default: Filter
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // LFO2 - Second modulation source
-    // ─────────────────────────────────────────────────────────────────────────
-    LFO mLFO2;                                          // LFO2 instance
-    float mLFO2Depth = 0.0f;                            // Modulation depth (0.0-1.0)
-    bool mLFO2Retrigger = false;                        // Reset LFO2 phase on note-on
-    LFODestination mLFO2Destination = LFODestination::Off;     // Default: Off
+    // NOTE: LFOs are now GLOBAL (in PluginInstanceDSP) instead of per-voice.
+    // This ensures all voices modulate in sync (Serum/Vital-style behavior).
+    // Voices access LFO values via mParent->mLFO1Buffer[] and mParent->mLFO2Buffer[].
 
     // ─────────────────────────────────────────────────────────────────────────
     // DC BLOCKER - Q Library Implementation
@@ -3067,6 +3213,7 @@ public:
     for (int i = 0; i < nVoices; i++)
     {
       Voice* voice = new Voice();
+      voice->SetParent(this);           // Set parent for global LFO access
       voice->SetWavetable(mWavetable);  // Share wavetable data
       mSynth.AddVoice(voice, 0);
       mVoices.push_back(voice);  // Track for cleanup
@@ -3091,10 +3238,56 @@ public:
 
   void ProcessBlock(T** inputs, T** outputs, int nOutputs, int nFrames)
   {
+    // Safety check: clamp block size to buffer limit to prevent overflow
+    if (nFrames > kMaxBlockSize) nFrames = kMaxBlockSize;
+
     // Clear outputs first
     for (int c = 0; c < nOutputs; c++)
     {
       memset(outputs[c], 0, nFrames * sizeof(T));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PROCESS LFO RETRIGGER FLAGS (Thread-Safe)
+    // Check atomic flags set by ProcessMidiMsg and reset LFOs if needed.
+    // Using exchange() ensures we clear the flag atomically.
+    // ─────────────────────────────────────────────────────────────────────────
+    if (mLFO1NeedsReset.exchange(false, std::memory_order_acquire))
+    {
+      mGlobalLFO1.Reset();
+    }
+    if (mLFO2NeedsReset.exchange(false, std::memory_order_acquire))
+    {
+      mGlobalLFO2.Reset();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PRE-COMPUTE GLOBAL LFO BUFFERS
+    // Compute LFO values for the entire block BEFORE voice processing.
+    // This ensures all voices see the same LFO phase, achieving Serum/Vital-style
+    // global LFO behavior where all notes in a chord modulate in sync.
+    //
+    // IMPORTANT: We clamp the final values to [-1.0, +1.0] to prevent the Low/High
+    // settings from exceeding the intended modulation depth. Without clamping:
+    //   - Low=-200%, High=+200% would give ±200% modulation
+    //   - Filter would get ±8 octaves instead of ±4
+    //   - Pitch would get ±48 semitones instead of ±24
+    // ─────────────────────────────────────────────────────────────────────────
+    for (int s = 0; s < nFrames; s++)
+    {
+      // Process LFO1 and map to Low/High range
+      float lfo1Raw = mGlobalLFO1.Process();
+      float lfo1Normalized = (lfo1Raw + 1.0f) * 0.5f;  // [-1,+1] → [0,1]
+      float lfo1Mapped = mLFO1Low + lfo1Normalized * (mLFO1High - mLFO1Low);
+      // Clamp to [-1, +1] to prevent exceeding intended modulation depth
+      mLFO1Buffer[s] = std::max(-1.0f, std::min(1.0f, lfo1Mapped));
+
+      // Process LFO2 and map to Low/High range
+      float lfo2Raw = mGlobalLFO2.Process();
+      float lfo2Normalized = (lfo2Raw + 1.0f) * 0.5f;  // [-1,+1] → [0,1]
+      float lfo2Mapped = mLFO2Low + lfo2Normalized * (mLFO2High - mLFO2Low);
+      // Clamp to [-1, +1] to prevent exceeding intended modulation depth
+      mLFO2Buffer[s] = std::max(-1.0f, std::min(1.0f, lfo2Mapped));
     }
 
     // MidiSynth processes MIDI queue and calls voice ProcessSamplesAccumulating
@@ -3168,6 +3361,12 @@ public:
     // Calculate gain smoothing coefficient for ~20ms time constant
     // This ensures consistent smoothing behavior across all sample rates
     mGainSmoothCoeff = calcSmoothingCoeff(0.02f, static_cast<float>(sampleRate));
+
+    // Initialize global LFOs with the correct sample rate
+    mGlobalLFO1.SetSampleRate(static_cast<float>(sampleRate));
+    mGlobalLFO2.SetSampleRate(static_cast<float>(sampleRate));
+    mGlobalLFO1.Reset();
+    mGlobalLFO2.Reset();
   }
 
   void ProcessMidiMsg(const IMidiMsg& msg)
@@ -3224,10 +3423,83 @@ public:
       {
         bestStealCandidate->MarkForRecycle();
       }
+
+      // ─────────────────────────────────────────────────────────────────────────
+      // GLOBAL LFO RETRIGGER (Thread-Safe)
+      // If retrigger mode is enabled, set a flag to reset LFO phase.
+      // The actual reset happens in ProcessBlock to avoid race conditions,
+      // since ProcessMidiMsg may be called from a different thread.
+      // ─────────────────────────────────────────────────────────────────────────
+      if (mLFO1Retrigger)
+      {
+        mLFO1NeedsReset.store(true, std::memory_order_release);
+      }
+      if (mLFO2Retrigger)
+      {
+        mLFO2NeedsReset.store(true, std::memory_order_release);
+      }
     }
 
     mSynth.AddMidiMsgToQueue(msg);
   }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // GLOBAL LFO SETTERS
+  // LFOs are now global (Serum/Vital-style), shared across all voices.
+  // ─────────────────────────────────────────────────────────────────────────────
+  void SetTempo(float bpm)
+  {
+    mTempo = bpm;
+    // Recalculate LFO rates if they're tempo-synced
+    if (mLFO1SyncRate != LFOSyncRate::Off)
+      mGlobalLFO1.SetRate(SyncRateToHz(mLFO1SyncRate, mTempo));
+    if (mLFO2SyncRate != LFOSyncRate::Off)
+      mGlobalLFO2.SetRate(SyncRateToHz(mLFO2SyncRate, mTempo));
+  }
+
+  void SetLFO1Rate(float hz)
+  {
+    mLFO1FreeRate = hz;
+    if (mLFO1SyncRate == LFOSyncRate::Off)
+      mGlobalLFO1.SetRate(hz);
+  }
+
+  void SetLFO1Sync(int sync)
+  {
+    mLFO1SyncRate = static_cast<LFOSyncRate>(sync);
+    if (mLFO1SyncRate == LFOSyncRate::Off)
+      mGlobalLFO1.SetRate(mLFO1FreeRate);
+    else
+      mGlobalLFO1.SetRate(SyncRateToHz(mLFO1SyncRate, mTempo));
+  }
+
+  void SetLFO1Low(float low) { mLFO1Low = low / 100.0f; }      // Convert % to decimal
+  void SetLFO1High(float high) { mLFO1High = high / 100.0f; }  // Convert % to decimal
+  void SetLFO1Waveform(int waveform) { mGlobalLFO1.SetWaveform(static_cast<LFOWaveform>(waveform)); }
+  void SetLFO1Retrigger(bool retrigger) { mLFO1Retrigger = retrigger; }
+  void SetLFO1Destination(int dest) { mLFO1Destination = static_cast<LFODestination>(dest); }
+
+  void SetLFO2Rate(float hz)
+  {
+    mLFO2FreeRate = hz;
+    if (mLFO2SyncRate == LFOSyncRate::Off)
+      mGlobalLFO2.SetRate(hz);
+  }
+
+  void SetLFO2Sync(int sync)
+  {
+    mLFO2SyncRate = static_cast<LFOSyncRate>(sync);
+    if (mLFO2SyncRate == LFOSyncRate::Off)
+      mGlobalLFO2.SetRate(mLFO2FreeRate);
+    else
+      mGlobalLFO2.SetRate(SyncRateToHz(mLFO2SyncRate, mTempo));
+  }
+
+  void SetLFO2Low(float low) { mLFO2Low = low / 100.0f; }      // Convert % to decimal
+  void SetLFO2High(float high) { mLFO2High = high / 100.0f; }  // Convert % to decimal
+  void SetLFO2Waveform(int waveform) { mGlobalLFO2.SetWaveform(static_cast<LFOWaveform>(waveform)); }
+  void SetLFO2Retrigger(bool retrigger) { mLFO2Retrigger = retrigger; }
+  void SetLFO2Destination(int dest) { mLFO2Destination = static_cast<LFODestination>(dest); }
 
   void SetParam(int paramIdx, double value)
   {
@@ -3494,69 +3766,66 @@ public:
         break;
 
       // ─────────────────────────────────────────────────────────────────────────
-      // LFO1 PARAMETERS
+      // LFO1 PARAMETERS (GLOBAL)
+      // LFOs are now global - all voices share the same LFO phase (Serum/Vital-style)
       // ─────────────────────────────────────────────────────────────────────────
       case kParamLFO1Rate:
-        mSynth.ForEachVoice([value](SynthVoice& voice) {
-          dynamic_cast<Voice&>(voice).SetLFO1Rate(static_cast<float>(value));
-        });
+        SetLFO1Rate(static_cast<float>(value));
         break;
 
-      case kParamLFO1Depth:
-        mSynth.ForEachVoice([value](SynthVoice& voice) {
-          dynamic_cast<Voice&>(voice).SetLFO1Depth(static_cast<float>(value / 100.0));
-        });
+      case kParamLFO1Low:
+        SetLFO1Low(static_cast<float>(value));
+        break;
+
+      case kParamLFO1High:
+        SetLFO1High(static_cast<float>(value));
         break;
 
       case kParamLFO1Waveform:
-        mSynth.ForEachVoice([value](SynthVoice& voice) {
-          dynamic_cast<Voice&>(voice).SetLFO1Waveform(static_cast<int>(value));
-        });
+        SetLFO1Waveform(static_cast<int>(value));
         break;
 
       case kParamLFO1Retrigger:
-        mSynth.ForEachVoice([value](SynthVoice& voice) {
-          dynamic_cast<Voice&>(voice).SetLFO1Retrigger(static_cast<int>(value) == 1);
-        });
+        SetLFO1Retrigger(static_cast<int>(value) == 1);
         break;
 
       case kParamLFO1Destination:
-        mSynth.ForEachVoice([value](SynthVoice& voice) {
-          dynamic_cast<Voice&>(voice).SetLFO1Destination(static_cast<int>(value));
-        });
+        SetLFO1Destination(static_cast<int>(value));
+        break;
+
+      case kParamLFO1Sync:
+        SetLFO1Sync(static_cast<int>(value));
         break;
 
       // ─────────────────────────────────────────────────────────────────────────
-      // LFO2 PARAMETERS
+      // LFO2 PARAMETERS (GLOBAL)
       // ─────────────────────────────────────────────────────────────────────────
       case kParamLFO2Rate:
-        mSynth.ForEachVoice([value](SynthVoice& voice) {
-          dynamic_cast<Voice&>(voice).SetLFO2Rate(static_cast<float>(value));
-        });
+        SetLFO2Rate(static_cast<float>(value));
         break;
 
-      case kParamLFO2Depth:
-        mSynth.ForEachVoice([value](SynthVoice& voice) {
-          dynamic_cast<Voice&>(voice).SetLFO2Depth(static_cast<float>(value / 100.0));
-        });
+      case kParamLFO2Low:
+        SetLFO2Low(static_cast<float>(value));
+        break;
+
+      case kParamLFO2High:
+        SetLFO2High(static_cast<float>(value));
         break;
 
       case kParamLFO2Waveform:
-        mSynth.ForEachVoice([value](SynthVoice& voice) {
-          dynamic_cast<Voice&>(voice).SetLFO2Waveform(static_cast<int>(value));
-        });
+        SetLFO2Waveform(static_cast<int>(value));
         break;
 
       case kParamLFO2Retrigger:
-        mSynth.ForEachVoice([value](SynthVoice& voice) {
-          dynamic_cast<Voice&>(voice).SetLFO2Retrigger(static_cast<int>(value) == 1);
-        });
+        SetLFO2Retrigger(static_cast<int>(value) == 1);
         break;
 
       case kParamLFO2Destination:
-        mSynth.ForEachVoice([value](SynthVoice& voice) {
-          dynamic_cast<Voice&>(voice).SetLFO2Destination(static_cast<int>(value));
-        });
+        SetLFO2Destination(static_cast<int>(value));
+        break;
+
+      case kParamLFO2Sync:
+        SetLFO2Sync(static_cast<int>(value));
         break;
 
       default:
@@ -3571,4 +3840,38 @@ private:
   float mGain = 0.8f;
   float mGainSmoothed = 0.8f;
   float mGainSmoothCoeff = 0.001f;  // Sample-rate aware, set in Reset()
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // GLOBAL LFOs - Shared across all voices (Serum/Vital style)
+  // Unlike per-voice LFOs, global LFOs ensure all voices modulate in sync.
+  // Pre-computed buffers enable sample-accurate modulation.
+  // ─────────────────────────────────────────────────────────────────────────────
+  static constexpr int kMaxBlockSize = 4096;
+
+  // LFO1 - Global instance and config
+  LFO mGlobalLFO1;
+  float mLFO1Buffer[kMaxBlockSize] = {0};   // Pre-computed values for current block
+  float mLFO1Low = -1.0f;                   // Low point (-1.0 to +1.0, maps to -100% to +100%)
+  float mLFO1High = 1.0f;                   // High point (-1.0 to +1.0, maps to -100% to +100%)
+  LFODestination mLFO1Destination = LFODestination::Filter;
+  bool mLFO1Retrigger = false;
+  LFOSyncRate mLFO1SyncRate = LFOSyncRate::Off;
+  float mLFO1FreeRate = 1.0f;               // Free-running rate (Hz)
+
+  // LFO2 - Global instance and config
+  LFO mGlobalLFO2;
+  float mLFO2Buffer[kMaxBlockSize] = {0};   // Pre-computed values for current block
+  float mLFO2Low = 0.0f;                    // Low point (default 0 = off)
+  float mLFO2High = 0.0f;                   // High point (default 0 = off)
+  LFODestination mLFO2Destination = LFODestination::Off;
+  bool mLFO2Retrigger = false;
+  LFOSyncRate mLFO2SyncRate = LFOSyncRate::Off;
+  float mLFO2FreeRate = 1.0f;               // Free-running rate (Hz)
+
+  // Thread-safe LFO retrigger flags
+  // Set by ProcessMidiMsg (may be on MIDI thread), read/cleared by ProcessBlock (audio thread)
+  std::atomic<bool> mLFO1NeedsReset{false};
+  std::atomic<bool> mLFO2NeedsReset{false};
+
+  float mTempo = 120.0f;                    // Host tempo in BPM
 };

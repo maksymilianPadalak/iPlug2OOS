@@ -91,11 +91,24 @@ export const runtimeParameters: RuntimeParameter[] = [
   { id: 34, name: "Osc2 Uni Bld", type: "float", min: 0, max: 100, default: 75, step: 0.1, unit: "%", group: "Oscillator 2", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamOsc2UnisonBlend" },
   // Oscillator sync - classic analog sync sound
   { id: 35, name: "Osc Sync", type: "enum", min: 0, max: 1, default: 0, step: 1, unit: "", group: "Oscillator", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Off", "Hard"], automatable: true, key: "kParamOscSync" },
-  // LFO - Low Frequency Oscillator for filter modulation
-  { id: 36, name: "LFO Rate", type: "float", min: 0.01, max: 20, default: 1, step: 0.01, unit: "Hz", group: "LFO", shape: "ShapePowCurve", shapeParameter: 3, enumValues: null, automatable: true, key: "kParamLFORate" },
-  { id: 37, name: "LFO Depth", type: "float", min: 0, max: 100, default: 0, step: 0.1, unit: "%", group: "LFO", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamLFODepth" },
-  { id: 38, name: "LFO Wave", type: "enum", min: 0, max: 5, default: 0, step: 1, unit: "", group: "LFO", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Sine", "Triangle", "Saw Up", "Saw Down", "Square", "S&H"], automatable: true, key: "kParamLFOWaveform" },
-  { id: 39, name: "LFO Retrig", type: "enum", min: 0, max: 1, default: 0, step: 1, unit: "", group: "LFO", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Free", "Retrig"], automatable: true, key: "kParamLFORetrigger" },
+  // LFO1 - Low Frequency Oscillator 1 for modulation
+  // Low/High system: LFO sweeps from Low to High for full control over direction and range
+  // Tempo Sync: When not "Off", LFO syncs to host tempo using musical divisions
+  { id: 36, name: "LFO1 Rate", type: "float", min: 0.01, max: 20, default: 1, step: 0.01, unit: "Hz", group: "LFO1", shape: "ShapePowCurve", shapeParameter: 3, enumValues: null, automatable: true, key: "kParamLFO1Rate" },
+  { id: 37, name: "LFO1 Sync", type: "enum", min: 0, max: 16, default: 0, step: 1, unit: "", group: "LFO1", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Off", "4/1", "2/1", "1/1", "1/2", "1/2D", "1/2T", "1/4", "1/4D", "1/4T", "1/8", "1/8D", "1/8T", "1/16", "1/16D", "1/16T", "1/32"], automatable: true, key: "kParamLFO1Sync" },
+  { id: 38, name: "LFO1 Low", type: "float", min: -100, max: 100, default: -100, step: 1, unit: "%", group: "LFO1", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamLFO1Low" },
+  { id: 39, name: "LFO1 High", type: "float", min: -100, max: 100, default: 100, step: 1, unit: "%", group: "LFO1", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamLFO1High" },
+  { id: 40, name: "LFO1 Wave", type: "enum", min: 0, max: 5, default: 0, step: 1, unit: "", group: "LFO1", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Sine", "Triangle", "Saw Up", "Saw Down", "Square", "S&H"], automatable: true, key: "kParamLFO1Waveform" },
+  { id: 41, name: "LFO1 Retrig", type: "enum", min: 0, max: 1, default: 0, step: 1, unit: "", group: "LFO1", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Free", "Retrig"], automatable: true, key: "kParamLFO1Retrigger" },
+  { id: 42, name: "LFO1 Dest", type: "enum", min: 0, max: 14, default: 1, step: 1, unit: "", group: "LFO1", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Off", "Filter", "Pitch", "PW", "Amp", "FM", "WT Pos", "Osc1 Pitch", "Osc2 Pitch", "Osc1 PW", "Osc2 PW", "Osc1 FM", "Osc2 FM", "Osc1 WT", "Osc2 WT"], automatable: true, key: "kParamLFO1Destination" },
+  // LFO2 - Low Frequency Oscillator 2 for modulation
+  { id: 43, name: "LFO2 Rate", type: "float", min: 0.01, max: 20, default: 0.5, step: 0.01, unit: "Hz", group: "LFO2", shape: "ShapePowCurve", shapeParameter: 3, enumValues: null, automatable: true, key: "kParamLFO2Rate" },
+  { id: 44, name: "LFO2 Sync", type: "enum", min: 0, max: 16, default: 0, step: 1, unit: "", group: "LFO2", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Off", "4/1", "2/1", "1/1", "1/2", "1/2D", "1/2T", "1/4", "1/4D", "1/4T", "1/8", "1/8D", "1/8T", "1/16", "1/16D", "1/16T", "1/32"], automatable: true, key: "kParamLFO2Sync" },
+  { id: 45, name: "LFO2 Low", type: "float", min: -100, max: 100, default: 0, step: 1, unit: "%", group: "LFO2", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamLFO2Low" },
+  { id: 46, name: "LFO2 High", type: "float", min: -100, max: 100, default: 0, step: 1, unit: "%", group: "LFO2", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamLFO2High" },
+  { id: 47, name: "LFO2 Wave", type: "enum", min: 0, max: 5, default: 0, step: 1, unit: "", group: "LFO2", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Sine", "Triangle", "Saw Up", "Saw Down", "Square", "S&H"], automatable: true, key: "kParamLFO2Waveform" },
+  { id: 48, name: "LFO2 Retrig", type: "enum", min: 0, max: 1, default: 0, step: 1, unit: "", group: "LFO2", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Free", "Retrig"], automatable: true, key: "kParamLFO2Retrigger" },
+  { id: 49, name: "LFO2 Dest", type: "enum", min: 0, max: 14, default: 0, step: 1, unit: "", group: "LFO2", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Off", "Filter", "Pitch", "PW", "Amp", "FM", "WT Pos", "Osc1 Pitch", "Osc2 Pitch", "Osc1 PW", "Osc2 PW", "Osc1 FM", "Osc2 FM", "Osc1 WT", "Osc2 WT"], automatable: true, key: "kParamLFO2Destination" },
 ];
 
 // Control tags (for SCMFD - meters, etc.)
@@ -148,11 +161,22 @@ export const EParams = {
   kParamOsc2UnisonBlend: 34,
   // Oscillator sync
   kParamOscSync: 35,
-  // LFO parameters
-  kParamLFORate: 36,
-  kParamLFODepth: 37,
-  kParamLFOWaveform: 38,
-  kParamLFORetrigger: 39,
+  // LFO1 parameters (Low/High system + Tempo Sync)
+  kParamLFO1Rate: 36,
+  kParamLFO1Sync: 37,
+  kParamLFO1Low: 38,
+  kParamLFO1High: 39,
+  kParamLFO1Waveform: 40,
+  kParamLFO1Retrigger: 41,
+  kParamLFO1Destination: 42,
+  // LFO2 parameters (Low/High system + Tempo Sync)
+  kParamLFO2Rate: 43,
+  kParamLFO2Sync: 44,
+  kParamLFO2Low: 45,
+  kParamLFO2High: 46,
+  kParamLFO2Waveform: 47,
+  kParamLFO2Retrigger: 48,
+  kParamLFO2Destination: 49,
 } as const;
 
 export const EControlTags = {

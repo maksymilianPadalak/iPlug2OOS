@@ -60,12 +60,28 @@ enum EParams
   // ═══════════════════════════════════════════════════════════════════════════
   kParamOscSync,            // Sync mode: Off, Hard (Osc2 syncs to Osc1)
   // ═══════════════════════════════════════════════════════════════════════════
-  // LFO - Low Frequency Oscillator for modulation
+  // LFO1 - Low Frequency Oscillator 1 for modulation
+  // Low/High system: LFO sweeps from Low to High, enabling unipolar, inverted,
+  // and asymmetric modulation. Replaces simple Depth for full control.
+  // Tempo Sync: When not "Off", LFO syncs to host tempo using musical divisions.
   // ═══════════════════════════════════════════════════════════════════════════
-  kParamLFORate,            // LFO rate (0.01-20 Hz)
-  kParamLFODepth,           // LFO depth to filter cutoff (0-100%)
-  kParamLFOWaveform,        // LFO waveform (Sine, Tri, SawUp, SawDown, Square, S&H)
-  kParamLFORetrigger,       // LFO retrigger mode (Off=free-running, On=retrigger)
+  kParamLFO1Rate,           // LFO1 rate (0.01-20 Hz) - used when sync is off
+  kParamLFO1Sync,           // LFO1 tempo sync (Off, 4/1, 2/1, 1/1, 1/2, 1/4, 1/8, 1/16, 1/32 + dotted/triplet)
+  kParamLFO1Low,            // LFO1 low point (-200% to +100%), where LFO goes at minimum
+  kParamLFO1High,           // LFO1 high point (-100% to +200%), where LFO goes at maximum
+  kParamLFO1Waveform,       // LFO1 waveform (Sine, Tri, SawUp, SawDown, Square, S&H)
+  kParamLFO1Retrigger,      // LFO1 retrigger mode (Free, Retrig)
+  kParamLFO1Destination,    // LFO1 destination (Off, Filter, Pitch, PW, Amp, FM, WT, per-osc)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LFO2 - Low Frequency Oscillator 2 for modulation
+  // ═══════════════════════════════════════════════════════════════════════════
+  kParamLFO2Rate,           // LFO2 rate (0.01-20 Hz) - used when sync is off
+  kParamLFO2Sync,           // LFO2 tempo sync (Off, 4/1, 2/1, 1/1, 1/2, 1/4, 1/8, 1/16, 1/32 + dotted/triplet)
+  kParamLFO2Low,            // LFO2 low point (-200% to +100%), where LFO goes at minimum
+  kParamLFO2High,           // LFO2 high point (-100% to +200%), where LFO goes at maximum
+  kParamLFO2Waveform,       // LFO2 waveform (Sine, Tri, SawUp, SawDown, Square, S&H)
+  kParamLFO2Retrigger,      // LFO2 retrigger mode (Free, Retrig)
+  kParamLFO2Destination,    // LFO2 destination (Off, Filter, Pitch, PW, Amp, FM, WT, per-osc)
   kNumParams
 };
 

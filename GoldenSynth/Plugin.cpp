@@ -165,16 +165,65 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   //   Off = free-running (each note different phase, evolving pads)
   //   On = phase resets to 0 (consistent attack, good for bass/leads)
   // ═══════════════════════════════════════════════════════════════════════════════
-  GetParam(kParamLFORate)->InitDouble("LFO Rate", 1., 0.01, 20., 0.01, "Hz",
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // LFO1 PARAMETERS
+  // ═══════════════════════════════════════════════════════════════════════════════
+  GetParam(kParamLFO1Rate)->InitDouble("LFO1 Rate", 1., 0.01, 20., 0.01, "Hz",
     IParam::kFlagsNone, "", IParam::ShapePowCurve(3.0));  // Exponential for musical feel
 
-  GetParam(kParamLFODepth)->InitDouble("LFO Depth", 0., 0., 100., 0.1, "%");  // 0 = off by default
+  // Tempo Sync: Musical divisions for syncing LFO to host tempo
+  // When not "Off", the Rate knob is ignored and LFO syncs to tempo
+  GetParam(kParamLFO1Sync)->InitEnum("LFO1 Sync", 0, 17, "", IParam::kFlagsNone, "",
+    "Off", "4/1", "2/1", "1/1", "1/2", "1/2D", "1/2T",
+    "1/4", "1/4D", "1/4T", "1/8", "1/8D", "1/8T",
+    "1/16", "1/16D", "1/16T", "1/32");  // D=dotted, T=triplet
 
-  GetParam(kParamLFOWaveform)->InitEnum("LFO Wave", 0, 6, "", IParam::kFlagsNone, "",
+  // Low/High range system: LFO sweeps from Low to High
+  // Default -100% to +100% = standard bipolar modulation
+  // Set Low=0 for unipolar+, High=0 for unipolar-, swap for inverted
+  // Range clamped to ±100% to prevent exceeding intended modulation depths
+  GetParam(kParamLFO1Low)->InitDouble("LFO1 Low", -100., -100., 100., 0.1, "%");
+  GetParam(kParamLFO1High)->InitDouble("LFO1 High", 100., -100., 100., 0.1, "%");
+
+  GetParam(kParamLFO1Waveform)->InitEnum("LFO1 Wave", 0, 6, "", IParam::kFlagsNone, "",
     "Sine", "Triangle", "Saw Up", "Saw Down", "Square", "S&H");
 
-  GetParam(kParamLFORetrigger)->InitEnum("LFO Retrig", 0, 2, "", IParam::kFlagsNone, "",
+  GetParam(kParamLFO1Retrigger)->InitEnum("LFO1 Retrig", 0, 2, "", IParam::kFlagsNone, "",
     "Free", "Retrig");  // Default free-running
+
+  // LFO1 Destination: What parameter this LFO modulates
+  // Off = no modulation, useful for disabling without losing other settings
+  // Per-oscillator destinations allow independent modulation of each oscillator
+  GetParam(kParamLFO1Destination)->InitEnum("LFO1 Dest", 1, 15, "", IParam::kFlagsNone, "",
+    "Off", "Filter", "Pitch", "PW", "Amp", "FM", "WT Pos",
+    "Osc1 Pitch", "Osc2 Pitch", "Osc1 PW", "Osc2 PW", "Osc1 FM", "Osc2 FM", "Osc1 WT", "Osc2 WT");  // Default Filter (index 1)
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // LFO2 PARAMETERS
+  // ═══════════════════════════════════════════════════════════════════════════════
+  GetParam(kParamLFO2Rate)->InitDouble("LFO2 Rate", 0.5, 0.01, 20., 0.01, "Hz",
+    IParam::kFlagsNone, "", IParam::ShapePowCurve(3.0));  // Slower default for variety
+
+  // Tempo Sync for LFO2
+  GetParam(kParamLFO2Sync)->InitEnum("LFO2 Sync", 0, 17, "", IParam::kFlagsNone, "",
+    "Off", "4/1", "2/1", "1/1", "1/2", "1/2D", "1/2T",
+    "1/4", "1/4D", "1/4T", "1/8", "1/8D", "1/8T",
+    "1/16", "1/16D", "1/16T", "1/32");
+
+  // Low/High range system for LFO2 (default off: both at 0)
+  // Range clamped to ±100% to prevent exceeding intended modulation depths
+  GetParam(kParamLFO2Low)->InitDouble("LFO2 Low", 0., -100., 100., 0.1, "%");
+  GetParam(kParamLFO2High)->InitDouble("LFO2 High", 0., -100., 100., 0.1, "%");
+
+  GetParam(kParamLFO2Waveform)->InitEnum("LFO2 Wave", 0, 6, "", IParam::kFlagsNone, "",
+    "Sine", "Triangle", "Saw Up", "Saw Down", "Square", "S&H");
+
+  GetParam(kParamLFO2Retrigger)->InitEnum("LFO2 Retrig", 0, 2, "", IParam::kFlagsNone, "",
+    "Free", "Retrig");  // Default free-running
+
+  GetParam(kParamLFO2Destination)->InitEnum("LFO2 Dest", 0, 15, "", IParam::kFlagsNone, "",
+    "Off", "Filter", "Pitch", "PW", "Amp", "FM", "WT Pos",
+    "Osc1 Pitch", "Osc2 Pitch", "Osc1 PW", "Osc2 PW", "Osc1 FM", "Osc2 FM", "Osc1 WT", "Osc2 WT");  // Default Off (index 0)
 
 #if IPLUG_EDITOR
 #if defined(WEBVIEW_EDITOR_DELEGATE)
@@ -192,6 +241,14 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
 #if IPLUG_DSP
 void PluginInstance::ProcessBlock(sample** inputs, sample** outputs, int nFrames)
 {
+#ifndef WAM_API
+  // Get host tempo for LFO sync (falls back to 120 BPM if host doesn't provide tempo)
+  // Note: GetTimeInfo() not available in WAM builds
+  const ITimeInfo timeInfo = GetTimeInfo();
+  if (timeInfo.mTempo > 0.0)
+    mDSP.SetTempo(static_cast<float>(timeInfo.mTempo));
+#endif
+
   mDSP.ProcessBlock(nullptr, outputs, 2, nFrames);
   mMeterSender.ProcessBlock(outputs, nFrames, kCtrlTagMeter);
   mWaveformSender.ProcessBlock(outputs, nFrames, kCtrlTagWaveform, 1, 0);
