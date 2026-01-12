@@ -3768,6 +3768,10 @@ public:
     // Process delay AFTER gain scaling to prevent feedback loop blowup.
     // The signal entering the delay is already at a controlled level, so
     // the feedback loop remains stable even at high feedback settings.
+    //
+    // BYPASS: When mDelayEnable is false, the entire loop is skipped.
+    // Signal passes through unchanged (already in outputs buffer).
+    // This provides true zero CPU overhead when delay is disabled.
     // ─────────────────────────────────────────────────────────────────────────
     if (nOutputs >= 2 && mDelayEnable)
     {
@@ -4409,5 +4413,11 @@ private:
   StereoDelay mDelay;
   float mDelayTimeMs = 250.0f;              // Manual delay time when sync is off
   DelaySyncRate mDelaySyncRate = DelaySyncRate::Off;
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // GLOBAL DELAY ENABLE - Bypass entire delay processing when off (zero CPU)
+  // Unlike filter bypass which still processes signal path, delay bypass skips
+  // the entire processing loop for true zero-overhead when disabled.
+  // ─────────────────────────────────────────────────────────────────────────────
   bool mDelayEnable = false;                // Default OFF (effect, not core sound)
 };
