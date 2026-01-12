@@ -41,6 +41,7 @@ export function PluginBody() {
         {/* Header */}
         <Title title="GoldenSynth" version="1.0" color="cyan" />
 
+        <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ scrollbarGutter: 'stable' }}>
         <GridFoundation>
           {/* Top Row: Master with Meters + Gain + Waveform */}
           <Section title="Master" size="full">
@@ -137,6 +138,18 @@ export function PluginBody() {
             </SubGroup>
           </Section>
 
+          {/* Delay - Stereo delay with ping-pong mode */}
+          <Section title="Delay" size="full">
+            <SubGroup layout="row">
+              <Knob paramId={EParams.kParamDelayTime} label="Time" color="magenta" />
+              <Dropdown paramId={EParams.kParamDelaySync} label="Sync" />
+              <Knob paramId={EParams.kParamDelayFeedback} label="Feedback" color="magenta" />
+              <Knob paramId={EParams.kParamDelayDry} label="Dry" color="magenta" />
+              <Knob paramId={EParams.kParamDelayWet} label="Wet" color="magenta" />
+              <Dropdown paramId={EParams.kParamDelayMode} label="Mode" />
+            </SubGroup>
+          </Section>
+
           {/* Bottom Row: Envelope */}
           <Section title="Envelope" size="full">
             <ADSRDisplay
@@ -155,6 +168,7 @@ export function PluginBody() {
             </SubGroup>
           </Section>
         </GridFoundation>
+        </div>
       </div>
     </div>
   );

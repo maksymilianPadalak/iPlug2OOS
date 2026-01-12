@@ -111,6 +111,13 @@ export const runtimeParameters: RuntimeParameter[] = [
   { id: 49, name: "LFO2 Wave", type: "enum", min: 0, max: 5, default: 0, step: 1, unit: "", group: "LFO2", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Sine", "Triangle", "Saw Up", "Saw Down", "Square", "S&H"], automatable: true, key: "kParamLFO2Waveform" },
   { id: 50, name: "LFO2 Retrig", type: "enum", min: 0, max: 1, default: 0, step: 1, unit: "", group: "LFO2", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Free", "Retrig"], automatable: true, key: "kParamLFO2Retrigger" },
   { id: 51, name: "LFO2 Dest", type: "enum", min: 0, max: 14, default: 0, step: 1, unit: "", group: "LFO2", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Off", "Filter", "Pitch", "PW", "Amp", "FM", "WT Pos", "Osc1 Pitch", "Osc2 Pitch", "Osc1 PW", "Osc2 PW", "Osc1 FM", "Osc2 FM", "Osc1 WT", "Osc2 WT"], automatable: true, key: "kParamLFO2Destination" },
+  // Stereo Delay - simple delay with separate dry/wet levels
+  { id: 52, name: "Delay Time", type: "float", min: 1, max: 2000, default: 250, step: 1, unit: "ms", group: "Delay", shape: "ShapePowCurve", shapeParameter: 2, enumValues: null, automatable: true, key: "kParamDelayTime" },
+  { id: 53, name: "Delay Sync", type: "enum", min: 0, max: 14, default: 0, step: 1, unit: "", group: "Delay", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Off", "1/1", "1/2D", "1/2", "1/2T", "1/4D", "1/4", "1/4T", "1/8D", "1/8", "1/8T", "1/16D", "1/16", "1/16T", "1/32"], automatable: true, key: "kParamDelaySync" },
+  { id: 54, name: "Delay Fdbk", type: "float", min: 0, max: 90, default: 30, step: 0.1, unit: "%", group: "Delay", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamDelayFeedback" },
+  { id: 55, name: "Delay Dry", type: "float", min: 0, max: 100, default: 100, step: 0.1, unit: "%", group: "Delay", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamDelayDry" },
+  { id: 56, name: "Delay Wet", type: "float", min: 0, max: 100, default: 0, step: 0.1, unit: "%", group: "Delay", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamDelayWet" },
+  { id: 57, name: "Delay Mode", type: "enum", min: 0, max: 1, default: 0, step: 1, unit: "", group: "Delay", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Stereo", "Ping-Pong"], automatable: true, key: "kParamDelayMode" },
 ];
 
 // Control tags (for SCMFD - meters, etc.)
@@ -181,6 +188,13 @@ export const EParams = {
   kParamLFO2Waveform: 49,
   kParamLFO2Retrigger: 50,
   kParamLFO2Destination: 51,
+  // Stereo Delay parameters
+  kParamDelayTime: 52,
+  kParamDelaySync: 53,
+  kParamDelayFeedback: 54,
+  kParamDelayDry: 55,
+  kParamDelayWet: 56,
+  kParamDelayMode: 57,
 } as const;
 
 export const EControlTags = {

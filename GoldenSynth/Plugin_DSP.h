@@ -20,6 +20,8 @@
 #include <q/synth/envelope_gen.hpp>
 #include <q/synth/noise_gen.hpp>
 #include <q/fx/dc_block.hpp>
+#include <q/fx/delay.hpp>
+#include <q/fx/biquad.hpp>
 
 using namespace iplug;
 namespace q = cycfi::q;
@@ -813,6 +815,310 @@ private:
   q::bandpass_cpg mNotchBandpass{q::frequency{1000.0f}, 48000.0f, 0.707};
 
   FilterType mType = FilterType::Lowpass;
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DELAY MODE - Stereo behavior
+// ═══════════════════════════════════════════════════════════════════════════════
+enum class DelayMode
+{
+  Stereo = 0,   // Parallel L/R delays (standard stereo)
+  PingPong,     // Alternating L/R delays (classic ping-pong effect)
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DELAY SYNC RATES - Musical tempo divisions
+// ═══════════════════════════════════════════════════════════════════════════════
+enum class DelaySyncRate
+{
+  Off = 0,            // Use manual ms rate
+  Whole,              // 1/1 - whole note (4 beats)
+  HalfDotted,         // 1/2D - dotted half (3 beats)
+  Half,               // 1/2 - half note (2 beats)
+  HalfTriplet,        // 1/2T - half triplet (4/3 beats)
+  QuarterDotted,      // 1/4D - dotted quarter (1.5 beats)
+  Quarter,            // 1/4 - quarter note (1 beat)
+  QuarterTriplet,     // 1/4T - quarter triplet (2/3 beat)
+  EighthDotted,       // 1/8D - dotted eighth (0.75 beats)
+  Eighth,             // 1/8 - eighth note (0.5 beats)
+  EighthTriplet,      // 1/8T - eighth triplet (1/3 beat)
+  SixteenthDotted,    // 1/16D - dotted sixteenth (0.375 beats)
+  Sixteenth,          // 1/16 - sixteenth (0.25 beats)
+  SixteenthTriplet,   // 1/16T - sixteenth triplet (1/6 beat)
+  ThirtySecond,       // 1/32 - thirty-second (0.125 beats)
+  kNumSyncRates
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TEMPO SYNC HELPER - Convert delay sync rate to milliseconds
+// ═══════════════════════════════════════════════════════════════════════════════
+inline float DelaySyncRateToMs(DelaySyncRate syncRate, float bpm)
+{
+  if (syncRate == DelaySyncRate::Off || bpm <= 0.0f)
+    return 0.0f;
+
+  // Milliseconds per beat = 60000 / BPM
+  float msPerBeat = 60000.0f / bpm;
+
+  // Beats per note for each sync rate
+  float beatsPerNote = 1.0f;
+
+  switch (syncRate)
+  {
+    case DelaySyncRate::Whole:            beatsPerNote = 4.0f; break;
+    case DelaySyncRate::HalfDotted:       beatsPerNote = 3.0f; break;
+    case DelaySyncRate::Half:             beatsPerNote = 2.0f; break;
+    case DelaySyncRate::HalfTriplet:      beatsPerNote = 4.0f / 3.0f; break;
+    case DelaySyncRate::QuarterDotted:    beatsPerNote = 1.5f; break;
+    case DelaySyncRate::Quarter:          beatsPerNote = 1.0f; break;
+    case DelaySyncRate::QuarterTriplet:   beatsPerNote = 2.0f / 3.0f; break;
+    case DelaySyncRate::EighthDotted:     beatsPerNote = 0.75f; break;
+    case DelaySyncRate::Eighth:           beatsPerNote = 0.5f; break;
+    case DelaySyncRate::EighthTriplet:    beatsPerNote = 1.0f / 3.0f; break;
+    case DelaySyncRate::SixteenthDotted:  beatsPerNote = 0.375f; break;
+    case DelaySyncRate::Sixteenth:        beatsPerNote = 0.25f; break;
+    case DelaySyncRate::SixteenthTriplet: beatsPerNote = 1.0f / 6.0f; break;
+    case DelaySyncRate::ThirtySecond:     beatsPerNote = 0.125f; break;
+    default: return 0.0f;
+  }
+
+  return msPerBeat * beatsPerNote;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STEREO DELAY - Simple delay with separate dry/wet levels
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// FEATURES:
+// - Hermite interpolation: 4-point cubic interpolation for smooth delay time
+//   modulation without artifacts (superior to linear interpolation)
+// - DC blocking: Prevents DC offset buildup in feedback loop
+// - Soft saturation: Prevents runaway feedback while adding warmth
+// - Tempo sync: Lock delay time to musical divisions
+// - Separate dry/wet levels: Independent control of original and delayed signal
+//
+// HERMITE INTERPOLATION:
+// Uses 4-point, 3rd-order Hermite polynomial for reading fractional delay times.
+// This preserves high frequencies better than linear interpolation and reduces
+// aliasing artifacts when delay time is modulated.
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+class StereoDelay
+{
+public:
+  // Maximum delay time in seconds (2 seconds = 2000ms)
+  static constexpr float kMaxDelaySeconds = 2.0f;
+
+  // Maximum feedback to prevent runaway (90% is safe with saturation)
+  static constexpr float kMaxFeedback = 0.90f;
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // INITIALIZATION
+  // ─────────────────────────────────────────────────────────────────────────────
+  void SetSampleRate(float sampleRate)
+  {
+    mSampleRate = sampleRate;
+
+    // Smoothing coefficient for delay time changes (~10ms)
+    mSmoothCoeff = calcSmoothingCoeff(0.010f, sampleRate);
+
+    // Resize delay buffers (+4 for hermite interpolation safety margin)
+    int maxSamples = static_cast<int>(kMaxDelaySeconds * sampleRate) + 4;
+    mDelayBufferL.resize(maxSamples, 0.0f);
+    mDelayBufferR.resize(maxSamples, 0.0f);
+
+    // Initialize DC blockers (10Hz cutoff for minimal audible effect)
+    mDCBlockL = q::dc_block{10_Hz, sampleRate};
+    mDCBlockR = q::dc_block{10_Hz, sampleRate};
+
+    Reset();
+  }
+
+  void Reset()
+  {
+    // Clear delay buffers
+    std::fill(mDelayBufferL.begin(), mDelayBufferL.end(), 0.0f);
+    std::fill(mDelayBufferR.begin(), mDelayBufferR.end(), 0.0f);
+
+    // Reset write positions
+    mWriteIndex = 0;
+
+    // Snap current delay to target (no smoothing on reset)
+    mDelayTimeSamplesCurrent = mDelayTimeSamplesTarget;
+
+    // Snap dry/wet levels to targets (no smoothing on reset)
+    mDryLevelSmoothed = mDryLevelTarget;
+    mWetLevelSmoothed = mWetLevelTarget;
+
+    // Reset DC blockers
+    mDCBlockL = 0.0f;
+    mDCBlockR = 0.0f;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // PARAMETER SETTERS
+  // ─────────────────────────────────────────────────────────────────────────────
+  void SetDelayTime(float timeMs)
+  {
+    // Convert ms to samples, clamp to valid range
+    float delaySamples = timeMs * 0.001f * mSampleRate;
+    float maxDelay = static_cast<float>(mDelayBufferL.size() - 4);  // -4 for hermite
+    mDelayTimeSamplesTarget = std::max(1.0f, std::min(maxDelay, delaySamples));
+  }
+
+  void SetFeedback(float feedback)
+  {
+    // Clamp to safe range (0-90%)
+    mFeedback = std::max(0.0f, std::min(kMaxFeedback, feedback));
+  }
+
+  void SetDryLevel(float level)
+  {
+    mDryLevelTarget = std::max(0.0f, std::min(1.0f, level));
+  }
+
+  void SetWetLevel(float level)
+  {
+    mWetLevelTarget = std::max(0.0f, std::min(1.0f, level));
+  }
+
+  void SetMode(DelayMode mode)
+  {
+    mMode = mode;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // PROCESSING
+  // ─────────────────────────────────────────────────────────────────────────────
+  void Process(float& left, float& right)
+  {
+    if (mDelayBufferL.empty() || mDelayBufferR.empty())
+      return;
+
+    int bufferSize = static_cast<int>(mDelayBufferL.size());
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SMOOTH DELAY TIME
+    // Prevents clicks when delay time changes (tempo sync, modulation)
+    // ─────────────────────────────────────────────────────────────────────────
+    float timeDiff = mDelayTimeSamplesTarget - mDelayTimeSamplesCurrent;
+    if (std::abs(timeDiff) > 0.001f)
+    {
+      mDelayTimeSamplesCurrent += mSmoothCoeff * timeDiff;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // READ FROM DELAY BUFFER WITH HERMITE INTERPOLATION
+    // ─────────────────────────────────────────────────────────────────────────
+    float readPos = static_cast<float>(mWriteIndex) - mDelayTimeSamplesCurrent;
+    if (readPos < 0.0f) readPos += static_cast<float>(bufferSize);
+
+    float delayedL = HermiteInterpolate(mDelayBufferL, readPos, bufferSize);
+    float delayedR = HermiteInterpolate(mDelayBufferR, readPos, bufferSize);
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FEEDBACK PATH: DC Block → Soft Saturation
+    // ─────────────────────────────────────────────────────────────────────────
+    float processedL = mDCBlockL(delayedL);
+    float processedR = mDCBlockR(delayedR);
+
+    // Soft saturation - prevents runaway while adding warmth
+    if (std::abs(processedL) > 0.8f)
+    {
+      processedL = softSaturate(processedL);
+    }
+    if (std::abs(processedR) > 0.8f)
+    {
+      processedR = softSaturate(processedR);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // WRITE TO DELAY BUFFER
+    // ─────────────────────────────────────────────────────────────────────────
+    if (mMode == DelayMode::PingPong)
+    {
+      // PING-PONG: Cross-feedback creates alternating L/R pattern
+      // L buffer receives: mono input + feedback from R
+      // R buffer receives: feedback from L only (no direct input)
+      // Result: tap1(L) → tap2(R) → tap3(L) → tap4(R) → ...
+      float monoIn = (left + right) * 0.5f;
+      mDelayBufferL[mWriteIndex] = monoIn + mFeedback * processedR;
+      mDelayBufferR[mWriteIndex] = mFeedback * processedL;
+    }
+    else
+    {
+      // STEREO: Parallel L/R delays (standard behavior)
+      mDelayBufferL[mWriteIndex] = left + mFeedback * processedL;
+      mDelayBufferR[mWriteIndex] = right + mFeedback * processedR;
+    }
+
+    // Flush denormals in buffer
+    mDelayBufferL[mWriteIndex] = flushDenormal(mDelayBufferL[mWriteIndex]);
+    mDelayBufferR[mWriteIndex] = flushDenormal(mDelayBufferR[mWriteIndex]);
+
+    // Advance write index with wrap
+    mWriteIndex = (mWriteIndex + 1) % bufferSize;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SMOOTH DRY/WET LEVELS (prevents clicks on parameter changes)
+    // ─────────────────────────────────────────────────────────────────────────
+    mDryLevelSmoothed += mSmoothCoeff * (mDryLevelTarget - mDryLevelSmoothed);
+    mWetLevelSmoothed += mSmoothCoeff * (mWetLevelTarget - mWetLevelSmoothed);
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // OUTPUT: Separate dry and wet levels
+    // ─────────────────────────────────────────────────────────────────────────
+    left = left * mDryLevelSmoothed + delayedL * mWetLevelSmoothed;
+    right = right * mDryLevelSmoothed + delayedR * mWetLevelSmoothed;
+  }
+
+private:
+  // ─────────────────────────────────────────────────────────────────────────────
+  // HERMITE INTERPOLATION (4-point, 3rd-order)
+  // ─────────────────────────────────────────────────────────────────────────────
+  float HermiteInterpolate(const std::vector<float>& buffer, float pos, int size) const
+  {
+    int i = static_cast<int>(pos);
+    float frac = pos - static_cast<float>(i);
+
+    // Get 4 adjacent samples with wraparound
+    float y0 = buffer[(i - 1 + size) % size];
+    float y1 = buffer[i % size];
+    float y2 = buffer[(i + 1) % size];
+    float y3 = buffer[(i + 2) % size];
+
+    // Hermite polynomial coefficients
+    float c0 = y1;
+    float c1 = 0.5f * (y2 - y0);
+    float c2 = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3;
+    float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
+
+    // Evaluate: c0 + c1*x + c2*x^2 + c3*x^3
+    return ((c3 * frac + c2) * frac + c1) * frac + c0;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // MEMBER VARIABLES
+  // ─────────────────────────────────────────────────────────────────────────────
+  float mSampleRate = 48000.0f;
+  float mDelayTimeSamplesTarget = 12000.0f;   // ~250ms at 48kHz
+  float mDelayTimeSamplesCurrent = 12000.0f;
+  float mFeedback = 0.0f;
+  float mDryLevelTarget = 1.0f;    // Target: full dry signal
+  float mWetLevelTarget = 0.0f;    // Target: no wet signal
+  float mDryLevelSmoothed = 1.0f;  // Smoothed value (click-free)
+  float mWetLevelSmoothed = 0.0f;  // Smoothed value (click-free)
+  float mSmoothCoeff = 0.01f;
+  DelayMode mMode = DelayMode::Stereo;
+
+  // Delay buffers
+  std::vector<float> mDelayBufferL;
+  std::vector<float> mDelayBufferR;
+  int mWriteIndex = 0;
+
+  // DC blockers (Q library)
+  q::dc_block mDCBlockL{10_Hz, 48000.0f};
+  q::dc_block mDCBlockR{10_Hz, 48000.0f};
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -3371,6 +3677,27 @@ public:
         }
       }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEREO DELAY PROCESSING
+    // ─────────────────────────────────────────────────────────────────────────
+    // Process delay AFTER gain scaling to prevent feedback loop blowup.
+    // The signal entering the delay is already at a controlled level, so
+    // the feedback loop remains stable even at high feedback settings.
+    // ─────────────────────────────────────────────────────────────────────────
+    if (nOutputs >= 2)
+    {
+      for (int s = 0; s < nFrames; s++)
+      {
+        float left = static_cast<float>(outputs[0][s]);
+        float right = static_cast<float>(outputs[1][s]);
+
+        mDelay.Process(left, right);
+
+        outputs[0][s] = static_cast<T>(left);
+        outputs[1][s] = static_cast<T>(right);
+      }
+    }
   }
 
   void Reset(double sampleRate, int blockSize)
@@ -3388,6 +3715,10 @@ public:
     mGlobalLFO2.SetSampleRate(static_cast<float>(sampleRate));
     mGlobalLFO1.Reset();
     mGlobalLFO2.Reset();
+
+    // Initialize delay effect
+    mDelay.SetSampleRate(static_cast<float>(sampleRate));
+    mDelay.Reset();
   }
 
   void ProcessMidiMsg(const IMidiMsg& msg)
@@ -3476,6 +3807,9 @@ public:
       mGlobalLFO1.SetRate(SyncRateToHz(mLFO1SyncRate, mTempo));
     if (mLFO2SyncRate != LFOSyncRate::Off)
       mGlobalLFO2.SetRate(SyncRateToHz(mLFO2SyncRate, mTempo));
+    // Recalculate delay time if tempo-synced
+    if (mDelaySyncRate != DelaySyncRate::Off)
+      mDelay.SetDelayTime(DelaySyncRateToMs(mDelaySyncRate, mTempo));
   }
 
   void SetLFO1Rate(float hz)
@@ -3863,6 +4197,50 @@ public:
         SetLFO2Sync(static_cast<int>(value));
         break;
 
+      // ─────────────────────────────────────────────────────────────────────────
+      // STEREO DELAY PARAMETERS
+      // ─────────────────────────────────────────────────────────────────────────
+      case kParamDelayTime:
+        mDelayTimeMs = static_cast<float>(value);
+        // Only apply manual delay time if sync is off
+        if (mDelaySyncRate == DelaySyncRate::Off)
+        {
+          mDelay.SetDelayTime(mDelayTimeMs);
+        }
+        break;
+
+      case kParamDelaySync:
+        mDelaySyncRate = static_cast<DelaySyncRate>(static_cast<int>(value));
+        // Recalculate delay time based on sync setting
+        if (mDelaySyncRate == DelaySyncRate::Off)
+        {
+          mDelay.SetDelayTime(mDelayTimeMs);
+        }
+        else
+        {
+          mDelay.SetDelayTime(DelaySyncRateToMs(mDelaySyncRate, mTempo));
+        }
+        break;
+
+      case kParamDelayFeedback:
+        // Convert 0-90% to 0.0-0.9
+        mDelay.SetFeedback(static_cast<float>(value / 100.0));
+        break;
+
+      case kParamDelayDry:
+        // Convert 0-100% to 0.0-1.0
+        mDelay.SetDryLevel(static_cast<float>(value / 100.0));
+        break;
+
+      case kParamDelayWet:
+        // Convert 0-100% to 0.0-1.0
+        mDelay.SetWetLevel(static_cast<float>(value / 100.0));
+        break;
+
+      case kParamDelayMode:
+        mDelay.SetMode(static_cast<DelayMode>(static_cast<int>(value)));
+        break;
+
       default:
         break;
     }
@@ -3909,4 +4287,12 @@ private:
   std::atomic<bool> mLFO2NeedsReset{false};
 
   float mTempo = 120.0f;                    // Host tempo in BPM
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // STEREO DELAY - Post-processing effect with dry/wet filtering
+  // Processed after master gain but before final output
+  // ─────────────────────────────────────────────────────────────────────────────
+  StereoDelay mDelay;
+  float mDelayTimeMs = 250.0f;              // Manual delay time when sync is off
+  DelaySyncRate mDelaySyncRate = DelaySyncRate::Off;
 };

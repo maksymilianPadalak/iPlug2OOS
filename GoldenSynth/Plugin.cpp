@@ -229,6 +229,25 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
     "Off", "Filter", "Pitch", "PW", "Amp", "FM", "WT Pos",
     "Osc1 Pitch", "Osc2 Pitch", "Osc1 PW", "Osc2 PW", "Osc1 FM", "Osc2 FM", "Osc1 WT", "Osc2 WT");  // Default Off (index 0)
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // STEREO DELAY - Tempo-syncable delay with hermite interpolation
+  // ═══════════════════════════════════════════════════════════════════════════════
+  GetParam(kParamDelayTime)->InitDouble("Delay Time", 250., 1., 2000., 1., "ms",
+    IParam::kFlagsNone, "", IParam::ShapePowCurve(2.0));
+
+  GetParam(kParamDelaySync)->InitEnum("Delay Sync", 0, 15, "", IParam::kFlagsNone, "",
+    "Off", "1/1", "1/2D", "1/2", "1/2T", "1/4D", "1/4", "1/4T",
+    "1/8D", "1/8", "1/8T", "1/16D", "1/16", "1/16T", "1/32");
+
+  GetParam(kParamDelayFeedback)->InitDouble("Delay Fdbk", 30., 0., 90., 0.1, "%");
+
+  GetParam(kParamDelayDry)->InitDouble("Delay Dry", 100., 0., 100., 0.1, "%");
+
+  GetParam(kParamDelayWet)->InitDouble("Delay Wet", 0., 0., 100., 0.1, "%");
+
+  GetParam(kParamDelayMode)->InitEnum("Delay Mode", 0, 2, "", IParam::kFlagsNone, "",
+    "Stereo", "Ping-Pong");
+
 #if IPLUG_EDITOR
 #if defined(WEBVIEW_EDITOR_DELEGATE)
   SetCustomUrlScheme("iplug2");

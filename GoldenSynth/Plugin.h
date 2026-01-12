@@ -84,6 +84,15 @@ enum EParams
   kParamLFO2Waveform,       // LFO2 waveform (Sine, Tri, SawUp, SawDown, Square, S&H)
   kParamLFO2Retrigger,      // LFO2 retrigger mode (Free, Retrig)
   kParamLFO2Destination,    // LFO2 destination (Off, Filter, Pitch, PW, Amp, FM, WT, per-osc)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEREO DELAY - Tempo-syncable delay with hermite interpolation
+  // ═══════════════════════════════════════════════════════════════════════════
+  kParamDelayTime,          // Delay time in ms (1-2000ms) when sync is off
+  kParamDelaySync,          // Tempo sync (Off, 1/1, 1/2, 1/4, 1/8, 1/16, 1/32 + dotted/triplet)
+  kParamDelayFeedback,      // Feedback amount (0-90%) - capped for stability
+  kParamDelayDry,           // Dry signal level (0-100%)
+  kParamDelayWet,           // Wet signal level (0-100%)
+  kParamDelayMode,          // Stereo mode: Stereo (parallel) or Ping-Pong (alternating L/R)
   kNumParams
 };
 
