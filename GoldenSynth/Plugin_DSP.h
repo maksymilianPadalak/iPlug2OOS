@@ -3644,27 +3644,48 @@ public:
     // This ensures all voices see the same LFO phase, achieving Serum/Vital-style
     // global LFO behavior where all notes in a chord modulate in sync.
     //
+    // BYPASS OPTIMIZATION: Skip LFO processing entirely when destination is Off.
+    // This saves CPU when LFOs aren't being used (common for simple patches).
+    //
     // IMPORTANT: We clamp the final values to [-1.0, +1.0] to prevent the Low/High
     // settings from exceeding the intended modulation depth. Without clamping:
     //   - Low=-200%, High=+200% would give ±200% modulation
     //   - Filter would get ±8 octaves instead of ±4
     //   - Pitch would get ±48 semitones instead of ±24
     // ─────────────────────────────────────────────────────────────────────────
-    for (int s = 0; s < nFrames; s++)
-    {
-      // Process LFO1 and map to Low/High range
-      float lfo1Raw = mGlobalLFO1.Process();
-      float lfo1Normalized = (lfo1Raw + 1.0f) * 0.5f;  // [-1,+1] → [0,1]
-      float lfo1Mapped = mLFO1Low + lfo1Normalized * (mLFO1High - mLFO1Low);
-      // Clamp to [-1, +1] to prevent exceeding intended modulation depth
-      mLFO1Buffer[s] = std::max(-1.0f, std::min(1.0f, lfo1Mapped));
 
-      // Process LFO2 and map to Low/High range
-      float lfo2Raw = mGlobalLFO2.Process();
-      float lfo2Normalized = (lfo2Raw + 1.0f) * 0.5f;  // [-1,+1] → [0,1]
-      float lfo2Mapped = mLFO2Low + lfo2Normalized * (mLFO2High - mLFO2Low);
-      // Clamp to [-1, +1] to prevent exceeding intended modulation depth
-      mLFO2Buffer[s] = std::max(-1.0f, std::min(1.0f, lfo2Mapped));
+    // LFO1: Process or bypass based on destination
+    if (mLFO1Destination == LFODestination::Off)
+    {
+      // Bypass: fill buffer with 0 (no modulation)
+      std::fill_n(mLFO1Buffer, nFrames, 0.0f);
+    }
+    else
+    {
+      for (int s = 0; s < nFrames; s++)
+      {
+        float lfo1Raw = mGlobalLFO1.Process();
+        float lfo1Normalized = (lfo1Raw + 1.0f) * 0.5f;  // [-1,+1] → [0,1]
+        float lfo1Mapped = mLFO1Low + lfo1Normalized * (mLFO1High - mLFO1Low);
+        mLFO1Buffer[s] = std::max(-1.0f, std::min(1.0f, lfo1Mapped));
+      }
+    }
+
+    // LFO2: Process or bypass based on destination
+    if (mLFO2Destination == LFODestination::Off)
+    {
+      // Bypass: fill buffer with 0 (no modulation)
+      std::fill_n(mLFO2Buffer, nFrames, 0.0f);
+    }
+    else
+    {
+      for (int s = 0; s < nFrames; s++)
+      {
+        float lfo2Raw = mGlobalLFO2.Process();
+        float lfo2Normalized = (lfo2Raw + 1.0f) * 0.5f;  // [-1,+1] → [0,1]
+        float lfo2Mapped = mLFO2Low + lfo2Normalized * (mLFO2High - mLFO2Low);
+        mLFO2Buffer[s] = std::max(-1.0f, std::min(1.0f, lfo2Mapped));
+      }
     }
 
     // MidiSynth processes MIDI queue and calls voice ProcessSamplesAccumulating
