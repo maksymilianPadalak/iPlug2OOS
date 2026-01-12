@@ -598,6 +598,10 @@ public:
     // to avoid numerical issues very close to Nyquist
     mMaxCutoffHz = sampleRate * 0.45f;  // ~21.6kHz at 48kHz
 
+    // Clamp cutoff to new valid range (important when sample rate decreases)
+    mTargetCutoffHz = std::min(mTargetCutoffHz, mMaxCutoffHz);
+    mCurrentCutoffHz = std::min(mCurrentCutoffHz, mMaxCutoffHz);
+
     // Reinitialize all filters at new sample rate
     UpdateAllFilters();
   }
@@ -661,7 +665,7 @@ public:
       needsUpdate = true;
     }
 
-    // Recalculate coefficients for ALL filters when parameters change
+    // Recalculate coefficients when parameters change
     // This ensures switching filter types always has correct coefficients
     if (needsUpdate)
     {
@@ -670,7 +674,9 @@ public:
 
     // ─────────────────────────────────────────────────────────────────────────
     // FILTER PROCESSING
-    // Each filter type uses its own biquad with correct coefficients
+    // ─────────────────────────────────────────────────────────────────────────
+    // The Q library biquad filters handle resonance correctly on their own.
+    // Just pass the signal through - no compensation or manipulation needed.
     // ─────────────────────────────────────────────────────────────────────────
     float output;
     switch (mType)
@@ -711,7 +717,6 @@ public:
     // NaN/INFINITY PROTECTION & STATE SATURATION
     // At high resonance, filter states can grow unbounded, eventually producing
     // NaN or Infinity. Once corrupted, ALL subsequent samples become NaN.
-    // This causes the "oscillator stops working" bug.
     //
     // SOLUTION: Saturate filter states to prevent runaway, and check output.
     // ─────────────────────────────────────────────────────────────────────────
@@ -725,16 +730,30 @@ public:
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // SOFT SATURATION
-    // At high resonance, filter can exceed unity gain. Apply gentle saturation
-    // to prevent harsh digital clipping while preserving the character.
+    // ANALOG-STYLE SOFT SATURATION
     // ─────────────────────────────────────────────────────────────────────────
-    if (mCurrentResonance > 0.5f)
+    // Real analog filters naturally saturate when driven hard, creating warm
+    // harmonic distortion rather than harsh digital clipping. We emulate this
+    // by applying soft saturation only to peaks that exceed a threshold.
+    //
+    // - Signals below threshold: pass through unchanged (preserve dynamics)
+    // - Signals above threshold: soft-clip to prevent harsh distortion
+    //
+    // This preserves the resonance character while preventing the "weird noise"
+    // that occurs when digital clipping kicks in at extreme settings.
+    // ─────────────────────────────────────────────────────────────────────────
+    constexpr float kSaturationThreshold = 1.5f;  // Start saturating above ±1.5
+    constexpr float kSaturationCeiling = 3.0f;    // Asymptotic limit
+
+    if (std::abs(output) > kSaturationThreshold)
     {
-      float satAmount = (mCurrentResonance - 0.5f) * 2.0f;
-      float dry = output;
-      float wet = softSaturate(output * 1.5f);
-      output = dry + satAmount * (wet - dry);
+      // Soft saturation: smoothly compress peaks above threshold
+      // Formula: threshold + (ceiling - threshold) * tanh((x - threshold) / (ceiling - threshold))
+      float sign = output > 0.0f ? 1.0f : -1.0f;
+      float excess = std::abs(output) - kSaturationThreshold;
+      float range = kSaturationCeiling - kSaturationThreshold;
+      float compressed = kSaturationThreshold + range * softSaturate(excess / range);
+      output = sign * compressed;
     }
 
     return output;
@@ -756,7 +775,7 @@ private:
     if (mSampleRate <= 0.0f) return;
 
     q::frequency freq{mCurrentCutoffHz};
-    double qVal = ResonanceToQ(mCurrentResonance);
+    float qVal = ResonanceToQ(mCurrentResonance);
 
     mLowpass.config(freq, mSampleRate, qVal);
     mHighpass.config(freq, mSampleRate, qVal);
@@ -781,30 +800,46 @@ private:
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // FILTER STATE SATURATION
-  // Prevents filter states from growing unbounded at high resonance.
-  // Uses soft saturation (tanh-like) to maintain filter character while
-  // preventing runaway. This is more musical than hard clamping.
+  // FILTER STATE SATURATION (matches output saturation ceiling)
   // ─────────────────────────────────────────────────────────────────────────
+  // CRITICAL: State limit MUST equal output saturation ceiling (3.0).
+  //
+  // Why? The biquad stores output as state y1. If output saturation returns
+  // 3.0 but we clamp y1 to 0.2, there's a discontinuity:
+  //   - Output returned: 3.0
+  //   - State stored: 0.2
+  //   - Next sample sees y1=0.2 but expected ~3.0 → GLITCH!
+  //
+  // By matching limits (both 3.0), we ensure consistency:
+  //   - Output clamped to 3.0 → stored as y1 = 3.0 → stays 3.0
+  //   - No discontinuity, no glitch
+  //
+  // The output saturation naturally limits state growth over time.
+  // ─────────────────────────────────────────────────────────────────────────
+  static constexpr float kStateSaturationLimit = 3.0f;  // Must match kSaturationCeiling!
+
   void SaturateBiquadStates(q::biquad& bq)
   {
-    // Soft saturate states to prevent runaway - threshold at ±4.0
-    constexpr float kStateLimit = 4.0f;
     auto saturateState = [](float x) {
-      if (x > kStateLimit) return kStateLimit * softSaturate(x / kStateLimit);
-      if (x < -kStateLimit) return kStateLimit * softSaturate(x / kStateLimit);
+      if (x > kStateSaturationLimit) return kStateSaturationLimit * softSaturate(x / kStateSaturationLimit);
+      if (x < -kStateSaturationLimit) return kStateSaturationLimit * softSaturate(x / kStateSaturationLimit);
       return x;
     };
     bq.y1 = saturateState(bq.y1);
     bq.y2 = saturateState(bq.y2);
   }
 
+  // Only saturate the active filter's states (performance optimization)
   void SaturateFilterStates()
   {
-    SaturateBiquadStates(mLowpass);
-    SaturateBiquadStates(mHighpass);
-    SaturateBiquadStates(mBandpass);
-    SaturateBiquadStates(mNotchBandpass);
+    switch (mType)
+    {
+      case FilterType::Lowpass:  SaturateBiquadStates(mLowpass); break;
+      case FilterType::Highpass: SaturateBiquadStates(mHighpass); break;
+      case FilterType::Bandpass: SaturateBiquadStates(mBandpass); break;
+      case FilterType::Notch:    SaturateBiquadStates(mNotchBandpass); break;
+      default: break;
+    }
   }
 
   float mSampleRate = 48000.0f;
