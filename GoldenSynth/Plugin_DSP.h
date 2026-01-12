@@ -6,6 +6,73 @@
 #include <vector>
 #include <atomic>
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// DENORMAL PROTECTION - Prevent CPU spikes from tiny floating-point values
+// ═══════════════════════════════════════════════════════════════════════════════
+// Denormal (subnormal) numbers are extremely small floats that require special
+// CPU handling, causing 10-100x slowdowns. They commonly occur in:
+// - Filter feedback loops decaying to silence
+// - Reverb/delay tails fading out
+// - Envelope release stages
+//
+// Solution: Set FTZ (Flush To Zero) and DAZ (Denormals Are Zero) CPU flags.
+// These treat denormals as zero, eliminating the performance penalty.
+//
+// Platform support:
+// - x86/x64 with SSE: Use MXCSR register
+// - ARM with NEON: Use FPCR register
+// - Other: Graceful fallback (no-op)
+// ═══════════════════════════════════════════════════════════════════════════════
+#if defined(__SSE__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 1)
+  #include <xmmintrin.h>  // SSE: _mm_setcsr, _mm_getcsr
+  #define HAS_SSE_DENORMAL_CONTROL 1
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+  #define HAS_ARM_DENORMAL_CONTROL 1
+#endif
+
+// RAII helper to enable denormal flushing for a scope
+// Usage: DenormalGuard guard; // at start of ProcessBlock
+class DenormalGuard
+{
+public:
+  DenormalGuard()
+  {
+#if defined(HAS_SSE_DENORMAL_CONTROL)
+    // Save current MXCSR state
+    mPreviousState = _mm_getcsr();
+    // Set FTZ (bit 15) and DAZ (bit 6) flags
+    // 0x8040 = FTZ | DAZ
+    _mm_setcsr(mPreviousState | 0x8040);
+#elif defined(HAS_ARM_DENORMAL_CONTROL)
+    // ARM: Set FZ bit in FPCR (Floating-Point Control Register)
+    uint64_t fpcr;
+    __asm__ __volatile__("mrs %0, fpcr" : "=r"(fpcr));
+    mPreviousState = static_cast<unsigned int>(fpcr);
+    fpcr |= (1 << 24);  // FZ bit
+    __asm__ __volatile__("msr fpcr, %0" : : "r"(fpcr));
+#endif
+  }
+
+  ~DenormalGuard()
+  {
+#if defined(HAS_SSE_DENORMAL_CONTROL)
+    // Restore previous MXCSR state
+    _mm_setcsr(mPreviousState);
+#elif defined(HAS_ARM_DENORMAL_CONTROL)
+    // Restore previous FPCR state
+    uint64_t fpcr = mPreviousState;
+    __asm__ __volatile__("msr fpcr, %0" : : "r"(fpcr));
+#endif
+  }
+
+  // Non-copyable
+  DenormalGuard(const DenormalGuard&) = delete;
+  DenormalGuard& operator=(const DenormalGuard&) = delete;
+
+private:
+  unsigned int mPreviousState = 0;
+};
+
 // iPlug2 Synth Infrastructure
 #include "MidiSynth.h"
 
@@ -3626,6 +3693,14 @@ public:
 
   void ProcessBlock(T** inputs, T** outputs, int nOutputs, int nFrames)
   {
+    // ─────────────────────────────────────────────────────────────────────────
+    // DENORMAL PROTECTION
+    // ─────────────────────────────────────────────────────────────────────────
+    // Enable FTZ/DAZ for this block to prevent CPU spikes from denormals.
+    // The guard automatically restores flags when ProcessBlock returns.
+    // ─────────────────────────────────────────────────────────────────────────
+    DenormalGuard denormalGuard;
+
     // Safety check: clamp block size to buffer limit to prevent overflow
     if (nFrames > kMaxBlockSize) nFrames = kMaxBlockSize;
 
@@ -3787,6 +3862,54 @@ public:
       }
     }
     // When delay is disabled, signal passes through unchanged (already in outputs)
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FINAL SAFETY STAGE - Last line of defense before output
+    // ─────────────────────────────────────────────────────────────────────────
+    // This stage guarantees safe output regardless of what happened upstream.
+    // Three layers of protection:
+    //   1. Soft saturation - Musical handling of most overs (warm harmonics)
+    //   2. Hard clamp - Absolute guarantee signal stays within ±1.0
+    //   3. NaN/Inf check - Replace corrupt samples with silence
+    //
+    // WHY AFTER DELAY?
+    // Delay feedback can accumulate and exceed safe levels even if the input
+    // was safe. This catches any edge cases from delay, extreme settings,
+    // or unexpected interactions.
+    //
+    // WHY ALL THREE?
+    // - Soft saturation alone doesn't guarantee ±1.0 (tanh approaches but never reaches)
+    // - Hard clamp alone sounds harsh if hit frequently
+    // - NaN check catches filter blowups, division by zero, etc.
+    // Together they provide transparent, musical, bulletproof protection.
+    // ─────────────────────────────────────────────────────────────────────────
+    for (int s = 0; s < nFrames; s++)
+    {
+      for (int c = 0; c < nOutputs; c++)
+      {
+        float sample = static_cast<float>(outputs[c][s]);
+
+        // Layer 1: Soft saturation for signals approaching limits
+        // Only engage when signal exceeds 0.95 to stay transparent
+        if (std::abs(sample) > 0.95f)
+        {
+          sample = softSaturate(sample);
+        }
+
+        // Layer 2: Hard clamp - absolute safety net
+        // Guarantees output never exceeds ±1.0 (0 dBFS)
+        sample = std::max(-1.0f, std::min(1.0f, sample));
+
+        // Layer 3: NaN/Inf protection - nuclear option
+        // If somehow we got a corrupt value, replace with silence
+        if (isAudioCorrupt(sample))
+        {
+          sample = 0.0f;
+        }
+
+        outputs[c][s] = static_cast<T>(sample);
+      }
+    }
   }
 
   void Reset(double sampleRate, int blockSize)
