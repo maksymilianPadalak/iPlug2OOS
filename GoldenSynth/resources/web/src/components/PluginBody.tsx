@@ -116,6 +116,7 @@ export function PluginBody() {
 
           <Section title="LFO 1" size="wide">
             <SubGroup layout="row">
+              <Dropdown paramId={EParams.kParamLFO1Enable} label="On" />
               <Dropdown paramId={EParams.kParamLFO1Waveform} label="Wave" />
               <Knob paramId={EParams.kParamLFO1Rate} label="Rate" color="orange" />
               <Dropdown paramId={EParams.kParamLFO1Sync} label="Sync" />
@@ -128,6 +129,7 @@ export function PluginBody() {
 
           <Section title="LFO 2" size="wide">
             <SubGroup layout="row">
+              <Dropdown paramId={EParams.kParamLFO2Enable} label="On" />
               <Dropdown paramId={EParams.kParamLFO2Waveform} label="Wave" />
               <Knob paramId={EParams.kParamLFO2Rate} label="Rate" color="cyan" />
               <Dropdown paramId={EParams.kParamLFO2Sync} label="Sync" />

@@ -66,7 +66,9 @@ enum EParams
   // Low/High system: LFO sweeps from Low to High, enabling unipolar, inverted,
   // and asymmetric modulation. Replaces simple Depth for full control.
   // Tempo Sync: When not "Off", LFO syncs to host tempo using musical divisions.
+  // Rate at 0 Hz = static offset (LFO frozen, Low/High control DC offset).
   // ═══════════════════════════════════════════════════════════════════════════
+  kParamLFO1Enable,         // LFO1 on/off toggle (Off = bypassed entirely)
   kParamLFO1Rate,           // LFO1 rate (0.01-20 Hz) - used when sync is off
   kParamLFO1Sync,           // LFO1 tempo sync (Off, 4/1, 2/1, 1/1, 1/2, 1/4, 1/8, 1/16, 1/32 + dotted/triplet)
   kParamLFO1Low,            // LFO1 low point (-200% to +100%), where LFO goes at minimum
@@ -76,7 +78,9 @@ enum EParams
   kParamLFO1Destination,    // LFO1 destination (Off, Filter, Pitch, PW, Amp, FM, WT, per-osc)
   // ═══════════════════════════════════════════════════════════════════════════
   // LFO2 - Low Frequency Oscillator 2 for modulation
+  // Rate at 0 Hz = static offset (LFO frozen, Low/High control DC offset).
   // ═══════════════════════════════════════════════════════════════════════════
+  kParamLFO2Enable,         // LFO2 on/off toggle (Off = bypassed entirely)
   kParamLFO2Rate,           // LFO2 rate (0.01-20 Hz) - used when sync is off
   kParamLFO2Sync,           // LFO2 tempo sync (Off, 4/1, 2/1, 1/1, 1/2, 1/4, 1/8, 1/16, 1/32 + dotted/triplet)
   kParamLFO2Low,            // LFO2 low point (-200% to +100%), where LFO goes at minimum

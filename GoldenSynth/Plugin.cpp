@@ -172,6 +172,8 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   // ═══════════════════════════════════════════════════════════════════════════════
   // LFO1 PARAMETERS
   // ═══════════════════════════════════════════════════════════════════════════════
+  GetParam(kParamLFO1Enable)->InitBool("LFO1 On", true);  // Default ON for backwards compatibility
+
   GetParam(kParamLFO1Rate)->InitDouble("LFO1 Rate", 1., 0.01, 20., 0.01, "Hz",
     IParam::kFlagsNone, "", IParam::ShapePowCurve(3.0));  // Exponential for musical feel
 
@@ -205,6 +207,8 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   // ═══════════════════════════════════════════════════════════════════════════════
   // LFO2 PARAMETERS
   // ═══════════════════════════════════════════════════════════════════════════════
+  GetParam(kParamLFO2Enable)->InitBool("LFO2 On", false);  // Default OFF (LFO2 is secondary)
+
   GetParam(kParamLFO2Rate)->InitDouble("LFO2 Rate", 0.5, 0.01, 20., 0.01, "Hz",
     IParam::kFlagsNone, "", IParam::ShapePowCurve(3.0));  // Slower default for variety
 

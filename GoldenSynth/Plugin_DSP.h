@@ -3654,8 +3654,9 @@ public:
     //   - Pitch would get ±48 semitones instead of ±24
     // ─────────────────────────────────────────────────────────────────────────
 
-    // LFO1: Process or bypass based on destination
-    if (mLFO1Destination == LFODestination::Off)
+    // LFO1: Process or bypass based on Enable flag and destination
+    // Bypass when: disabled OR destination is Off
+    if (!mLFO1Enable || mLFO1Destination == LFODestination::Off)
     {
       // Bypass: fill buffer with 0 (no modulation)
       std::fill_n(mLFO1Buffer, nFrames, 0.0f);
@@ -3671,8 +3672,9 @@ public:
       }
     }
 
-    // LFO2: Process or bypass based on destination
-    if (mLFO2Destination == LFODestination::Off)
+    // LFO2: Process or bypass based on Enable flag and destination
+    // Bypass when: disabled OR destination is Off
+    if (!mLFO2Enable || mLFO2Destination == LFODestination::Off)
     {
       // Bypass: fill buffer with 0 (no modulation)
       std::fill_n(mLFO2Buffer, nFrames, 0.0f);
@@ -3899,6 +3901,7 @@ public:
       mGlobalLFO1.SetRate(SyncRateToHz(mLFO1SyncRate, mTempo));
   }
 
+  void SetLFO1Enable(bool enable) { mLFO1Enable = enable; }
   void SetLFO1Low(float low) { mLFO1Low = low / 100.0f; }      // Convert % to decimal
   void SetLFO1High(float high) { mLFO1High = high / 100.0f; }  // Convert % to decimal
   void SetLFO1Waveform(int waveform) { mGlobalLFO1.SetWaveform(static_cast<LFOWaveform>(waveform)); }
@@ -3921,6 +3924,7 @@ public:
       mGlobalLFO2.SetRate(SyncRateToHz(mLFO2SyncRate, mTempo));
   }
 
+  void SetLFO2Enable(bool enable) { mLFO2Enable = enable; }
   void SetLFO2Low(float low) { mLFO2Low = low / 100.0f; }      // Convert % to decimal
   void SetLFO2High(float high) { mLFO2High = high / 100.0f; }  // Convert % to decimal
   void SetLFO2Waveform(int waveform) { mGlobalLFO2.SetWaveform(static_cast<LFOWaveform>(waveform)); }
@@ -4209,6 +4213,10 @@ public:
       // LFO1 PARAMETERS (GLOBAL)
       // LFOs are now global - all voices share the same LFO phase (Serum/Vital-style)
       // ─────────────────────────────────────────────────────────────────────────
+      case kParamLFO1Enable:
+        SetLFO1Enable(value > 0.5);
+        break;
+
       case kParamLFO1Rate:
         SetLFO1Rate(static_cast<float>(value));
         break;
@@ -4240,6 +4248,10 @@ public:
       // ─────────────────────────────────────────────────────────────────────────
       // LFO2 PARAMETERS (GLOBAL)
       // ─────────────────────────────────────────────────────────────────────────
+      case kParamLFO2Enable:
+        SetLFO2Enable(value > 0.5);
+        break;
+
       case kParamLFO2Rate:
         SetLFO2Rate(static_cast<float>(value));
         break;
@@ -4338,6 +4350,7 @@ private:
   float mLFO1Low = -1.0f;                   // Low point (-1.0 to +1.0, maps to -100% to +100%)
   float mLFO1High = 1.0f;                   // High point (-1.0 to +1.0, maps to -100% to +100%)
   LFODestination mLFO1Destination = LFODestination::Filter;
+  bool mLFO1Enable = true;                  // On/Off toggle (default ON for backwards compatibility)
   bool mLFO1Retrigger = false;
   LFOSyncRate mLFO1SyncRate = LFOSyncRate::Off;
   float mLFO1FreeRate = 1.0f;               // Free-running rate (Hz)
@@ -4348,6 +4361,7 @@ private:
   float mLFO2Low = 0.0f;                    // Low point (default 0 = off)
   float mLFO2High = 0.0f;                   // High point (default 0 = off)
   LFODestination mLFO2Destination = LFODestination::Off;
+  bool mLFO2Enable = false;                 // On/Off toggle (default OFF - LFO2 is secondary)
   bool mLFO2Retrigger = false;
   LFOSyncRate mLFO2SyncRate = LFOSyncRate::Off;
   float mLFO2FreeRate = 1.0f;               // Free-running rate (Hz)
