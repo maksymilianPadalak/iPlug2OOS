@@ -612,11 +612,9 @@ public:
     mTargetCutoffHz = std::max(20.0f, std::min(mMaxCutoffHz, freqHz));
   }
 
-  // Set resonance (0.0 - 1.0) - mapped to Q range
+  // Set resonance (0.0 - 1.0) - mapped to Q range 0.5 to 8
   void SetResonance(float resonance)
   {
-    // Map 0-1 resonance to Q range: 0.5 (gentle) to 15 (near self-oscillation)
-    // Using exponential mapping for more musical feel
     mTargetResonance = std::max(0.0f, std::min(1.0f, resonance));
   }
 
@@ -714,15 +712,9 @@ public:
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // NaN/INFINITY PROTECTION & STATE SATURATION
-    // At high resonance, filter states can grow unbounded, eventually producing
-    // NaN or Infinity. Once corrupted, ALL subsequent samples become NaN.
-    //
-    // SOLUTION: Saturate filter states to prevent runaway, and check output.
+    // NaN/INFINITY PROTECTION
+    // At extreme settings, filter can produce NaN/Infinity. Reset if detected.
     // ─────────────────────────────────────────────────────────────────────────
-    SaturateFilterStates();
-
-    // Check for NaN/Infinity in output - if detected, reset filter
     if (isAudioCorrupt(output))
     {
       ResetFilterStates();
@@ -761,13 +753,16 @@ public:
 
 private:
   // Map resonance (0-1) to Q factor using exponential curve
-  // Formula: Q = 0.5 × 30^resonance
+  // Formula: Q = 0.5 × 16^resonance
   //   0.0 → Q = 0.5   (very gentle, below Butterworth)
-  //   0.5 → Q ≈ 2.74  (moderate resonance)
-  //   1.0 → Q = 15    (high resonance, near self-oscillation)
+  //   0.5 → Q = 2.0   (moderate resonance)
+  //   1.0 → Q = 8     (high resonance, stable at all frequencies)
+  //
+  // Note: Q=15 was unstable at low frequencies (<100Hz). Q=8 is the sweet spot
+  // for stability while still providing strong resonance character.
   float ResonanceToQ(float resonance) const
   {
-    return 0.5f * std::pow(30.0f, resonance);
+    return 0.5f * std::pow(16.0f, resonance);
   }
 
   void UpdateAllFilters()
@@ -797,49 +792,6 @@ private:
     bq.x2 = flushDenormal(bq.x2);
     bq.y1 = flushDenormal(bq.y1);
     bq.y2 = flushDenormal(bq.y2);
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // FILTER STATE SATURATION (matches output saturation ceiling)
-  // ─────────────────────────────────────────────────────────────────────────
-  // CRITICAL: State limit MUST equal output saturation ceiling (3.0).
-  //
-  // Why? The biquad stores output as state y1. If output saturation returns
-  // 3.0 but we clamp y1 to 0.2, there's a discontinuity:
-  //   - Output returned: 3.0
-  //   - State stored: 0.2
-  //   - Next sample sees y1=0.2 but expected ~3.0 → GLITCH!
-  //
-  // By matching limits (both 3.0), we ensure consistency:
-  //   - Output clamped to 3.0 → stored as y1 = 3.0 → stays 3.0
-  //   - No discontinuity, no glitch
-  //
-  // The output saturation naturally limits state growth over time.
-  // ─────────────────────────────────────────────────────────────────────────
-  static constexpr float kStateSaturationLimit = 3.0f;  // Must match kSaturationCeiling!
-
-  void SaturateBiquadStates(q::biquad& bq)
-  {
-    auto saturateState = [](float x) {
-      if (x > kStateSaturationLimit) return kStateSaturationLimit * softSaturate(x / kStateSaturationLimit);
-      if (x < -kStateSaturationLimit) return kStateSaturationLimit * softSaturate(x / kStateSaturationLimit);
-      return x;
-    };
-    bq.y1 = saturateState(bq.y1);
-    bq.y2 = saturateState(bq.y2);
-  }
-
-  // Only saturate the active filter's states (performance optimization)
-  void SaturateFilterStates()
-  {
-    switch (mType)
-    {
-      case FilterType::Lowpass:  SaturateBiquadStates(mLowpass); break;
-      case FilterType::Highpass: SaturateBiquadStates(mHighpass); break;
-      case FilterType::Bandpass: SaturateBiquadStates(mBandpass); break;
-      case FilterType::Notch:    SaturateBiquadStates(mNotchBandpass); break;
-      default: break;
-    }
   }
 
   float mSampleRate = 48000.0f;
