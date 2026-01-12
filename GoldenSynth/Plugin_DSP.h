@@ -3791,49 +3791,16 @@ public:
 
       // Polyphony headroom compensation: reduces amplitude to manage clipping
       // Worst-case (32 voices × full velocity × full envelope): 32.0 amplitude
-      // With kPolyScale=0.125: 32 × 0.125 = 4.0, handled by soft saturation below.
-      // Typical use (4-8 voices, varied velocities): ~1.0-2.0, minimal clipping.
-      // The safety clamp below catches peaks; per-voice filter saturation also helps.
-      constexpr float kPolyScale = 0.125f;
+      // With kPolyScale=0.25: 32 × 0.25 = 8.0, handled by final safety stage.
+      // Typical use (4-8 voices, varied velocities): ~1.0-2.0, clean output.
+      // Single voice at default gain: 0.25 × 0.8 = -14 dB (reasonable level).
+      // The multi-layer safety stage (soft knee + hard clamp) catches any peaks.
+      constexpr float kPolyScale = 0.25f;
       float gainScale = kPolyScale * mGainSmoothed;
 
       for (int c = 0; c < nOutputs; c++)
       {
         outputs[c][s] *= gainScale;
-
-        // ───────────────────────────────────────────────────────────────────────
-        // SOFT SATURATION WITH SMOOTH BLEND
-        // ───────────────────────────────────────────────────────────────────────
-        // Instead of harsh digital clipping (which creates odd harmonics and
-        // sounds brittle), we use soft saturation via a fast tanh approximation.
-        //
-        // SMOOTH BLEND: Unlike a hard threshold (which creates a discontinuity
-        // in the transfer function at the threshold), we smoothly crossfade
-        // from dry to saturated starting at 0.5. This preserves dynamics at
-        // low levels while providing transparent limiting at high levels.
-        //
-        //   Blend curve:  0 at |x|=0.5, 1 at |x|=1.0, smoothly interpolated
-        //
-        // Benefits:
-        //   - No discontinuity in the transfer function
-        //   - More transparent limiting
-        //   - Warmer, more "analog" sound when driven hard
-        //   - Graceful degradation instead of sudden distortion
-        // ───────────────────────────────────────────────────────────────────────
-        float& sample = outputs[c][s];
-        float absVal = std::abs(sample);
-        if (absVal > 0.5f)
-        {
-          // Smooth blend from dry to saturated: 0% at 0.5, 100% at 1.0+
-          float blend = (absVal - 0.5f) * 2.0f;  // 0→1 as |sample| goes 0.5→1.0
-          blend = std::min(1.0f, blend);         // Clamp to 1.0 for signals > 1.0
-
-          // Apply saturation with gentle drive
-          float saturated = softSaturate(sample * 1.2f);
-
-          // Crossfade: dry + blend × (wet - dry) = dry × (1-blend) + wet × blend
-          sample = sample + blend * (saturated - sample);
-        }
       }
     }
 
@@ -3889,15 +3856,27 @@ public:
       {
         float sample = static_cast<float>(outputs[c][s]);
 
-        // Layer 1: Soft saturation for signals approaching limits
-        // Only engage when signal exceeds 0.95 to stay transparent
-        if (std::abs(sample) > 0.95f)
+        // Layer 1: Soft knee compression for signals approaching limits
+        // Only compress the EXCESS above 0.95, preserving signal below threshold.
+        // This prevents discontinuity (volume pumping) at the threshold.
+        //
+        // Formula: output = 0.95 + 0.05 * (1 - e^(-excess * 20))
+        // - Signal at 0.95: unchanged (excess = 0)
+        // - Signal at 1.0:  becomes ~0.98 (gentle compression)
+        // - Signal at 1.5:  becomes ~1.0 (heavy compression)
+        // - Signal at 2.0+: asymptotes at 1.0
+        float absVal = std::abs(sample);
+        if (absVal > 0.95f)
         {
-          sample = softSaturate(sample);
+          float sign = sample > 0.0f ? 1.0f : -1.0f;
+          float excess = absVal - 0.95f;
+          // Exponential compression: maps [0, ∞) to [0, 0.05)
+          float compressedExcess = 0.05f * (1.0f - std::exp(-excess * 20.0f));
+          sample = sign * (0.95f + compressedExcess);
         }
 
-        // Layer 2: Hard clamp - absolute safety net
-        // Guarantees output never exceeds ±1.0 (0 dBFS)
+        // Layer 2: Hard clamp - absolute safety net (catches edge cases)
+        // Should rarely engage now that Layer 1 asymptotes at 1.0
         sample = std::max(-1.0f, std::min(1.0f, sample));
 
         // Layer 3: NaN/Inf protection - nuclear option
