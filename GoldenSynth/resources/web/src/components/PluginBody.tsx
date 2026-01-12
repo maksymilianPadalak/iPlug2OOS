@@ -108,6 +108,7 @@ export function PluginBody() {
           {/* Filter + LFO Row */}
           <Section title="Filter" size="wide">
             <SubGroup layout="row">
+              <Dropdown paramId={EParams.kParamFilterEnable} label="On" />
               <Dropdown paramId={EParams.kParamFilterType} label="Type" />
               <Knob paramId={EParams.kParamFilterCutoff} label="Cutoff" color="orange" />
               <Knob paramId={EParams.kParamFilterResonance} label="Reso" color="orange" />
@@ -143,6 +144,7 @@ export function PluginBody() {
           {/* Delay - Stereo delay with ping-pong mode */}
           <Section title="Delay" size="full">
             <SubGroup layout="row">
+              <Dropdown paramId={EParams.kParamDelayEnable} label="On" />
               <Knob paramId={EParams.kParamDelayTime} label="Time" color="magenta" />
               <Dropdown paramId={EParams.kParamDelaySync} label="Sync" />
               <Knob paramId={EParams.kParamDelayFeedback} label="Feedback" color="magenta" />

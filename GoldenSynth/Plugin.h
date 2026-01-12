@@ -19,6 +19,7 @@ enum EParams
   kParamRelease,
   kParamEnvVelocity,        // Velocity → envelope time modulation (0-100%)
   // Filter parameters
+  kParamFilterEnable,       // Filter on/off toggle (Off = bypassed, hear raw oscillators)
   kParamFilterCutoff,       // Filter cutoff frequency (20-20000 Hz)
   kParamFilterResonance,    // Filter resonance (0-100%)
   kParamFilterType,         // Filter type (LP, HP, BP, Notch)
@@ -91,6 +92,7 @@ enum EParams
   // ═══════════════════════════════════════════════════════════════════════════
   // STEREO DELAY - Tempo-syncable delay with hermite interpolation
   // ═══════════════════════════════════════════════════════════════════════════
+  kParamDelayEnable,        // Delay on/off toggle (Off = bypassed, dry signal only)
   kParamDelayTime,          // Delay time in ms (1-2000ms) when sync is off
   kParamDelaySync,          // Tempo sync (Off, 1/1, 1/2, 1/4, 1/8, 1/16, 1/32 + dotted/triplet)
   kParamDelayFeedback,      // Feedback amount (0-90%) - capped for stability

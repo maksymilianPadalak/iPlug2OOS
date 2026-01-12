@@ -3113,9 +3113,20 @@ public:
 
         // ─────────────────────────────────────────────────────────────────────────
         // FILTER (stereo - separate filters for L/R to preserve stereo image)
+        // When disabled, pass raw oscillator signal through (hear unfiltered sound)
         // ─────────────────────────────────────────────────────────────────────────
-        float filteredLeft = mFilterL.Process(mixedLeft);
-        float filteredRight = mFilterR.Process(mixedRight);
+        float filteredLeft, filteredRight;
+        if (mParent->mFilterEnable)
+        {
+          filteredLeft = mFilterL.Process(mixedLeft);
+          filteredRight = mFilterR.Process(mixedRight);
+        }
+        else
+        {
+          // Filter bypassed - pass through raw signal
+          filteredLeft = mixedLeft;
+          filteredRight = mixedRight;
+        }
 
         // ─────────────────────────────────────────────────────────────────────────
         // DC BLOCKER - Q Library Implementation
@@ -3758,7 +3769,7 @@ public:
     // The signal entering the delay is already at a controlled level, so
     // the feedback loop remains stable even at high feedback settings.
     // ─────────────────────────────────────────────────────────────────────────
-    if (nOutputs >= 2)
+    if (nOutputs >= 2 && mDelayEnable)
     {
       for (int s = 0; s < nFrames; s++)
       {
@@ -3771,6 +3782,7 @@ public:
         outputs[1][s] = static_cast<T>(right);
       }
     }
+    // When delay is disabled, signal passes through unchanged (already in outputs)
   }
 
   void Reset(double sampleRate, int blockSize)
@@ -3931,6 +3943,10 @@ public:
   void SetLFO2Retrigger(bool retrigger) { mLFO2Retrigger = retrigger; }
   void SetLFO2Destination(int dest) { mLFO2Destination = static_cast<LFODestination>(dest); }
 
+  // Global bypass setters
+  void SetFilterEnable(bool enable) { mFilterEnable = enable; }
+  void SetDelayEnable(bool enable) { mDelayEnable = enable; }
+
   void SetParam(int paramIdx, double value)
   {
     switch (paramIdx)
@@ -3983,6 +3999,10 @@ public:
         break;
 
       // Filter parameters
+      case kParamFilterEnable:
+        SetFilterEnable(value > 0.5);
+        break;
+
       case kParamFilterCutoff:
         mSynth.ForEachVoice([value](SynthVoice& voice) {
           dynamic_cast<Voice&>(voice).SetFilterCutoff(static_cast<float>(value));
@@ -4283,6 +4303,10 @@ public:
       // ─────────────────────────────────────────────────────────────────────────
       // STEREO DELAY PARAMETERS
       // ─────────────────────────────────────────────────────────────────────────
+      case kParamDelayEnable:
+        SetDelayEnable(value > 0.5);
+        break;
+
       case kParamDelayTime:
         mDelayTimeMs = static_cast<float>(value);
         // Only apply manual delay time if sync is off
@@ -4338,6 +4362,11 @@ private:
   float mGainSmoothCoeff = 0.001f;  // Sample-rate aware, set in Reset()
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // GLOBAL FILTER ENABLE - Bypass all voice filters when off (hear raw oscillators)
+  // ─────────────────────────────────────────────────────────────────────────────
+  bool mFilterEnable = true;  // Default ON for subtractive synthesis
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // GLOBAL LFOs - Shared across all voices (Serum/Vital style)
   // Unlike per-voice LFOs, global LFOs ensure all voices modulate in sync.
   // Pre-computed buffers enable sample-accurate modulation.
@@ -4380,4 +4409,5 @@ private:
   StereoDelay mDelay;
   float mDelayTimeMs = 250.0f;              // Manual delay time when sync is off
   DelaySyncRate mDelaySyncRate = DelaySyncRate::Off;
+  bool mDelayEnable = false;                // Default OFF (effect, not core sound)
 };

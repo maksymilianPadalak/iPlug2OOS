@@ -19,6 +19,8 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   GetParam(kParamEnvVelocity)->InitDouble("Env Velocity", 50., 0., 100., 1., "%");
 
   // Filter parameters
+  GetParam(kParamFilterEnable)->InitBool("Filter On", true);  // Default ON for subtractive synthesis
+
   GetParam(kParamFilterCutoff)->InitDouble("Filter Cutoff", 10000., 20., 20000., 1., "Hz",
     IParam::kFlagsNone, "", IParam::ShapePowCurve(3.0));  // Exponential curve for natural feel
   GetParam(kParamFilterResonance)->InitDouble("Filter Reso", 0., 0., 100., 0.1, "%");
@@ -236,6 +238,8 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   // ═══════════════════════════════════════════════════════════════════════════════
   // STEREO DELAY - Tempo-syncable delay with hermite interpolation
   // ═══════════════════════════════════════════════════════════════════════════════
+  GetParam(kParamDelayEnable)->InitBool("Delay On", false);  // Default OFF (effect, not core sound)
+
   GetParam(kParamDelayTime)->InitDouble("Delay Time", 250., 1., 2000., 1., "ms",
     IParam::kFlagsNone, "", IParam::ShapePowCurve(2.0));
 
