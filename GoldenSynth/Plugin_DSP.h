@@ -673,6 +673,35 @@ public:
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // BYPASS OPTIMIZATION
+    // Skip processing when filter has no audible effect:
+    // - Lowpass at max cutoff: passes all frequencies
+    // - Highpass at min cutoff: passes all frequencies
+    // We still update filter state (above) so transitions are smooth
+    // ─────────────────────────────────────────────────────────────────────────
+    constexpr float kLowpassBypassThreshold = 0.98f;   // 98% of max cutoff
+    constexpr float kHighpassBypassThreshold = 25.0f;  // Near minimum (20Hz)
+
+    bool canBypass = false;
+    if (mType == FilterType::Lowpass &&
+        mCurrentCutoffHz >= mMaxCutoffHz * kLowpassBypassThreshold &&
+        mTargetCutoffHz >= mMaxCutoffHz * kLowpassBypassThreshold)
+    {
+      canBypass = true;
+    }
+    else if (mType == FilterType::Highpass &&
+             mCurrentCutoffHz <= kHighpassBypassThreshold &&
+             mTargetCutoffHz <= kHighpassBypassThreshold)
+    {
+      canBypass = true;
+    }
+
+    if (canBypass)
+    {
+      return input;  // Skip biquad processing entirely
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // FILTER PROCESSING
     // ─────────────────────────────────────────────────────────────────────────
     // The Q library biquad filters handle resonance correctly on their own.
@@ -998,13 +1027,43 @@ public:
     int bufferSize = static_cast<int>(mDelayBufferL.size());
 
     // ─────────────────────────────────────────────────────────────────────────
-    // SMOOTH DELAY TIME
-    // Prevents clicks when delay time changes (tempo sync, modulation)
+    // SMOOTH PARAMETERS (always, even when bypassed - ensures smooth transitions)
     // ─────────────────────────────────────────────────────────────────────────
+    mDryLevelSmoothed += mSmoothCoeff * (mDryLevelTarget - mDryLevelSmoothed);
+    mWetLevelSmoothed += mSmoothCoeff * (mWetLevelTarget - mWetLevelSmoothed);
+
     float timeDiff = mDelayTimeSamplesTarget - mDelayTimeSamplesCurrent;
     if (std::abs(timeDiff) > 0.001f)
     {
       mDelayTimeSamplesCurrent += mSmoothCoeff * timeDiff;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // BYPASS OPTIMIZATION: Skip expensive processing when wet is inaudible
+    // Threshold 0.0001 = -80dB, below audible range
+    // Still write to buffer so delay is "primed" when wet fades back in
+    // ─────────────────────────────────────────────────────────────────────────
+    constexpr float kBypassThreshold = 0.0001f;  // -80dB
+    if (mWetLevelSmoothed < kBypassThreshold && mWetLevelTarget < kBypassThreshold)
+    {
+      // Write input to buffer (no feedback when bypassed)
+      if (mMode == DelayMode::PingPong)
+      {
+        float monoIn = (left + right) * 0.5f;
+        mDelayBufferL[mWriteIndex] = monoIn;
+        mDelayBufferR[mWriteIndex] = 0.0f;
+      }
+      else
+      {
+        mDelayBufferL[mWriteIndex] = left;
+        mDelayBufferR[mWriteIndex] = right;
+      }
+      mWriteIndex = (mWriteIndex + 1) % bufferSize;
+
+      // Output dry only (skip hermite interpolation, DC blocking, saturation)
+      left *= mDryLevelSmoothed;
+      right *= mDryLevelSmoothed;
+      return;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1038,9 +1097,6 @@ public:
     if (mMode == DelayMode::PingPong)
     {
       // PING-PONG: Cross-feedback creates alternating L/R pattern
-      // L buffer receives: mono input + feedback from R
-      // R buffer receives: feedback from L only (no direct input)
-      // Result: tap1(L) → tap2(R) → tap3(L) → tap4(R) → ...
       float monoIn = (left + right) * 0.5f;
       mDelayBufferL[mWriteIndex] = monoIn + mFeedback * processedR;
       mDelayBufferR[mWriteIndex] = mFeedback * processedL;
@@ -1058,12 +1114,6 @@ public:
 
     // Advance write index with wrap
     mWriteIndex = (mWriteIndex + 1) % bufferSize;
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // SMOOTH DRY/WET LEVELS (prevents clicks on parameter changes)
-    // ─────────────────────────────────────────────────────────────────────────
-    mDryLevelSmoothed += mSmoothCoeff * (mDryLevelTarget - mDryLevelSmoothed);
-    mWetLevelSmoothed += mSmoothCoeff * (mWetLevelTarget - mWetLevelSmoothed);
 
     // ─────────────────────────────────────────────────────────────────────────
     // OUTPUT: Separate dry and wet levels
