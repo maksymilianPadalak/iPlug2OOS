@@ -117,6 +117,12 @@ enum EControlTags
   kNumCtrlTags
 };
 
+enum EMsgTags
+{
+  kMsgTagRestorePreset = 0,
+  kNumMsgTags
+};
+
 using namespace iplug;
 #ifndef NO_IGRAPHICS
 using namespace igraphics;

@@ -134,8 +134,10 @@ export const controlTags: ControlTag[] = [
   { id: 1, key: "kCtrlTagWaveform", senderType: "IBufferSender", channels: 1 },
 ];
 
-// Message tags (for SAMFD - visualizations)
-export const msgTags: MsgTag[] = [];
+// Message tags (for SAMFD - visualizations and presets)
+export const msgTags: MsgTag[] = [
+  { id: 0, key: "kMsgTagRestorePreset" },
+];
 
 // Convenience lookups (must match C++ enums)
 export const EParams = {
@@ -216,7 +218,9 @@ export const EControlTags = {
   kCtrlTagWaveform: 1,
 } as const;
 
-export const EMsgTags = {} as const;
+export const EMsgTags = {
+  kMsgTagRestorePreset: 0,
+} as const;
 
 // Type helpers
 export type EParamsKey = keyof typeof EParams;

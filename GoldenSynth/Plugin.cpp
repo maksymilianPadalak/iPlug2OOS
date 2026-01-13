@@ -355,6 +355,12 @@ void PluginInstance::OnParamChangeUI(int paramIdx, EParamSource source)
 
 bool PluginInstance::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData)
 {
+  if (msgTag == kMsgTagRestorePreset && dataSize >= 4)
+  {
+    int presetIdx = *reinterpret_cast<const int*>(pData);
+    RestorePreset(presetIdx);
+    return true;
+  }
   return false;
 }
 #endif
