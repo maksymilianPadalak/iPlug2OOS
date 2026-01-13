@@ -260,6 +260,19 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   // Shows 0-32 active voices - useful for monitoring polyphony usage
   GetParam(kParamVoiceCount)->InitInt("Voices", 0, 0, 32, "", IParam::kFlagCannotAutomate);
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // FACTORY PRESETS
+  // ═══════════════════════════════════════════════════════════════════════════════
+  MakeDefaultPreset("Init");  // Default sound using parameter defaults
+
+  MakePresetFromNamedParams("Classic Lead", 6,
+    kParamWaveform, 1,              // Saw wave
+    kParamFilterCutoff, 5000.,      // Moderate cutoff
+    kParamFilterResonance, 25.,     // Slight resonance
+    kParamAttack, 5.,               // Snappy attack
+    kParamDecay, 150.,              // Medium decay
+    kParamRelease, 300.);           // Medium release
+
 #if IPLUG_EDITOR
 #if defined(WEBVIEW_EDITOR_DELEGATE)
   SetCustomUrlScheme("iplug2");
