@@ -124,6 +124,8 @@ export const runtimeParameters: RuntimeParameter[] = [
   { id: 59, name: "Delay Dry", type: "float", min: 0, max: 100, default: 100, step: 0.1, unit: "%", group: "Delay", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamDelayDry" },
   { id: 60, name: "Delay Wet", type: "float", min: 0, max: 100, default: 0, step: 0.1, unit: "%", group: "Delay", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamDelayWet" },
   { id: 61, name: "Delay Mode", type: "enum", min: 0, max: 1, default: 0, step: 1, unit: "", group: "Delay", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Stereo", "Ping-Pong"], automatable: true, key: "kParamDelayMode" },
+  // Voice count display (read-only)
+  { id: 62, name: "Voices", type: "int", min: 0, max: 32, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: false, key: "kParamVoiceCount" },
 ];
 
 // Control tags (for SCMFD - meters, etc.)
@@ -206,6 +208,7 @@ export const EParams = {
   kParamDelayDry: 59,
   kParamDelayWet: 60,
   kParamDelayMode: 61,
+  kParamVoiceCount: 62,
 } as const;
 
 export const EControlTags = {

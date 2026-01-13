@@ -256,6 +256,10 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   GetParam(kParamDelayMode)->InitEnum("Delay Mode", 0, 2, "", IParam::kFlagsNone, "",
     "Stereo", "Ping-Pong");
 
+  // Voice count display (read-only parameter for UI feedback)
+  // Shows 0-32 active voices - useful for monitoring polyphony usage
+  GetParam(kParamVoiceCount)->InitInt("Voices", 0, 0, 32, "", IParam::kFlagCannotAutomate);
+
 #if IPLUG_EDITOR
 #if defined(WEBVIEW_EDITOR_DELEGATE)
   SetCustomUrlScheme("iplug2");
@@ -274,10 +278,10 @@ void PluginInstance::ProcessBlock(sample** inputs, sample** outputs, int nFrames
 {
 #ifndef WAM_API
   // Get host tempo for LFO sync (falls back to 120 BPM if host doesn't provide tempo)
-  // Note: GetTimeInfo() not available in WAM builds
-  const ITimeInfo timeInfo = GetTimeInfo();
-  if (timeInfo.mTempo > 0.0)
-    mDSP.SetTempo(static_cast<float>(timeInfo.mTempo));
+  // Note: GetTempo() not available in WAM builds
+  double tempo = GetTempo();
+  if (tempo > 0.0)
+    mDSP.SetTempo(static_cast<float>(tempo));
 #endif
 
   mDSP.ProcessBlock(nullptr, outputs, 2, nFrames);
@@ -327,6 +331,9 @@ void PluginInstance::OnParamChange(int paramIdx)
 
 void PluginInstance::OnParamChangeUI(int paramIdx, EParamSource source)
 {
+  // Critical: WebView UI changes come through OnParamChangeUI, not OnParamChange
+  // Without this, the DSP never receives parameter changes from the web UI in AU builds
+  mDSP.SetParam(paramIdx, GetParam(paramIdx)->Value());
 }
 
 bool PluginInstance::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData)

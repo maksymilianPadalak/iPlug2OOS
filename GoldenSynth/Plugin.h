@@ -99,6 +99,10 @@ enum EParams
   kParamDelayDry,           // Dry signal level (0-100%)
   kParamDelayWet,           // Wet signal level (0-100%)
   kParamDelayMode,          // Stereo mode: Stereo (parallel) or Ping-Pong (alternating L/R)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // VOICE COUNT DISPLAY - Read-only parameter showing active voice count
+  // ═══════════════════════════════════════════════════════════════════════════
+  kParamVoiceCount,         // Active voice count (0-32) - read-only for UI display
   kNumParams
 };
 
