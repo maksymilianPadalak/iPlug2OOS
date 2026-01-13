@@ -265,13 +265,15 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   // ═══════════════════════════════════════════════════════════════════════════════
   MakeDefaultPreset("Init");  // Default sound using parameter defaults
 
-  MakePresetFromNamedParams("Classic Lead", 6,
-    kParamWaveform, 1,              // Saw wave
-    kParamFilterCutoff, 5000.,      // Moderate cutoff
-    kParamFilterResonance, 25.,     // Slight resonance
-    kParamAttack, 5.,               // Snappy attack
-    kParamDecay, 150.,              // Medium decay
-    kParamRelease, 300.);           // Medium release
+  MakePresetFromNamedParams("Classic Lead", 8,
+    kParamWaveform, 1,              // Saw wave (very different from default sine)
+    kParamFilterEnable, 1,          // Filter ON
+    kParamFilterCutoff, 2000.,      // Low cutoff (very audible difference)
+    kParamFilterResonance, 50.,     // High resonance (obvious)
+    kParamAttack, 1.,               // Very fast attack
+    kParamDecay, 100.,              // Short decay
+    kParamSustain, 70.,             // Medium sustain
+    kParamRelease, 200.);           // Medium release
 
 #if IPLUG_EDITOR
 #if defined(WEBVIEW_EDITOR_DELEGATE)
@@ -358,7 +360,15 @@ bool PluginInstance::OnMessage(int msgTag, int ctrlTag, int dataSize, const void
   if (msgTag == kMsgTagRestorePreset && dataSize >= 4)
   {
     int presetIdx = *reinterpret_cast<const int*>(pData);
-    RestorePreset(presetIdx);
+    if (RestorePreset(presetIdx))
+    {
+      // RestorePreset updates IParams and calls OnParamChange via OnParamReset,
+      // but we also explicitly sync all parameters to ensure DSP is updated
+      for (int i = 0; i < kNumParams; ++i)
+      {
+        mDSP.SetParam(i, GetParam(i)->Value());
+      }
+    }
     return true;
   }
   return false;
