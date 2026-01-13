@@ -282,6 +282,10 @@ void PluginInstance::ProcessBlock(sample** inputs, sample** outputs, int nFrames
   double tempo = GetTempo();
   if (tempo > 0.0)
     mDSP.SetTempo(static_cast<float>(tempo));
+
+  // Notify DSP of transport state - clears delay buffer when playback starts mid-song
+  // This prevents stale delay buffer data from causing noise with "chase" MIDI events
+  mDSP.SetTransportRunning(GetTransportIsRunning());
 #endif
 
   mDSP.ProcessBlock(nullptr, outputs, 2, nFrames);

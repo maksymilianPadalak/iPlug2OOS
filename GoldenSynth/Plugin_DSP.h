@@ -4434,6 +4434,28 @@ public:
       mDelay.SetDelayTime(DelaySyncRateToMs(mDelaySyncRate, mTempo));
   }
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // TRANSPORT STATE CHANGE HANDLING
+  // ─────────────────────────────────────────────────────────────────────────────
+  // When playback starts (especially mid-song with "chase" events), the delay
+  // buffer and limiter envelopes may contain stale data from previous playback.
+  // This causes noise/artifacts. We detect transport start and clear buffers.
+  // ─────────────────────────────────────────────────────────────────────────────
+  void SetTransportRunning(bool isRunning)
+  {
+    // Detect transport start (was stopped, now running)
+    if (isRunning && !mTransportWasRunning)
+    {
+      // Clear delay buffer to prevent stale data from feeding back as noise
+      mDelay.Reset();
+
+      // Reset limiter envelopes to prevent gain pumping on transport start
+      mLimiterEnvL = 0.0f;
+      mLimiterEnvR = 0.0f;
+    }
+    mTransportWasRunning = isRunning;
+  }
+
   void SetLFO1Rate(float hz)
   {
     mLFO1FreeRate = hz;
@@ -4943,6 +4965,7 @@ private:
   std::atomic<bool> mLFO2NeedsReset{false};
 
   float mTempo = 120.0f;                    // Host tempo in BPM
+  bool mTransportWasRunning = false;        // Track transport state for buffer clearing
 
   // ─────────────────────────────────────────────────────────────────────────────
   // STEREO DELAY - Post-processing effect with dry/wet filtering
