@@ -127,7 +127,7 @@ export const runtimeParameters: RuntimeParameter[] = [
   // Voice count display (read-only)
   { id: 62, name: "Voices", type: "int", min: 0, max: 32, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: false, key: "kParamVoiceCount" },
   // Preset selection (uses regular parameter for reliable UI communication)
-  { id: 63, name: "Preset", type: "enum", min: 0, max: 1, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Init", "Classic Lead"], automatable: true, key: "kParamPresetSelect" },
+  { id: 63, name: "Preset", type: "enum", min: 0, max: 4, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Init", "Classic Lead", "Massive Supersaw", "FM Bell Pad", "Wobble Bass"], automatable: true, key: "kParamPresetSelect" },
 ];
 
 // Control tags (for SCMFD - meters, etc.)
