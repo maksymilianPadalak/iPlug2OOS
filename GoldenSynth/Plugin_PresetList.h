@@ -157,8 +157,8 @@ inline constexpr PresetDef kPresetDefs[] = {
       {kParamLFO1Enable, 1},
       {kParamLFO1Rate, 0.3},
       {kParamLFO1Sync, 0},
-      {kParamLFO1Low, -10.},
-      {kParamLFO1High, 10.},
+      {kParamLFO1Low, -4.},
+      {kParamLFO1High, 4.},
       {kParamLFO1Waveform, 0},           // Sine
       {kParamLFO1Retrigger, 1},          // Retrigger for consistency
       {kParamLFO1Destination, 1},        // Filter
@@ -226,8 +226,8 @@ inline constexpr PresetDef kPresetDefs[] = {
       {kParamLFO1Enable, 1},
       {kParamLFO1Rate, 0.7},
       {kParamLFO1Sync, 0},
-      {kParamLFO1Low, -18.},
-      {kParamLFO1High, 18.},
+      {kParamLFO1Low, -6.},
+      {kParamLFO1High, 6.},
       {kParamLFO1Waveform, 0},           // Sine
       {kParamLFO1Retrigger, 0},          // Free
       {kParamLFO1Destination, 1},        // Filter
@@ -301,8 +301,8 @@ inline constexpr PresetDef kPresetDefs[] = {
       {kParamLFO1Enable, 1},
       {kParamLFO1Rate, 0.12},            // Very slow
       {kParamLFO1Sync, 0},
-      {kParamLFO1Low, -22.},
-      {kParamLFO1High, 22.},
+      {kParamLFO1Low, -10.},
+      {kParamLFO1High, 10.},
       {kParamLFO1Waveform, 1},           // Triangle
       {kParamLFO1Retrigger, 0},          // Free
       {kParamLFO1Destination, 1},        // Filter
