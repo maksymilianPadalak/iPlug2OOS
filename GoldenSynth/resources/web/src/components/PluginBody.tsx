@@ -15,7 +15,6 @@ import { WaveSelector } from 'sharedUi/components/WaveSelector';
 import { ADSRDisplay } from 'sharedUi/components/ADSRDisplay';
 import { Dropdown } from 'sharedUi/components/Dropdown';
 import { EParams, EControlTags } from '@/config/runtimeParameters';
-import { PresetSelector } from './PresetSelector';
 
 export function PluginBody() {
   return (
@@ -42,7 +41,7 @@ export function PluginBody() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <Title title="GoldenSynth" version="1.0" color="cyan" />
-          <PresetSelector />
+          <Dropdown paramId={EParams.kParamPresetSelect} label="Preset" />
         </div>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ scrollbarGutter: 'stable' }}>

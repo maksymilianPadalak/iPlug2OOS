@@ -1,5 +1,6 @@
 #include "Plugin.h"
 #include "IPlug_include_in_plug_src.h"
+#include "Plugin_Presets.h"
 
 PluginInstance::PluginInstance(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
@@ -260,20 +261,15 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   // Shows 0-32 active voices - useful for monitoring polyphony usage
   GetParam(kParamVoiceCount)->InitInt("Voices", 0, 0, 32, "", IParam::kFlagCannotAutomate);
 
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // FACTORY PRESETS
-  // ═══════════════════════════════════════════════════════════════════════════════
-  MakeDefaultPreset("Init");  // Default sound using parameter defaults
+  // Preset selection - uses regular parameter communication for reliable UI sync
+  // Names are auto-derived from kPresetDefs[] in Plugin_PresetList.h (single source of truth)
+  GetParam(kParamPresetSelect)->InitInt("Preset", 0, 0, kPresetCount - 1);
+  for (int i = 0; i < kPresetCount; i++) {
+    GetParam(kParamPresetSelect)->SetDisplayText(i, kPresetDefs[i].name);
+  }
 
-  MakePresetFromNamedParams("Classic Lead", 8,
-    kParamWaveform, 1,              // Saw wave (very different from default sine)
-    kParamFilterEnable, 1,          // Filter ON
-    kParamFilterCutoff, 2000.,      // Low cutoff (very audible difference)
-    kParamFilterResonance, 50.,     // High resonance (obvious)
-    kParamAttack, 1.,               // Very fast attack
-    kParamDecay, 100.,              // Short decay
-    kParamSustain, 70.,             // Medium sustain
-    kParamRelease, 200.);           // Medium release
+  // Initialize factory presets (defined in Plugin_Presets.h)
+  InitPresets(this);
 
 #if IPLUG_EDITOR
 #if defined(WEBVIEW_EDITOR_DELEGATE)
@@ -343,16 +339,30 @@ void PluginInstance::ProcessMidiMsg(const IMidiMsg& msg)
   }
 }
 
-void PluginInstance::OnParamChange(int paramIdx)
+void PluginInstance::OnParamChange(int paramIdx, EParamSource source, int sampleOffset)
 {
+  // Handle preset selection - only trigger on kUI to avoid recursion
+  // (RestorePreset -> OnParamReset uses kPresetRecall source)
+  if (paramIdx == kParamPresetSelect && source == kUI)
+  {
+    int presetIdx = static_cast<int>(GetParam(kParamPresetSelect)->Value());
+    if (presetIdx >= 0 && presetIdx < NPresets())
+    {
+      RestorePreset(presetIdx);
+      // RestorePreset resets kParamPresetSelect to default (0), so we must
+      // manually set it back to the correct index and notify the UI
+      GetParam(kParamPresetSelect)->Set(presetIdx);
+      SendParameterValueFromDelegate(kParamPresetSelect, GetParam(kParamPresetSelect)->GetNormalized(), false);
+    }
+    return;
+  }
+
   mDSP.SetParam(paramIdx, GetParam(paramIdx)->Value());
 }
 
 void PluginInstance::OnParamChangeUI(int paramIdx, EParamSource source)
 {
-  // Critical: WebView UI changes come through OnParamChangeUI, not OnParamChange
-  // Without this, the DSP never receives parameter changes from the web UI in AU builds
-  mDSP.SetParam(paramIdx, GetParam(paramIdx)->Value());
+  // DSP is already updated by OnParamChange, nothing extra needed here
 }
 
 bool PluginInstance::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData)
@@ -360,14 +370,16 @@ bool PluginInstance::OnMessage(int msgTag, int ctrlTag, int dataSize, const void
   if (msgTag == kMsgTagRestorePreset && dataSize >= 4)
   {
     int presetIdx = *reinterpret_cast<const int*>(pData);
-    if (RestorePreset(presetIdx))
+    if (presetIdx >= 0 && presetIdx < NPresets() && RestorePreset(presetIdx))
     {
-      // RestorePreset updates IParams and calls OnParamChange via OnParamReset,
-      // but we also explicitly sync all parameters to ensure DSP is updated
+      // Sync all parameters to DSP (RestorePreset updates IParams via OnParamReset)
       for (int i = 0; i < kNumParams; ++i)
       {
         mDSP.SetParam(i, GetParam(i)->Value());
       }
+      // Keep kParamPresetSelect in sync (same fix as OnParamChange)
+      GetParam(kParamPresetSelect)->Set(presetIdx);
+      SendParameterValueFromDelegate(kParamPresetSelect, GetParam(kParamPresetSelect)->GetNormalized(), false);
     }
     return true;
   }

@@ -6,105 +6,17 @@
 #include "IControls.h"
 #endif
 
-const int kNumPresets = 2;
+// ═══════════════════════════════════════════════════════════════════════════════
+// SINGLE SOURCE OF TRUTH INCLUDES
+// ═══════════════════════════════════════════════════════════════════════════════
+// EParams enum is defined in Plugin_Params.h (single source of truth)
+// Presets are defined in Plugin_PresetList.h (auto-counted, uses kParamXxx values)
+// ═══════════════════════════════════════════════════════════════════════════════
+#include "Plugin_Params.h"      // EParams enum - single source of truth
+#include "Plugin_PresetList.h"  // Preset definitions - uses kParamXxx directly
 
-enum EParams
-{
-  kParamGain = 0,
-  kParamWaveform,
-  kParamWavetablePosition,  // Morph position within wavetable (0-100%)
-  kParamAttack,
-  kParamDecay,
-  kParamSustain,
-  kParamRelease,
-  kParamEnvVelocity,        // Velocity → envelope time modulation (0-100%)
-  // Filter parameters
-  kParamFilterEnable,       // Filter on/off toggle (Off = bypassed, hear raw oscillators)
-  kParamFilterCutoff,       // Filter cutoff frequency (20-20000 Hz)
-  kParamFilterResonance,    // Filter resonance (0-100%)
-  kParamFilterType,         // Filter type (LP, HP, BP, Notch)
-  // Pulse width modulation
-  kParamPulseWidth,         // Pulse width (5-95%), 50% = square wave
-  // FM synthesis parameters (Osc1)
-  kParamFMRatio,            // Coarse ratio: 0.5, 1, 2, 3, 4, 5, 6, 7, 8 (harmonic)
-  kParamFMFine,             // Fine ratio offset: -50% to +50% (allows inharmonic)
-  kParamFMDepth,            // Modulation depth/index (0-100%)
-  kParamOsc1Level,          // Osc1 mix level (0-100%) for balancing with Osc2
-  kParamOsc1Octave,         // Osc1 octave offset: -2, -1, 0, +1, +2
-  kParamOsc1Detune,         // Osc1 fine detune in cents (-100 to +100)
-  kParamOsc1Pan,            // Osc1 stereo pan (-100% left to +100% right)
-  // Oscillator 2 parameters (fully independent like Serum)
-  kParamOsc2Waveform,       // Osc2 waveform (same options as Osc1)
-  kParamOsc2Octave,         // Osc2 octave offset: -2, -1, 0, +1, +2
-  kParamOsc2Detune,         // Osc2 fine detune in cents (-100 to +100)
-  kParamOsc2Level,          // Osc2 mix level (0-100%)
-  kParamOsc2Morph,          // Osc2 wavetable morph position (0-100%)
-  kParamOsc2PulseWidth,     // Osc2 pulse width (5-95%)
-  kParamOsc2FMRatio,        // Osc2 FM coarse ratio (0.5-8)
-  kParamOsc2FMFine,         // Osc2 FM fine ratio offset (-50% to +50%)
-  kParamOsc2FMDepth,        // Osc2 FM modulation depth (0-100%)
-  kParamOsc2Pan,            // Osc2 stereo pan (-100% left to +100% right)
-  // ═══════════════════════════════════════════════════════════════════════════
-  // OSC1 UNISON - Stack multiple detuned voices for massive sound
-  // ═══════════════════════════════════════════════════════════════════════════
-  kParamOsc1UnisonVoices,   // Osc1 unison voices (1-8), 1 = off
-  kParamOsc1UnisonDetune,   // Osc1 detune spread (0-100%)
-  kParamOsc1UnisonWidth,    // Osc1 stereo spread (0-100%)
-  kParamOsc1UnisonBlend,    // Osc1 center vs detuned mix (0-100%)
-  // ═══════════════════════════════════════════════════════════════════════════
-  // OSC2 UNISON - Independent unison for second oscillator (Serum-style)
-  // ═══════════════════════════════════════════════════════════════════════════
-  kParamOsc2UnisonVoices,   // Osc2 unison voices (1-8), 1 = off
-  kParamOsc2UnisonDetune,   // Osc2 detune spread (0-100%)
-  kParamOsc2UnisonWidth,    // Osc2 stereo spread (0-100%)
-  kParamOsc2UnisonBlend,    // Osc2 center vs detuned mix (0-100%)
-  // ═══════════════════════════════════════════════════════════════════════════
-  // OSCILLATOR SYNC - Classic analog sync sound
-  // ═══════════════════════════════════════════════════════════════════════════
-  kParamOscSync,            // Sync mode: Off, Hard (Osc2 syncs to Osc1)
-  // ═══════════════════════════════════════════════════════════════════════════
-  // LFO1 - Low Frequency Oscillator 1 for modulation
-  // Low/High system: LFO sweeps from Low to High, enabling unipolar, inverted,
-  // and asymmetric modulation. Replaces simple Depth for full control.
-  // Tempo Sync: When not "Off", LFO syncs to host tempo using musical divisions.
-  // Rate at 0 Hz = static offset (LFO frozen, Low/High control DC offset).
-  // ═══════════════════════════════════════════════════════════════════════════
-  kParamLFO1Enable,         // LFO1 on/off toggle (Off = bypassed entirely)
-  kParamLFO1Rate,           // LFO1 rate (0.01-20 Hz) - used when sync is off
-  kParamLFO1Sync,           // LFO1 tempo sync (Off, 4/1, 2/1, 1/1, 1/2, 1/4, 1/8, 1/16, 1/32 + dotted/triplet)
-  kParamLFO1Low,            // LFO1 low point (-200% to +100%), where LFO goes at minimum
-  kParamLFO1High,           // LFO1 high point (-100% to +200%), where LFO goes at maximum
-  kParamLFO1Waveform,       // LFO1 waveform (Sine, Tri, SawUp, SawDown, Square, S&H)
-  kParamLFO1Retrigger,      // LFO1 retrigger mode (Free, Retrig)
-  kParamLFO1Destination,    // LFO1 destination (Off, Filter, Pitch, PW, Amp, FM, WT, per-osc)
-  // ═══════════════════════════════════════════════════════════════════════════
-  // LFO2 - Low Frequency Oscillator 2 for modulation
-  // Rate at 0 Hz = static offset (LFO frozen, Low/High control DC offset).
-  // ═══════════════════════════════════════════════════════════════════════════
-  kParamLFO2Enable,         // LFO2 on/off toggle (Off = bypassed entirely)
-  kParamLFO2Rate,           // LFO2 rate (0.01-20 Hz) - used when sync is off
-  kParamLFO2Sync,           // LFO2 tempo sync (Off, 4/1, 2/1, 1/1, 1/2, 1/4, 1/8, 1/16, 1/32 + dotted/triplet)
-  kParamLFO2Low,            // LFO2 low point (-200% to +100%), where LFO goes at minimum
-  kParamLFO2High,           // LFO2 high point (-100% to +200%), where LFO goes at maximum
-  kParamLFO2Waveform,       // LFO2 waveform (Sine, Tri, SawUp, SawDown, Square, S&H)
-  kParamLFO2Retrigger,      // LFO2 retrigger mode (Free, Retrig)
-  kParamLFO2Destination,    // LFO2 destination (Off, Filter, Pitch, PW, Amp, FM, WT, per-osc)
-  // ═══════════════════════════════════════════════════════════════════════════
-  // STEREO DELAY - Tempo-syncable delay with hermite interpolation
-  // ═══════════════════════════════════════════════════════════════════════════
-  kParamDelayEnable,        // Delay on/off toggle (Off = bypassed, dry signal only)
-  kParamDelayTime,          // Delay time in ms (1-2000ms) when sync is off
-  kParamDelaySync,          // Tempo sync (Off, 1/1, 1/2, 1/4, 1/8, 1/16, 1/32 + dotted/triplet)
-  kParamDelayFeedback,      // Feedback amount (0-90%) - capped for stability
-  kParamDelayDry,           // Dry signal level (0-100%)
-  kParamDelayWet,           // Wet signal level (0-100%)
-  kParamDelayMode,          // Stereo mode: Stereo (parallel) or Ping-Pong (alternating L/R)
-  // ═══════════════════════════════════════════════════════════════════════════
-  // VOICE COUNT DISPLAY - Read-only parameter showing active voice count
-  // ═══════════════════════════════════════════════════════════════════════════
-  kParamVoiceCount,         // Active voice count (0-32) - read-only for UI display
-  kNumParams
-};
+// kNumPresets auto-derived from kPresetDefs[] array - see Plugin_PresetList.h
+const int kNumPresets = kPresetCount;
 
 #if IPLUG_DSP
 #include "Plugin_DSP.h"
@@ -138,7 +50,7 @@ public:
   void ProcessBlock(sample** inputs, sample** outputs, int nFrames) override;
   void ProcessMidiMsg(const IMidiMsg& msg) override;
   void OnReset() override;
-  void OnParamChange(int paramIdx) override;
+  void OnParamChange(int paramIdx, EParamSource source, int sampleOffset = -1) override;
   void OnParamChangeUI(int paramIdx, EParamSource source) override;
   void OnIdle() override;
   bool OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData) override;
