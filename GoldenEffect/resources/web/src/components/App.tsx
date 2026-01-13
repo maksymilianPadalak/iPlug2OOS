@@ -95,7 +95,7 @@ export function App() {
           {/* Scrollable plugin body - constrained to 1000x625 */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-3 moderne-scroll flex justify-center relative z-10">
             <div
-              className="w-[950px] h-[525px] flex-shrink-0 rounded-lg"
+              className="w-[950px] h-[900px] flex-shrink-0 rounded-lg"
               style={{
                 boxShadow: '0 0 40px rgba(255, 255, 255, 0.18), 0 0 80px rgba(255, 255, 255, 0.10), 0 0 120px rgba(255, 255, 255, 0.05)',
                 border: '1px solid rgba(255, 255, 255, 0.15)',

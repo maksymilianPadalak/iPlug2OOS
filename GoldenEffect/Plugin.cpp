@@ -1,25 +1,50 @@
 #include "Plugin.h"
 #include "IPlug_include_in_plug_src.h"
 
+/**
+ * Plugin Constructor
+ *
+ * Initialize all parameters with sensible defaults.
+ * Parameter ranges are chosen for musical usefulness.
+ */
 PluginInstance::PluginInstance(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
 {
-    GetParam(kParamGain)->InitDouble("Gain", 100., 0., 200.0, 0.01, "%");
-  GetParam(kParamDelayTime)->InitDouble("Delay Time", 250., 1., 2000., 1., "ms");
-    GetParam(kParamDelayFeedback)->InitDouble("Feedback", 30., 0., 95., 0.1, "%");
-  GetParam(kParamDelayDry)->InitDouble("Dry", 100., 0., 100., 0.1, "%");
-  GetParam(kParamDelayWet)->InitDouble("Wet", 25., 0., 100., 0.1, "%");
-    GetParam(kParamDelaySync)->InitBool("Sync", false);
-  GetParam(kParamDelayDivision)->InitEnum("Division", 2, {"1/1", "1/2", "1/4", "1/8", "1/16", "1/32", "1/4T", "1/8T"});
-  GetParam(kParamReverbOn)->InitBool("Reverb On", false);
-  GetParam(kParamReverbMix)->InitDouble("Reverb Mix", 25., 0., 100., 0.1, "%");
-  GetParam(kParamReverbSize)->InitDouble("Room Size", 50., 0., 100., 0.1, "%");
-  GetParam(kParamReverbDecay)->InitDouble("Decay", 50., 0., 100., 0.1, "%");
-  GetParam(kParamReverbDamping)->InitDouble("Damping", 50., 0., 100., 0.1, "%");
-  GetParam(kParamReverbPreDelay)->InitDouble("Pre-Delay", 20., 0., 100., 0.1, "ms");
-  GetParam(kParamReverbWidth)->InitDouble("Width", 100., 0., 100., 0.1, "%");
-  GetParam(kParamReverbLowCut)->InitDouble("Low Cut", 80., 20., 500., 1., "Hz");
+  // ===========================================================================
+  // MIX SECTION
+  // ===========================================================================
+  GetParam(kParamDry)->InitDouble("Dry", 100., 0., 100., 0.1, "%");
+  GetParam(kParamWet)->InitDouble("Wet", 30., 0., 100., 0.1, "%");
 
+  // ===========================================================================
+  // CHARACTER SECTION
+  // ===========================================================================
+  GetParam(kParamSize)->InitDouble("Size", 70., 0., 100., 0.1, "%");
+  GetParam(kParamDecay)->InitDouble("Decay", 70., 0., 99., 0.1, "%");
+  GetParam(kParamPreDelay)->InitDouble("Pre-Delay", 10., 0., 200., 0.1, "ms");
+  GetParam(kParamDiffusion)->InitDouble("Diffusion", 75., 0., 100., 0.1, "%");
+
+  // ===========================================================================
+  // TONE SECTION
+  // ===========================================================================
+  GetParam(kParamDamping)->InitDouble("Damping", 50., 0., 100., 0.1, "%");
+  GetParam(kParamLowCut)->InitDouble("Low Cut", 80., 20., 500., 1., "Hz");
+  GetParam(kParamHighCut)->InitDouble("High Cut", 8000., 1000., 20000., 10., "Hz");
+
+  // ===========================================================================
+  // MODULATION SECTION
+  // ===========================================================================
+  GetParam(kParamModRate)->InitDouble("Mod Rate", 0.5, 0.1, 2., 0.01, "Hz");
+  GetParam(kParamModDepth)->InitDouble("Mod Depth", 50., 0., 100., 0.1, "%");
+
+  // ===========================================================================
+  // OUTPUT SECTION
+  // ===========================================================================
+  GetParam(kParamWidth)->InitDouble("Width", 100., 0., 100., 0.1, "%");
+
+  // ===========================================================================
+  // EDITOR SETUP
+  // ===========================================================================
 #if IPLUG_EDITOR
 #if defined(WEBVIEW_EDITOR_DELEGATE)
   SetCustomUrlScheme("iplug2");
@@ -36,7 +61,6 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
 #if IPLUG_DSP
 void PluginInstance::ProcessBlock(sample** inputs, sample** outputs, int nFrames)
 {
-  mDSP.SetTempo(mTimeInfo.mTempo, mTimeInfo.mTransportIsRunning);
   mDSP.ProcessBlock(inputs, outputs, NInChansConnected(), NOutChansConnected(), nFrames);
   mMeterSender.ProcessBlock(outputs, nFrames, kCtrlTagMeter);
 }
@@ -55,24 +79,5 @@ void PluginInstance::OnReset()
 void PluginInstance::OnParamChange(int paramIdx)
 {
   mDSP.SetParam(paramIdx, GetParam(paramIdx)->Value());
-}
-
-void PluginInstance::OnParamChangeUI(int paramIdx, EParamSource source)
-{
-#if IPLUG_EDITOR
-  if (paramIdx == kParamDelaySync)
-  {
-    const bool sync = GetParam(kParamDelaySync)->Bool();
-    if (auto pGraphics = GetUI())
-    {
-      pGraphics->HideControl(kCtrlTagDelayTime, sync);
-    }
-  }
-#endif
-}
-
-bool PluginInstance::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData)
-{
-  return false;
 }
 #endif

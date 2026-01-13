@@ -1,5 +1,17 @@
 #pragma once
 
+/**
+ * Golden Effect - Production Plate Reverb
+ *
+ * A Dattorro-style plate reverb demonstrating professional DSP techniques:
+ * - Allpass diffusion network for density
+ * - Cross-coupled feedback tanks for stereo width
+ * - Modulated delay lines for lush character
+ * - Multi-tap output for rich reflections
+ *
+ * This serves as a golden example for LLM-generated effects.
+ */
+
 #include "IPlug_include_in_plug_hdr.h"
 #include "ISender.h"
 #ifndef NO_IGRAPHICS
@@ -8,23 +20,36 @@
 
 const int kNumPresets = 1;
 
+// =============================================================================
+// PARAMETERS
+// =============================================================================
+// Parameters are organized by section for clarity.
+// Each parameter has a clear purpose and sensible range.
+// =============================================================================
 enum EParams
 {
-  kParamGain = 0,
-  kParamDelayTime,
-  kParamDelayFeedback,
-  kParamDelayDry,
-  kParamDelayWet,
-    kParamDelaySync,
-  kParamDelayDivision,
-  kParamReverbOn,
-  kParamReverbMix,
-  kParamReverbSize,
-  kParamReverbDecay,
-  kParamReverbDamping,
-  kParamReverbPreDelay,
-  kParamReverbWidth,
-  kParamReverbLowCut,
+  // --- Mix Section ---
+  kParamDry = 0,      // Dry signal level (0-100%)
+  kParamWet,          // Wet signal level (0-100%)
+
+  // --- Character Section ---
+  kParamSize,         // Room size - scales all delay times (0-100%)
+  kParamDecay,        // Feedback amount - controls tail length (0-100%)
+  kParamPreDelay,     // Time before reverb starts (0-100ms)
+  kParamDiffusion,    // Input smearing - affects echo density (0-100%)
+
+  // --- Tone Section ---
+  kParamDamping,      // High frequency decay rate (0-100%)
+  kParamLowCut,       // Input highpass frequency (20-500Hz)
+  kParamHighCut,      // Tank lowpass frequency (1000-20000Hz)
+
+  // --- Modulation Section ---
+  kParamModRate,      // LFO speed for chorus effect (0.1-2Hz)
+  kParamModDepth,     // LFO intensity (0-100%)
+
+  // --- Output Section ---
+  kParamWidth,        // Stereo spread (0-100%)
+
   kNumParams
 };
 
@@ -32,11 +57,14 @@ enum EParams
 #include "Plugin_DSP.h"
 #endif
 
+// =============================================================================
+// CONTROL TAGS
+// =============================================================================
+// Tags for UI controls that receive data from DSP (meters, waveforms, etc.)
+// =============================================================================
 enum EControlTags
 {
-  kCtrlTagMeter = 0,
-  kCtrlTagDelayTime,
-  kCtrlTagReverbSection,
+  kCtrlTagMeter = 0,  // Output level meter
   kNumCtrlTags
 };
 
@@ -55,9 +83,7 @@ public:
   void ProcessBlock(sample** inputs, sample** outputs, int nFrames) override;
   void OnReset() override;
   void OnParamChange(int paramIdx) override;
-  void OnParamChangeUI(int paramIdx, EParamSource source) override;
   void OnIdle() override;
-  bool OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData) override;
 
 private:
   PluginInstanceDSP<sample> mDSP;

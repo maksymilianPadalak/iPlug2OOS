@@ -1,7 +1,14 @@
 /**
- * Plugin Body - Gain Effect
+ * Plugin Body - Golden Effect (Dattorro Plate Reverb)
  *
- * Simple stereo gain effect with smoothed parameter control.
+ * Professional Dattorro plate reverb UI.
+ * Based on the Lexicon 224 topology with figure-8 tank.
+ * This is a "golden example" for LLMs to learn from.
+ *
+ * PARAMETERS (7 total):
+ * - Mix: Dry, Wet
+ * - Space: Size, Decay, Pre-Delay, Diffusion
+ * - Tone: Damping
  */
 
 import { Section } from 'sharedUi/components/Section';
@@ -10,8 +17,6 @@ import { GridFoundation } from 'sharedUi/components/GridFoundation';
 import { Meter } from 'sharedUi/components/Meter';
 import { Title } from 'sharedUi/components/Title';
 import { Knob } from 'sharedUi/components/Knob';
-import { Dropdown } from 'sharedUi/components/Dropdown';
-import { XYPad } from 'sharedUi/components/XYPad';
 import { EParams } from '@/config/runtimeParameters';
 
 
@@ -32,50 +37,38 @@ export function PluginBody() {
       <div className="absolute bottom-2 right-2 w-8 h-8 border-r border-b border-cyan-500/40" />
 
       <div className="flex flex-col gap-4 h-full">
-        <Title title="Gain" version="1.0" color="cyan" />
+        <Title title="Golden Reverb" version="1.0" color="cyan" />
 
-        {/* Grid for all sections */}
-                <GridFoundation>
-          <Section title="Controls" size="wide" description=",">
-            <SubGroup title="Master" layout="row">
-              <div className="flex flex-col gap-2 flex-1">
+        <GridFoundation>
+          {/* Mix Section - Input/Output levels */}
+          <Section title="Mix" size="compact">
+            <SubGroup title="Levels" layout="row">
+              <div className="flex flex-col gap-2">
                 <Meter channel={0} label="L" color="cyan" />
                 <Meter channel={1} label="R" color="cyan" />
               </div>
-              <Knob paramId={EParams.kParamGain} label="Gain" color="magenta" />
-            </SubGroup>
-
-                        <SubGroup title="Delay" layout="row">
-              <Knob paramId={EParams.kParamDelayTime} label="Time" color="cyan" />
-              <Knob paramId={EParams.kParamDelayFeedback} label="Feedback" color="magenta" />
-              <Knob paramId={EParams.kParamDelayDry} label="Dry" color="green" />
-              <Knob paramId={EParams.kParamDelayWet} label="Wet" color="orange" />
-              <Knob paramId={EParams.kParamDelaySync} label="Sync" color="cyan" />
-              <Dropdown paramId={EParams.kParamDelayDivision} label="Division" />
-                        </SubGroup>
-
-            <SubGroup title="Reverb" layout="row">
-              <Knob paramId={EParams.kParamReverbOn} label="On" color="cyan" />
-              <Knob paramId={EParams.kParamReverbMix} label="Mix" color="magenta" />
-              <Knob paramId={EParams.kParamReverbSize} label="Size" color="green" />
-              <Knob paramId={EParams.kParamReverbDecay} label="Decay" color="orange" />
-              <Knob paramId={EParams.kParamReverbDamping} label="Damping" color="cyan" />
-              <Knob paramId={EParams.kParamReverbPreDelay} label="Pre-Delay" color="magenta" />
-              <Knob paramId={EParams.kParamReverbWidth} label="Width" color="green" />
-              <Knob paramId={EParams.kParamReverbLowCut} label="Low-Cut" color="orange" />
+              <Knob paramId={EParams.kParamDry} label="Dry" color="green" size="medium" />
+              <Knob paramId={EParams.kParamWet} label="Wet" color="orange" size="medium" />
             </SubGroup>
           </Section>
 
-          <Section size="wide" borderless>
-            <XYPad
-              paramIdX={EParams.kParamDelayTime}
-              paramIdY={EParams.kParamDelayFeedback}
-              labelX="Time"
-              labelY="Feedback"
-            />
+          {/* Space Section - Room characteristics */}
+          <Section title="Space" size="wide" description="Room size and decay">
+            <SubGroup title="Tank" layout="row">
+              <Knob paramId={EParams.kParamSize} label="Size" color="cyan" size="medium" />
+              <Knob paramId={EParams.kParamDecay} label="Decay" color="magenta" size="medium" />
+              <Knob paramId={EParams.kParamPreDelay} label="Pre-Delay" color="orange" size="medium" />
+              <Knob paramId={EParams.kParamDiffusion} label="Diffusion" color="green" size="medium" />
+            </SubGroup>
+          </Section>
+
+          {/* Tone Section - Frequency shaping */}
+          <Section title="Tone" size="compact" description="High frequency damping">
+            <SubGroup title="Color" layout="row">
+              <Knob paramId={EParams.kParamDamping} label="Damping" color="orange" size="medium" />
+            </SubGroup>
           </Section>
         </GridFoundation>
-
       </div>
     </div>
   );
