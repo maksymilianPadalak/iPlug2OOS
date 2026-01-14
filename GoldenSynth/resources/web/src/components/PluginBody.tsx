@@ -111,6 +111,18 @@ export function PluginBody() {
             </SubGroup>
           </Section>
 
+          {/* Sub Oscillator - Serum-style with waveform selection and Direct Out */}
+          <Section title="Sub" size="wide">
+            <SubGroup layout="row">
+              <Dropdown paramId={EParams.kParamSubOscEnable} label="On" />
+              <Dropdown paramId={EParams.kParamSubOscWaveform} label="Wave" />
+              <Dropdown paramId={EParams.kParamSubOscOctave} label="Octave" />
+              <Knob paramId={EParams.kParamSubOscLevel} label="Level" color="magenta" />
+              <Knob paramId={EParams.kParamSubOscPan} label="Pan" color="magenta" />
+              <Dropdown paramId={EParams.kParamSubOscDirectOut} label="Direct" />
+            </SubGroup>
+          </Section>
+
           {/* Filter + LFO Row */}
           <Section title="Filter" size="wide">
             <SubGroup layout="row">

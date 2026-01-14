@@ -2564,6 +2564,19 @@ public:
       mPhase.set(q::frequency{static_cast<float>(freq)}, static_cast<float>(mSampleRate));
       mOsc2Phase.set(q::frequency{static_cast<float>(osc2Freq)}, static_cast<float>(mSampleRate));
 
+      // ─────────────────────────────────────────────────────────────────────────
+      // SUB OSCILLATOR FREQUENCY CALCULATION
+      // ─────────────────────────────────────────────────────────────────────────
+      // Sub oscillator is always 1-2 octaves below the base pitch (before Osc1/Osc2
+      // octave shifts). This ensures consistent sub bass regardless of oscillator
+      // tuning settings. mSubOscOctave is -1 or -2.
+      // ─────────────────────────────────────────────────────────────────────────
+      if (mSubOscEnable)
+      {
+        double subFreq = baseFreq * std::pow(2.0, mSubOscOctave);
+        mSubOscPhase.set(q::frequency{static_cast<float>(subFreq)}, static_cast<float>(mSampleRate));
+      }
+
       // Cache atomic flag OUTSIDE the sample loop - avoid atomic load per sample
       const bool isReleasing = mIsReleasing.load(std::memory_order_acquire);
       const bool applyDynamicRelease = (mReleaseSpeedMultiplier > 1.0f) && isReleasing;
@@ -3314,8 +3327,109 @@ public:
         float osc2PanL = pan2 <= 0.0f ? 1.0f : (1.0f - pan2);
         float osc2PanR = pan2 >= 0.0f ? 1.0f : (1.0f + pan2);
 
+        // ─────────────────────────────────────────────────────────────────────────
+        // SUB OSCILLATOR - Simple waveform for bass foundation (Serum-style)
+        // ─────────────────────────────────────────────────────────────────────────
+        // A dedicated sub bass oscillator that generates a simple waveform
+        // 1-3 octaves below the played note. Essential for:
+        //   - Adding low-end weight to leads without muddying the mix
+        //   - 808-style sub bass when used as the primary sound source
+        //   - Solid foundation under complex supersaw/FM patches
+        //
+        // WAVEFORMS:
+        // Four simple waveforms optimized for sub bass frequencies:
+        //   - Sine:     Pure fundamental, cleanest sub (club-standard)
+        //   - Triangle: Slight odd harmonics, warmer than sine
+        //   - Saw:      All harmonics, aggressive/buzzy sub
+        //   - Square:   Strong odd harmonics, hollow/punchy sub
+        //
+        // NOTE: These are NOT band-limited (no PolyBLEP). This is intentional -
+        // the sub is always 1-3 octaves BELOW the played note, so aliasing is
+        // not a concern. Even at C8 (4186Hz), the sub at -3 octaves is 523Hz.
+        //
+        // SOFT ENABLE/DISABLE:
+        // Smoothing runs EVERY sample, even when sub is "off". When disabled,
+        // effectiveTarget becomes 0 and the level fades smoothly to silence.
+        // This prevents clicks when toggling the sub on/off.
+        //
+        // DIRECT OUT (Serum-style):
+        // When enabled, sub output bypasses the filter entirely. This ensures
+        // consistent bass regardless of filter sweeps - essential for club/PA
+        // systems where filter automation shouldn't affect the sub foundation.
+        // ─────────────────────────────────────────────────────────────────────────
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // SUB PARAMETER SMOOTHING - Always runs for click-free enable/disable
+        // ─────────────────────────────────────────────────────────────────────────
+        // Sample-rate independent: ~5ms time constant at any sample rate.
+        // Formula: coeff = exp(-1 / (time * sampleRate))
+        // We approximate with: coeff = 1 - (1 / (time * sampleRate))
+        // For 5ms: coeff ≈ 1 - (1 / (0.005 * 44100)) ≈ 0.9955 at 44.1kHz
+        //
+        // SOFT ENABLE: When sub is disabled, effectiveTarget = 0, causing
+        // level to fade smoothly rather than click off instantly.
+        // ─────────────────────────────────────────────────────────────────────────
+        float subSmoothCoeff = 1.0f - (200.0f / mSampleRate);  // ~5ms at any sample rate
+        float effectiveLevelTarget = mSubOscEnable ? mSubOscLevelTarget : 0.0f;
+        mSubOscLevelSmoothed += (1.0f - subSmoothCoeff) * (effectiveLevelTarget - mSubOscLevelSmoothed);
+        mSubOscPanSmoothed += (1.0f - subSmoothCoeff) * (mSubOscPanTarget - mSubOscPanSmoothed);
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // SUB WAVEFORM GENERATION
+        // ─────────────────────────────────────────────────────────────────────────
+        // Generate the selected waveform from the phase iterator.
+        // All waveforms use q:: functions for consistency with Osc1/Osc2.
+        // Phase is always advanced (even at zero level) to maintain continuity.
+        // ─────────────────────────────────────────────────────────────────────────
+        float subSample = 0.0f;
+        switch (mSubOscWaveform)
+        {
+          case 0:  // Sine - pure fundamental, cleanest
+            subSample = q::sin(mSubOscPhase);
+            break;
+          case 1:  // Triangle - slight odd harmonics, warmer
+            subSample = q::triangle(mSubOscPhase);
+            break;
+          case 2:  // Saw - all harmonics, aggressive
+            subSample = q::saw(mSubOscPhase);
+            break;
+          case 3:  // Square - strong odd harmonics, punchy
+            subSample = q::square(mSubOscPhase);
+            break;
+          default:
+            subSample = q::sin(mSubOscPhase);
+            break;
+        }
+        mSubOscPhase++;  // Always advance phase
+        subSample *= mSubOscLevelSmoothed;
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // SUB STEREO PAN - Linear balance law
+        // ─────────────────────────────────────────────────────────────────────────
+        // Pan position: -1.0 = full left, 0.0 = center, +1.0 = full right
+        // NOTE: For club/PA compatibility, sub bass is typically kept centered.
+        // Stereo sub can cause phase cancellation on mono systems.
+        // ─────────────────────────────────────────────────────────────────────────
+        float subPan = std::max(-1.0f, std::min(1.0f, mSubOscPanSmoothed));
+        float subPanL = subPan <= 0.0f ? 1.0f : (1.0f - subPan);
+        float subPanR = subPan >= 0.0f ? 1.0f : (1.0f + subPan);
+        float subLeft = subSample * subPanL;
+        float subRight = subSample * subPanR;
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // MIX OSCILLATORS - Sub routing depends on Direct Out setting
+        // ─────────────────────────────────────────────────────────────────────────
+        // Direct Out OFF: Sub mixed here, goes through filter with Osc1/Osc2
+        // Direct Out ON:  Sub NOT mixed here, added after filter (see below)
+        // ─────────────────────────────────────────────────────────────────────────
         float mixedLeft = mOsc1Level * osc1Left * osc1PanL + mOsc2Level * osc2Left * osc2PanL;
         float mixedRight = mOsc1Level * osc1Right * osc1PanR + mOsc2Level * osc2Right * osc2PanR;
+        if (!mSubOscDirectOut)
+        {
+          // Sub goes through filter (traditional routing)
+          mixedLeft += subLeft;
+          mixedRight += subRight;
+        }
 
         // ─────────────────────────────────────────────────────────────────────────
         // FILTER MODULATION (LFO + ENVELOPE)
@@ -3413,6 +3527,31 @@ public:
         // ─────────────────────────────────────────────────────────────────────────
         sampleLeft = fastTanh(sampleLeft);
         sampleRight = fastTanh(sampleRight);
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // SUB DIRECT OUT - Bypass filter for maximum low-end impact (Serum-style)
+        // ─────────────────────────────────────────────────────────────────────────
+        // When Direct Out is enabled, the sub is added here AFTER the filter,
+        // envelope, and soft clipping. This ensures:
+        //   - Consistent bass regardless of filter sweeps
+        //   - Sub isn't affected by filter resonance
+        //   - Clean low-end foundation for club/PA systems
+        //
+        // The sub still follows note on/off (via voice lifetime) but bypasses
+        // all timbral processing. Level is controlled independently.
+        //
+        // NOTE: We apply envelope to direct out sub so it fades naturally with
+        // the note. Without this, the sub would cut off abruptly on note release.
+        // ─────────────────────────────────────────────────────────────────────────
+        if (mSubOscDirectOut)
+        {
+          // Apply envelope so sub fades with note (but not filter/effects)
+          float directSubLeft = subLeft * envAmp * mVelocity;
+          float directSubRight = subRight * envAmp * mVelocity;
+          // Soft clip the direct sub too (prevents clipping when combined)
+          sampleLeft += fastTanh(directSubLeft);
+          sampleRight += fastTanh(directSubRight);
+        }
 
         // ─────────────────────────────────────────────────────────────────────────
         // VOICE STEALING CROSSFADE
@@ -3591,6 +3730,19 @@ public:
     void SetOsc2FMFine(float fine) { mOsc2FMFine = fine; }                // -0.5 to +0.5
     void SetOsc2FMDepth(float depth) { mOsc2FMDepth = depth; }            // 0.0-1.0
     void SetOsc2Pan(float pan) { mOsc2PanTarget = pan; }                   // -1.0 to +1.0 (direct, no smoothing)
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SUB OSCILLATOR SETTERS (Serum-style)
+    // Simple waveform 1-3 octaves below for bass foundation.
+    // Level and pan use target values - smoothing applied in ProcessSamplesAccumulating.
+    // Direct Out bypasses filter+FX for maximum low-end impact.
+    // ─────────────────────────────────────────────────────────────────────────
+    void SetSubOscEnable(bool enable) { mSubOscEnable = enable; }
+    void SetSubOscWaveform(int waveform) { mSubOscWaveform = waveform; }   // 0=Sine,1=Tri,2=Saw,3=Sq
+    void SetSubOscOctave(int octave) { mSubOscOctave = octave; }           // -1, -2, or -3 octaves
+    void SetSubOscLevel(float level) { mSubOscLevelTarget = level; }       // 0.0-1.0 (smoothed)
+    void SetSubOscPan(float pan) { mSubOscPanTarget = pan; }               // -1.0 to +1.0 (smoothed)
+    void SetSubOscDirectOut(bool direct) { mSubOscDirectOut = direct; }   // true = bypass filter+FX
 
     // ─────────────────────────────────────────────────────────────────────────
     // OSC1 UNISON SETTERS
@@ -3889,6 +4041,41 @@ public:
     float mOsc2FMRatio = 2.0f;              // FM frequency ratio (carrier/modulator)
     float mOsc2FMFine = 0.0f;               // FM fine ratio offset (-0.5 to +0.5)
     float mOsc2FMDepth = 0.5f;              // FM modulation depth (0.0-1.0)
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SUB OSCILLATOR STATE - Simple waveform for bass foundation (Serum-style)
+    // ─────────────────────────────────────────────────────────────────────────
+    // The sub oscillator provides a clean low-end foundation with:
+    //   - 4 waveforms: Sine, Triangle, Saw, Square
+    //   - Octave offset: -1, -2, or -3 octaves below played note
+    //   - Direct Out option: bypass filter+FX for maximum low-end impact
+    //   - No unison, no FM - intentionally simple and CPU-efficient
+    //
+    // SMOOTHING PATTERN:
+    // Level and pan use a "target + smoothed" pattern for click-free automation:
+    //   - *Target: Set immediately when parameter changes (from UI/automation)
+    //   - *Smoothed: Approaches target gradually via one-pole lowpass filter
+    //   - Audio code reads *Smoothed, never *Target directly
+    //
+    // SOFT ENABLE/DISABLE:
+    // When sub is disabled, we don't stop smoothing - we set effectiveTarget=0
+    // and let level fade to zero. This prevents clicks when toggling on/off.
+    // Smoothing runs EVERY sample, even when sub is "off".
+    //
+    // DIRECT OUT:
+    // When enabled, sub output bypasses the filter and effects chain entirely.
+    // This is essential for club/PA systems where you want consistent sub bass
+    // regardless of filter sweeps or effects processing.
+    // ─────────────────────────────────────────────────────────────────────────
+    q::phase_iterator mSubOscPhase;         // Phase accumulator (Q library)
+    bool mSubOscEnable = false;             // On/off toggle (soft fade via smoothing)
+    int mSubOscWaveform = 0;                // 0=Sine, 1=Triangle, 2=Saw, 3=Square
+    int mSubOscOctave = -1;                 // Octave offset: -1, -2, or -3
+    float mSubOscLevelTarget = 0.5f;        // Level target (0.0-1.0, set by UI)
+    float mSubOscLevelSmoothed = 0.0f;      // Level smoothed (starts at 0 for soft start)
+    float mSubOscPanTarget = 0.0f;          // Pan target (-1.0 left to +1.0 right)
+    float mSubOscPanSmoothed = 0.0f;        // Pan smoothed (used in audio)
+    bool mSubOscDirectOut = false;          // Bypass filter+FX when true
 
     // ─────────────────────────────────────────────────────────────────────────
     // PER-OSCILLATOR UNISON ENGINE (Serum-style)
@@ -5043,6 +5230,55 @@ public:
         mSynth.ForEachVoice([value](SynthVoice& voice) {
           // Convert -100% to +100% to -1.0 to +1.0
           dynamic_cast<Voice&>(voice).SetOsc2Pan(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      // ─────────────────────────────────────────────────────────────────────────
+      // SUB OSCILLATOR PARAMETERS (Serum-style)
+      // Simple waveform 1-3 octaves below for bass foundation.
+      // Direct Out bypasses filter for maximum low-end impact.
+      // ─────────────────────────────────────────────────────────────────────────
+      case kParamSubOscEnable:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          dynamic_cast<Voice&>(voice).SetSubOscEnable(value > 0.5);
+        });
+        break;
+
+      case kParamSubOscWaveform:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Enum index: 0=Sine, 1=Triangle, 2=Saw, 3=Square
+          dynamic_cast<Voice&>(voice).SetSubOscWaveform(static_cast<int>(value));
+        });
+        break;
+
+      case kParamSubOscOctave:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Enum index to octave: 0=-1, 1=-2, 2=-3
+          static const int kOctaves[] = {-1, -2, -3};
+          int idx = static_cast<int>(value);
+          int octave = (idx >= 0 && idx < 3) ? kOctaves[idx] : -1;
+          dynamic_cast<Voice&>(voice).SetSubOscOctave(octave);
+        });
+        break;
+
+      case kParamSubOscLevel:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert 0-100% to 0.0-1.0
+          dynamic_cast<Voice&>(voice).SetSubOscLevel(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      case kParamSubOscPan:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert -100% to +100% to -1.0 to +1.0
+          dynamic_cast<Voice&>(voice).SetSubOscPan(static_cast<float>(value / 100.0));
+        });
+        break;
+
+      case kParamSubOscDirectOut:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Direct Out: bypass filter+FX for maximum low-end impact
+          dynamic_cast<Voice&>(voice).SetSubOscDirectOut(value > 0.5);
         });
         break;
 

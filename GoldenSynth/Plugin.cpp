@@ -76,6 +76,27 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   GetParam(kParamOsc2Pan)->InitDouble("Osc2 Pan", 0., -100., 100., 0.1, "%");  // 0 = center
 
   // ═══════════════════════════════════════════════════════════════════════════════
+  // SUB OSCILLATOR - Pure sine wave for bass foundation
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // A dedicated sub-bass oscillator like Serum's SUB. Always produces a pure sine
+  // wave 1-2 octaves below the main oscillators. Essential for:
+  //   - Adding weight to bass sounds without muddying the mids
+  //   - Creating solid low-end foundation under complex leads
+  //   - Classic 808-style sub bass when used alone
+  //
+  // Unlike Osc1/Osc2, the sub has no unison or FM - just simple waveforms.
+  // Direct Out option bypasses filter+FX for maximum low-end impact (Serum-style).
+  // ═══════════════════════════════════════════════════════════════════════════════
+  GetParam(kParamSubOscEnable)->InitBool("Sub On", false);  // Default OFF
+  GetParam(kParamSubOscWaveform)->InitEnum("Sub Wave", 0, 4, "", IParam::kFlagsNone, "",
+    "Sine", "Triangle", "Saw", "Square");  // Default Sine
+  GetParam(kParamSubOscOctave)->InitEnum("Sub Oct", 0, 3, "", IParam::kFlagsNone, "",
+    "-1", "-2", "-3");  // Default -1 octave (index 0)
+  GetParam(kParamSubOscLevel)->InitDouble("Sub Level", 50., 0., 100., 0.1, "%");  // 50% default
+  GetParam(kParamSubOscPan)->InitDouble("Sub Pan", 0., -100., 100., 0.1, "%");  // Center default
+  GetParam(kParamSubOscDirectOut)->InitBool("Sub Direct", false);  // Default through filter
+
+  // ═══════════════════════════════════════════════════════════════════════════════
   // OSC1 UNISON PARAMETERS
   // ═══════════════════════════════════════════════════════════════════════════════
   // Unison stacks multiple detuned copies of an oscillator to create massive,

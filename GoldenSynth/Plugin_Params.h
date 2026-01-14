@@ -79,6 +79,16 @@ enum EParams
   kParamOsc2Pan,                // Osc2 stereo pan (-100 to +100%)
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // SUB OSCILLATOR - Simple waveform for bass foundation (Serum-style)
+  // ─────────────────────────────────────────────────────────────────────────────
+  kParamSubOscEnable,           // Sub oscillator on/off: 0=Off, 1=On
+  kParamSubOscWaveform,         // Sub waveform: 0=Sine, 1=Triangle, 2=Saw, 3=Square
+  kParamSubOscOctave,           // Sub octave: 0=-1oct, 1=-2oct, 2=-3oct
+  kParamSubOscLevel,            // Sub oscillator level (0-100%)
+  kParamSubOscPan,              // Sub oscillator pan (-100 to +100%)
+  kParamSubOscDirectOut,        // Direct out: 0=Through filter, 1=Bypass filter+FX
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // OSC1 UNISON - Stack multiple detuned voices for massive sound
   // ─────────────────────────────────────────────────────────────────────────────
   kParamOsc1UnisonVoices,       // Osc1 unison voices (1-8), 1 = off
