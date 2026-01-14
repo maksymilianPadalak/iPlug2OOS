@@ -5107,14 +5107,51 @@ public:
       // VOICE MODE & GLIDE PARAMETERS
       // ─────────────────────────────────────────────────────────────────────────
       case kParamVoiceMode:
-        mVoiceMode = static_cast<int>(value);
-        // Reset note stack when switching modes
-        if (mVoiceMode == 0)  // Switching to Poly
-        {
-          mNoteStackSize = 0;
-          mMonoVoice = nullptr;
-        }
+      {
+        // ───────────────────────────────────────────────────────────────────────
+        // VOICE MODE SWITCH - CRITICAL: Must cleanly transition between modes
+        // ───────────────────────────────────────────────────────────────────────
+        // PROBLEM: Poly and Mono/Legato modes use different voice ownership:
+        //   - Poly: iPlug2's VoiceAllocator owns and manages all voices
+        //   - Mono/Legato: We manually control mVoices[0] via mMonoVoice pointer
+        //
+        // If we switch modes while voices are playing, we get conflicts:
+        //   - Poly→Mono: VoiceAllocator still thinks it owns mVoices[0]
+        //   - Mono→Poly: mVoices[0] might be busy but allocator state is stale
+        //
+        // SOLUTION: Stop all voices and reset allocator state BEFORE switching.
+        // This prevents double-processing, dangling pointers, and crashes.
+        // ───────────────────────────────────────────────────────────────────────
+
+        int newMode = static_cast<int>(value);
+
+        // Skip if mode isn't actually changing
+        if (newMode == mVoiceMode)
+          break;
+
+        // STEP 1: Release all voices gracefully (allows envelope release phase)
+        // This handles both poly voices AND our mono voice in one pass.
+        mSynth.ForEachVoice([](SynthVoice& voice) {
+          voice.Release();
+        });
+
+        // STEP 2: Clear mono-specific state
+        // mMonoVoice is just a pointer to mVoices[0], not a separate allocation.
+        // Setting to nullptr prevents stale pointer access during transition.
+        mMonoVoice = nullptr;
+        mNoteStackSize = 0;
+
+        // STEP 3: Reset iPlug2's VoiceAllocator internal state
+        // This clears the allocator's tracking of which voices are active/free.
+        // Without this, the allocator has stale state after we manually
+        // released voices, causing incorrect voice allocation on next note.
+        mSynth.Reset();
+
+        // STEP 4: Now safe to switch mode
+        mVoiceMode = newMode;
+
         break;
+      }
 
       case kParamGlideEnable:
         mGlideEnable = value > 0.5;
