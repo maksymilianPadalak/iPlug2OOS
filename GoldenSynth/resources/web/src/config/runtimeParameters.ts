@@ -124,10 +124,14 @@ export const runtimeParameters: RuntimeParameter[] = [
   { id: 59, name: "Delay Dry", type: "float", min: 0, max: 100, default: 100, step: 0.1, unit: "%", group: "Delay", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamDelayDry" },
   { id: 60, name: "Delay Wet", type: "float", min: 0, max: 100, default: 0, step: 0.1, unit: "%", group: "Delay", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamDelayWet" },
   { id: 61, name: "Delay Mode", type: "enum", min: 0, max: 1, default: 0, step: 1, unit: "", group: "Delay", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Stereo", "Ping-Pong"], automatable: true, key: "kParamDelayMode" },
+  // Voice Mode & Glide - Mono/Poly selection and portamento
+  { id: 62, name: "Voice Mode", type: "enum", min: 0, max: 2, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Poly", "Mono", "Legato"], automatable: true, key: "kParamVoiceMode" },
+  { id: 63, name: "Glide On", type: "bool", min: 0, max: 1, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Off", "On"], automatable: true, key: "kParamGlideEnable" },
+  { id: 64, name: "Glide Time", type: "float", min: 1, max: 2000, default: 100, step: 1, unit: "ms", group: "Master", shape: "ShapePowCurve", shapeParameter: 2, enumValues: null, automatable: true, key: "kParamGlideTime" },
   // Voice count display (read-only)
-  { id: 62, name: "Voices", type: "int", min: 0, max: 32, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: false, key: "kParamVoiceCount" },
+  { id: 65, name: "Voices", type: "int", min: 0, max: 32, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: false, key: "kParamVoiceCount" },
   // Preset selection (uses regular parameter for reliable UI communication)
-  { id: 63, name: "Preset", type: "enum", min: 0, max: 4, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Init", "Classic Lead", "Deep Bass", "Bright Lead", "Lush Pad"], automatable: true, key: "kParamPresetSelect" },
+  { id: 66, name: "Preset", type: "enum", min: 0, max: 5, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Init", "Classic Lead", "Deep Bass", "Bright Lead", "Lush Pad", "CPU Stress Test"], automatable: true, key: "kParamPresetSelect" },
 ];
 
 // Control tags (for SCMFD - meters, etc.)
@@ -212,8 +216,12 @@ export const EParams = {
   kParamDelayDry: 59,
   kParamDelayWet: 60,
   kParamDelayMode: 61,
-  kParamVoiceCount: 62,
-  kParamPresetSelect: 63,
+  // Voice Mode & Glide
+  kParamVoiceMode: 62,
+  kParamGlideEnable: 63,
+  kParamGlideTime: 64,
+  kParamVoiceCount: 65,
+  kParamPresetSelect: 66,
 } as const;
 
 export const EControlTags = {

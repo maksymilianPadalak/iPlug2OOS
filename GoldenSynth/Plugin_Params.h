@@ -126,6 +126,13 @@ enum EParams
   kParamDelayMode,              // Stereo mode: 0=Stereo, 1=Ping-Pong
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // VOICE MODE & GLIDE - Mono/Poly selection and portamento
+  // ─────────────────────────────────────────────────────────────────────────────
+  kParamVoiceMode,              // Voice mode: 0=Poly, 1=Mono, 2=Legato
+  kParamGlideEnable,            // Glide on/off: 0=Off, 1=On
+  kParamGlideTime,              // Glide time (1-2000 ms)
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // SYSTEM PARAMETERS
   // ─────────────────────────────────────────────────────────────────────────────
   kParamVoiceCount,             // Active voice count (0-32) - read-only for UI

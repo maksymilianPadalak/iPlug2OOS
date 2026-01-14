@@ -105,7 +105,7 @@ private:
 #include <q/synth/noise_gen.hpp>
 #include <q/fx/dc_block.hpp>
 #include <q/fx/delay.hpp>
-#include <q/fx/biquad.hpp>
+// Note: biquad.hpp removed - using Cytomic SVF instead (stable under modulation)
 #include <q/fx/envelope.hpp>
 #include <q/fx/dynamic.hpp>
 
@@ -740,302 +740,160 @@ inline float wrapPhase(float phase)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// RESONANT FILTER - Using Q Library's Biquad Filters
+// RESONANT FILTER - Cytomic Trapezoidal SVF (State Variable Filter)
 // ═══════════════════════════════════════════════════════════════════════════════
 //
-// This filter uses Q library's biquad implementations (Audio-EQ Cookbook).
-// - Lowpass, Highpass: True 2nd-order biquad responses
-// - Bandpass: Constant Skirt Gain (CSG) - peak rises with Q
-// - Notch: Complementary filter (input - bandpass_cpg)
+// Production-quality filter implementation using trapezoidal integration.
+// This is the industry standard for synthesizer filters (Serum, Vital, Diva).
 //
-// WHY BIQUADS WITH SMOOTHING?
-// Biquads can cause zipper noise when coefficients change abruptly. We solve
-// this by smoothing the cutoff and resonance parameters before updating
-// coefficients. This gives us:
-// - Full 20Hz-20kHz frequency range (no stability limits)
-// - True filter responses for LP/HP/BP
-// - Click-free parameter automation
+// KEY INSIGHT - Why SVF Instead of Biquad:
+// ─────────────────────────────────────────────────────────────────────────────
+// Biquad filters store "baked" intermediate values that explode when
+// coefficients change rapidly (LFO modulation, fast sweeps). The SVF stores
+// actual signal values (ic1eq, ic2eq) that are inherently bounded - making it
+// stable under audio-rate modulation at any Q value.
 //
-// NOTCH IMPLEMENTATION:
-// We use the complementary filter technique: notch = input - bandpass.
-// The bandpass_cpg (Constant Peak Gain) ensures unity gain at center frequency,
-// so subtraction creates a true notch with full attenuation at cutoff.
+// ALGORITHM:
+// ─────────────────────────────────────────────────────────────────────────────
+// Coefficients:
+//   g  = tan(π × cutoff / sampleRate)  // Pre-warped frequency
+//   k  = 1/Q                            // Damping (lower = more resonance)
+//   a1 = 1 / (1 + g × (g + k))
+//   a2 = g × a1
+//   a3 = g × a2
 //
-// WHAT IS Q (RESONANCE)?
-// Q controls the "sharpness" of the filter at the cutoff frequency.
-// - Q = 0.707: Butterworth (maximally flat passband)
-// - Q = 1-5: Moderate resonance, musical "sweep" sound
-// - Q = 10+: Sharp peak, near self-oscillation
+// Process (per sample):
+//   v3 = v0 - ic2eq
+//   v1 = a1 × ic1eq + a2 × v3          // Bandpass
+//   v2 = ic2eq + a2 × ic1eq + a3 × v3  // Lowpass
+//   ic1eq = 2 × v1 - ic1eq             // State update (trapezoidal)
+//   ic2eq = 2 × v2 - ic2eq
+//   output = m0×v0 + m1×v1 + m2×v2     // Mix for filter type
+//
+// Mix Coefficients:
+//   Lowpass:  m0=0, m1=0,  m2=1
+//   Highpass: m0=1, m1=-k, m2=-1
+//   Bandpass: m0=0, m1=1,  m2=0
+//   Notch:    m0=1, m1=-k, m2=0
 //
 // ═══════════════════════════════════════════════════════════════════════════════
 
-#include <q/fx/biquad.hpp>
-
-enum class FilterType
-{
-  Lowpass = 0,
-  Highpass,
-  Bandpass,
-  Notch,
-  kNumFilterTypes
-};
+enum class FilterType { Lowpass = 0, Highpass, Bandpass, Notch, kNumFilterTypes };
 
 class ResonantFilter
 {
 public:
+  // Initialize for sample rate (call before processing)
   void SetSampleRate(float sampleRate)
   {
     mSampleRate = sampleRate;
-    mSmoothCoeff = calcSmoothingCoeff(0.005f, sampleRate);  // 5ms smoothing
-
-    // Biquads are stable up to Nyquist, but we cap at 0.45 * sampleRate
-    // to avoid numerical issues very close to Nyquist
-    mMaxCutoffHz = sampleRate * 0.45f;  // ~21.6kHz at 48kHz
-
-    // Clamp cutoff to new valid range (important when sample rate decreases)
-    mTargetCutoffHz = std::min(mTargetCutoffHz, mMaxCutoffHz);
-    mCurrentCutoffHz = std::min(mCurrentCutoffHz, mMaxCutoffHz);
-
-    // Reinitialize all filters at new sample rate
-    UpdateAllFilters();
+    mMaxCutoffHz = sampleRate * 0.45f;  // Stay below Nyquist (tan→∞)
+    mCutoffHz = std::min(mCutoffHz, mMaxCutoffHz);
+    UpdateCoefficients();
   }
 
-  // Set cutoff frequency in Hz (20 - 20000)
+  // Set cutoff frequency in Hz (20 - ~21600 at 48kHz)
+  // Safe to call every sample - SVF is stable under audio-rate modulation
   void SetCutoff(float freqHz)
   {
-    mTargetCutoffHz = std::max(20.0f, std::min(mMaxCutoffHz, freqHz));
+    mCutoffHz = std::max(20.0f, std::min(mMaxCutoffHz, freqHz));
+    UpdateCoefficients();
   }
 
-  // Set resonance (0.0 - 1.0) - mapped to Q range 0.5 to 8
+  // Set resonance 0.0-1.0, mapped exponentially to Q 0.5-25
   void SetResonance(float resonance)
   {
-    mTargetResonance = std::max(0.0f, std::min(1.0f, resonance));
+    mResonance = std::max(0.0f, std::min(1.0f, resonance));
+    UpdateCoefficients();
   }
 
+  // Set filter type (click-free, no state reset needed)
   void SetType(FilterType type)
   {
-    if (mType != type)
-    {
-      mType = type;
-      // Reset filter states when switching types to avoid artifacts
-      ResetFilterStates();
-      // Ensure the new filter type has current coefficients
-      UpdateAllFilters();
-    }
+    if (mType != type) { mType = type; UpdateMixCoefficients(); }
   }
 
-  void Reset()
+  // Reset state on note trigger (safe - stores signal values, not coefficients)
+  void Reset() { mIC1eq = 0.0f; mIC2eq = 0.0f; }
+
+  // Process single sample - the core SVF algorithm
+  float Process(float v0)
   {
-    ResetFilterStates();
-    mCurrentCutoffHz = mTargetCutoffHz;
-    mCurrentResonance = mTargetResonance;
-    // Sync biquad coefficients to current values
-    // Without this, the filter uses stale coefficients after note trigger
-    UpdateAllFilters();
-  }
+    // Bypass optimization for wide-open filter
+    if (mType == FilterType::Lowpass && mCutoffHz >= mMaxCutoffHz * 0.98f) return v0;
+    if (mType == FilterType::Highpass && mCutoffHz <= 25.0f) return v0;
 
-  // Process a single sample through the filter
-  float Process(float input)
-  {
-    // ─────────────────────────────────────────────────────────────────────────
-    // SMOOTH PARAMETERS
-    // Prevents zipper noise by interpolating towards target values
-    // ─────────────────────────────────────────────────────────────────────────
-    bool needsUpdate = false;
+    // SVF core - two trapezoidal integrators with feedback
+    float v3 = v0 - mIC2eq;
+    float v1 = mA1 * mIC1eq + mA2 * v3;
+    float v2 = mIC2eq + mA2 * mIC1eq + mA3 * v3;
 
-    float cutoffDiff = mTargetCutoffHz - mCurrentCutoffHz;
-    if (std::abs(cutoffDiff) > 0.1f)
+    // Trapezoidal state update (bounded to signal range - this is why it's stable)
+    mIC1eq = 2.0f * v1 - mIC1eq;
+    mIC2eq = 2.0f * v2 - mIC2eq;
+
+    // Flush denormals to prevent CPU spikes when audio fades to silence
+    mIC1eq = flushDenormal(mIC1eq);
+    mIC2eq = flushDenormal(mIC2eq);
+
+    // Mix outputs for filter type
+    float output = mM0 * v0 + mM1 * v1 + mM2 * v2;
+
+    // Soft saturation for analog character at high resonance
+    if (std::abs(output) > 2.0f)
     {
-      mCurrentCutoffHz += mSmoothCoeff * cutoffDiff;
-      needsUpdate = true;
-    }
-
-    float resoDiff = mTargetResonance - mCurrentResonance;
-    if (std::abs(resoDiff) > 0.001f)
-    {
-      mCurrentResonance += mSmoothCoeff * resoDiff;
-      needsUpdate = true;
-    }
-
-    // Recalculate coefficients when parameters change
-    // This ensures switching filter types always has correct coefficients
-    if (needsUpdate)
-    {
-      UpdateAllFilters();
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // BYPASS OPTIMIZATION
-    // Skip processing when filter has no audible effect:
-    // - Lowpass at max cutoff: passes all frequencies
-    // - Highpass at min cutoff: passes all frequencies
-    // We still update filter state (above) so transitions are smooth
-    // ─────────────────────────────────────────────────────────────────────────
-    constexpr float kLowpassBypassThreshold = 0.98f;   // 98% of max cutoff
-    constexpr float kHighpassBypassThreshold = 25.0f;  // Near minimum (20Hz)
-
-    bool canBypass = false;
-    if (mType == FilterType::Lowpass &&
-        mCurrentCutoffHz >= mMaxCutoffHz * kLowpassBypassThreshold &&
-        mTargetCutoffHz >= mMaxCutoffHz * kLowpassBypassThreshold)
-    {
-      canBypass = true;
-    }
-    else if (mType == FilterType::Highpass &&
-             mCurrentCutoffHz <= kHighpassBypassThreshold &&
-             mTargetCutoffHz <= kHighpassBypassThreshold)
-    {
-      canBypass = true;
-    }
-
-    if (canBypass)
-    {
-      return input;  // Skip biquad processing entirely
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // FILTER PROCESSING
-    // ─────────────────────────────────────────────────────────────────────────
-    // The Q library biquad filters handle resonance correctly on their own.
-    // Just pass the signal through - no compensation or manipulation needed.
-    // ─────────────────────────────────────────────────────────────────────────
-    float output;
-    switch (mType)
-    {
-      case FilterType::Lowpass:
-        output = mLowpass(input);
-        FlushBiquadDenormals(mLowpass);
-        break;
-
-      case FilterType::Highpass:
-        output = mHighpass(input);
-        FlushBiquadDenormals(mHighpass);
-        break;
-
-      case FilterType::Bandpass:
-        output = mBandpass(input);
-        FlushBiquadDenormals(mBandpass);
-        break;
-
-      case FilterType::Notch:
-        // Notch = input - bandpass_cpg (complementary filter technique)
-        // bandpass_cpg has unity gain at center frequency, so:
-        //   At cutoff: output = input - input = 0 (full attenuation)
-        //   Away from cutoff: output ≈ input (passthrough)
-        {
-          float bpOut = mNotchBandpass(input);
-          FlushBiquadDenormals(mNotchBandpass);
-          output = input - bpOut;
-        }
-        break;
-
-      default:
-        output = mLowpass(input);
-        break;
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // NaN/INFINITY PROTECTION
-    // At extreme settings, filter can produce NaN/Infinity. Reset if detected.
-    // ─────────────────────────────────────────────────────────────────────────
-    if (isAudioCorrupt(output))
-    {
-      ResetFilterStates();
-      return 0.0f;
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // ANALOG-STYLE SOFT SATURATION
-    // ─────────────────────────────────────────────────────────────────────────
-    // Real analog filters naturally saturate when driven hard, creating warm
-    // harmonic distortion rather than harsh digital clipping. We emulate this
-    // by applying soft saturation only to peaks that exceed a threshold.
-    //
-    // - Signals below threshold: pass through unchanged (preserve dynamics)
-    // - Signals above threshold: soft-clip to prevent harsh distortion
-    //
-    // This preserves the resonance character while preventing the "weird noise"
-    // that occurs when digital clipping kicks in at extreme settings.
-    // ─────────────────────────────────────────────────────────────────────────
-    constexpr float kSaturationThreshold = 1.5f;  // Start saturating above ±1.5
-    constexpr float kSaturationCeiling = 3.0f;    // Asymptotic limit
-
-    if (std::abs(output) > kSaturationThreshold)
-    {
-      // Soft saturation: smoothly compress peaks above threshold
-      // Formula: threshold + (ceiling - threshold) * tanh((x - threshold) / (ceiling - threshold))
       float sign = output > 0.0f ? 1.0f : -1.0f;
-      float excess = std::abs(output) - kSaturationThreshold;
-      float range = kSaturationCeiling - kSaturationThreshold;
-      float compressed = kSaturationThreshold + range * softSaturate(excess / range);
-      output = sign * compressed;
+      output = sign * (2.0f + fastTanh(std::abs(output) - 2.0f));
     }
 
     return output;
   }
 
 private:
-  // Map resonance (0-1) to Q factor using exponential curve
-  // Formula: Q = 0.5 × 16^resonance
-  //   0.0 → Q = 0.5   (very gentle, below Butterworth)
-  //   0.5 → Q = 2.0   (moderate resonance)
-  //   1.0 → Q = 8     (high resonance, stable at all frequencies)
-  //
-  // Note: Q=15 was unstable at low frequencies (<100Hz). Q=8 is the sweet spot
-  // for stability while still providing strong resonance character.
-  float ResonanceToQ(float resonance) const
-  {
-    return 0.5f * std::pow(16.0f, resonance);
-  }
+  // Exponential resonance mapping: Q = 0.5 × 50^resonance (range 0.5-25)
+  float ResonanceToQ(float resonance) const { return 0.5f * std::pow(50.0f, resonance); }
 
-  void UpdateAllFilters()
+  void UpdateCoefficients()
   {
     if (mSampleRate <= 0.0f) return;
-
-    q::frequency freq{mCurrentCutoffHz};
-    float qVal = ResonanceToQ(mCurrentResonance);
-
-    mLowpass.config(freq, mSampleRate, qVal);
-    mHighpass.config(freq, mSampleRate, qVal);
-    mBandpass.config(freq, mSampleRate, qVal);
-    mNotchBandpass.config(freq, mSampleRate, qVal);
+    float normalizedFreq = std::min(mCutoffHz / mSampleRate, 0.49f);
+    mG = std::tan(static_cast<float>(M_PI) * normalizedFreq);
+    mK = 1.0f / ResonanceToQ(mResonance);
+    mA1 = 1.0f / (1.0f + mG * (mG + mK));
+    mA2 = mG * mA1;
+    mA3 = mG * mA2;
+    UpdateMixCoefficients();
   }
 
-  void ResetFilterStates()
+  void UpdateMixCoefficients()
   {
-    mLowpass.x1 = mLowpass.x2 = mLowpass.y1 = mLowpass.y2 = 0.0f;
-    mHighpass.x1 = mHighpass.x2 = mHighpass.y1 = mHighpass.y2 = 0.0f;
-    mBandpass.x1 = mBandpass.x2 = mBandpass.y1 = mBandpass.y2 = 0.0f;
-    mNotchBandpass.x1 = mNotchBandpass.x2 = mNotchBandpass.y1 = mNotchBandpass.y2 = 0.0f;
+    switch (mType)
+    {
+      case FilterType::Lowpass:  mM0 = 0.0f; mM1 = 0.0f; mM2 = 1.0f;  break;
+      case FilterType::Highpass: mM0 = 1.0f; mM1 = -mK;  mM2 = -1.0f; break;
+      case FilterType::Bandpass: mM0 = 0.0f; mM1 = 1.0f; mM2 = 0.0f;  break;
+      case FilterType::Notch:    mM0 = 1.0f; mM1 = -mK;  mM2 = 0.0f;  break;
+      default:                   mM0 = 0.0f; mM1 = 0.0f; mM2 = 1.0f;  break;
+    }
   }
 
-  void FlushBiquadDenormals(q::biquad& bq)
-  {
-    bq.x1 = flushDenormal(bq.x1);
-    bq.x2 = flushDenormal(bq.x2);
-    bq.y1 = flushDenormal(bq.y1);
-    bq.y2 = flushDenormal(bq.y2);
-  }
-
+  // Sample rate
   float mSampleRate = 48000.0f;
   float mMaxCutoffHz = 20000.0f;
-  float mTargetCutoffHz = 10000.0f;
-  float mTargetResonance = 0.0f;
-  float mCurrentCutoffHz = 10000.0f;
-  float mCurrentResonance = 0.0f;
-  float mSmoothCoeff = 0.01f;
 
-  // Q library biquad filters - one for each type
-  // Initialized with default values, reconfigured in SetSampleRate()
-  q::lowpass mLowpass{q::frequency{1000.0f}, 48000.0f, 0.707};
-  q::highpass mHighpass{q::frequency{1000.0f}, 48000.0f, 0.707};
-  q::bandpass_csg mBandpass{q::frequency{1000.0f}, 48000.0f, 0.707};
-  // Notch uses bandpass_cpg (Constant Peak Gain) + subtraction
-  // CPG has unity gain at center frequency, so input - bandpass = true notch
-  // (CSG would have variable peak gain, causing incomplete notch attenuation)
-  q::bandpass_cpg mNotchBandpass{q::frequency{1000.0f}, 48000.0f, 0.707};
-
+  // User parameters
+  float mCutoffHz = 10000.0f;
+  float mResonance = 0.0f;
   FilterType mType = FilterType::Lowpass;
+
+  // SVF coefficients
+  float mG = 0.0f, mK = 2.0f, mA1 = 0.0f, mA2 = 0.0f, mA3 = 0.0f;
+
+  // Mix coefficients (determine filter type)
+  float mM0 = 0.0f, mM1 = 0.0f, mM2 = 1.0f;
+
+  // Internal state (actual signal values - inherently bounded, unlike biquad)
+  float mIC1eq = 0.0f, mIC2eq = 0.0f;
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2305,6 +2163,17 @@ public:
           mOsc2FMModulatorPhases[v] = 0.0f;
         }
       }
+      else
+      {
+        // ─────────────────────────────────────────────────────────────────────────
+        // RETRIGGER FILTER RESET - Clean attacks in Mono mode
+        // ─────────────────────────────────────────────────────────────────────────
+        // Reset filter state on retrigger to prevent resonance tail from bleeding
+        // into new note attack. Provides punchy, clean attacks in Mono mode.
+        // ─────────────────────────────────────────────────────────────────────────
+        mFilterL.Reset();
+        mFilterR.Reset();
+      }
 
       // ─────────────────────────────────────────────────────────────────────────
       // VELOCITY → ENVELOPE TIME MODULATION
@@ -2375,37 +2244,50 @@ public:
       //
       // Pitch bend is added before exponentiation for correct tuning behavior.
       // ─────────────────────────────────────────────────────────────────────────
-      double pitch = mInputs[kVoiceControlPitch].endValue;
+      double targetPitch = mInputs[kVoiceControlPitch].endValue;
       double pitchBend = mInputs[kVoiceControlPitchBend].endValue;
 
-      // Convert to frequency: 440Hz × 2^(pitch + bend)
-      double targetFreq = 440.0 * std::pow(2.0, pitch + pitchBend);
+      // ─────────────────────────────────────────────────────────────────────────
+      // PORTAMENTO (GLIDE) - LINEAR INTERPOLATION in PITCH domain
+      // ─────────────────────────────────────────────────────────────────────────
+      // Glide in pitch domain (1V/octave) ensures equal time across all octaves:
+      //   - C2→C3 (1 octave) takes same time as C5→C6 (1 octave)
+      //   - Frequency domain would make high notes glide slower
+      //
+      // Linear interpolation: glide completes in EXACTLY the specified time.
+      // targetPitch = mInputs[kVoiceControlPitch].endValue (single source of truth)
+      //
+      // BLOCK PROCESSING: We advance the glide by nFrames samples per block.
+      // This ensures correct timing while being efficient (one freq update per block).
+      // The slight stepping between blocks is inaudible at typical block sizes (64-512).
+      // ─────────────────────────────────────────────────────────────────────────
+      double glidingPitch;
 
-      // ─────────────────────────────────────────────────────────────────────────
-      // PORTAMENTO (GLIDE)
-      // ─────────────────────────────────────────────────────────────────────────
-      // Portamento smoothly glides from the previous pitch to the new pitch.
-      // This is a classic synth feature for expressive lead lines and basses.
-      //
-      // We glide in the logarithmic domain (pitch) rather than linear (Hz) because
-      // pitch perception is logarithmic. This ensures equal glide time across octaves.
-      //
-      // When portamento is 0, we snap instantly to the new pitch.
-      // When portamento is > 0, we exponentially approach the target.
-      // ─────────────────────────────────────────────────────────────────────────
-      double baseFreq = targetFreq;
-      if (mPortamentoCoeff < 1.0f && mCurrentBaseFreq > 0.0)
+      if (mGlideSamplesRemaining > 0 && mCurrentPitch > kPitchInitThreshold)
       {
-        // Exponential glide: multiply current by coefficient and add remainder of target
-        // This creates a smooth asymptotic approach to the target frequency
-        mCurrentBaseFreq += mPortamentoCoeff * (targetFreq - mCurrentBaseFreq);
-        baseFreq = mCurrentBaseFreq;
+        // Calculate how many samples to advance this block
+        int samplesToAdvance = std::min(mGlideSamplesRemaining, nFrames);
+
+        // Advance pitch by the block's worth of steps
+        mCurrentPitch += mGlideStepPerSample * samplesToAdvance;
+        mGlideSamplesRemaining -= samplesToAdvance;
+
+        // On completion, snap to exact target (prevents floating point drift)
+        if (mGlideSamplesRemaining <= 0)
+        {
+          mCurrentPitch = targetPitch;  // targetPitch from mInputs (single source of truth)
+        }
+        glidingPitch = mCurrentPitch;
       }
       else
       {
-        // No portamento or first note - snap to target
-        mCurrentBaseFreq = targetFreq;
+        // No glide - use target pitch directly (poly mode or glide disabled)
+        glidingPitch = targetPitch;
+        mCurrentPitch = targetPitch;  // Keep in sync for future glides
       }
+
+      // Convert pitch to frequency: 440Hz × 2^(pitch + bend)
+      double baseFreq = 440.0 * std::pow(2.0, glidingPitch + pitchBend);
 
       // ─────────────────────────────────────────────────────────────────────────
       // OSCILLATOR 1 FREQUENCY CALCULATION
@@ -3497,6 +3379,9 @@ public:
       // 10Hz is below audible range but above subsonic rumble from speakers
       mDCBlockerL.cutoff(10_Hz, static_cast<float>(sampleRate));
       mDCBlockerR.cutoff(10_Hz, static_cast<float>(sampleRate));
+
+      // Recalculate glide samples for new sample rate
+      RecalculateGlideSamples();
     }
 
     // Parameter setters called from DSP class
@@ -3609,26 +3494,97 @@ public:
     void SetOscSync(int mode) { mOscSyncMode = mode; }                    // 0=Off, 1=Hard
 
     // ─────────────────────────────────────────────────────────────────────────
-    // PORTAMENTO (GLIDE) SETTER
+    // PORTAMENTO (GLIDE) TIME SETTER
     // ─────────────────────────────────────────────────────────────────────────
-    // Sets the portamento time. The coefficient is calculated per-sample:
-    //   coeff = 1 - e^(-1 / (time × sampleRate))
-    // At coeff=1.0, portamento is disabled (instant pitch change).
+    // Sets the glide time in milliseconds. Converts to sample count based on
+    // current sample rate. The actual per-sample step is calculated in
+    // SetPitchFromMidi when we know the pitch distance.
+    //
+    // We cache mGlideTimeMs so RecalculateGlideSamples() can recompute
+    // mGlideTimeSamples if the sample rate changes.
     // ─────────────────────────────────────────────────────────────────────────
     void SetPortamentoTime(float timeMs)
     {
+      mGlideTimeMs = timeMs;  // Cache for sample rate changes
+
       if (timeMs < 1.0f)
       {
-        // Portamento off - instant pitch change
-        mPortamentoCoeff = 1.0f;
+        // Glide disabled - instant pitch change
+        mGlideTimeSamples = 0;
+        mGlideSamplesRemaining = 0;
+        mGlideStepPerSample = 0.0;
       }
       else
       {
-        // Calculate per-sample glide coefficient
-        // Using calcSmoothingCoeff for consistent time constant behavior
-        mPortamentoCoeff = calcSmoothingCoeff(timeMs * 0.001f, static_cast<float>(mSampleRate));
+        // Calculate sample count for the glide duration
+        // samples = timeMs × sampleRate / 1000
+        mGlideTimeSamples = static_cast<int>((timeMs * 0.001f) * mSampleRate);
+        if (mGlideTimeSamples < 1) mGlideTimeSamples = 1;
       }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // RECALCULATE GLIDE SAMPLES (for sample rate changes)
+    // ─────────────────────────────────────────────────────────────────────────
+    void RecalculateGlideSamples()
+    {
+      if (mGlideTimeMs >= 1.0f)
+      {
+        mGlideTimeSamples = static_cast<int>((mGlideTimeMs * 0.001f) * mSampleRate);
+        if (mGlideTimeSamples < 1) mGlideTimeSamples = 1;
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // LEGATO PITCH UPDATE
+    // Updates the target pitch for legato playing without retriggering envelope.
+    // Converts MIDI note number to iPlug2's 1V/octave format.
+    // The glide system will smoothly transition to the new pitch.
+    //
+    // Target pitch is stored in mInputs[kVoiceControlPitch].endValue
+    // (single source of truth - no separate mTargetPitch variable).
+    // ─────────────────────────────────────────────────────────────────────────
+    void SetPitchFromMidi(int midiNote)
+    {
+      // Convert MIDI note to iPlug2's 1V/octave format:
+      // MIDI 69 (A4) = pitch 0 → 440Hz
+      // Each semitone = 1/12 octave
+      double targetPitch = (midiNote - 69) / 12.0;
+      mInputs[kVoiceControlPitch].endValue = targetPitch;  // Single source of truth
+
+      // Case 1: First pitch (uninitialized) - snap immediately, no glide
+      if (mCurrentPitch < kPitchInitThreshold)
+      {
+        mCurrentPitch = targetPitch;
+        mGlideSamplesRemaining = 0;
+        return;
+      }
+
+      // Case 2: Glide disabled - snap immediately
+      if (mGlideTimeSamples <= 0)
+      {
+        mCurrentPitch = targetPitch;
+        mGlideSamplesRemaining = 0;
+        return;
+      }
+
+      // Case 3: Check if pitch distance is worth gliding
+      double pitchDistance = targetPitch - mCurrentPitch;
+      if (std::abs(pitchDistance) < kMinGlideDistance)
+      {
+        // Same note or tiny interval - skip glide (optimization)
+        mCurrentPitch = targetPitch;
+        mGlideSamplesRemaining = 0;
+        return;
+      }
+
+      // Case 4: Start linear glide
+      mGlideStepPerSample = pitchDistance / static_cast<double>(mGlideTimeSamples);
+      mGlideSamplesRemaining = mGlideTimeSamples;
+    }
+
+    // Get current velocity (for retriggering with same velocity)
+    float GetVelocity() const { return mVelocity; }
 
     // NOTE: LFO setters have been moved to PluginInstanceDSP (global LFOs).
     // Voice accesses LFO values via mParent->mLFO1Buffer[] etc.
@@ -3886,15 +3842,31 @@ public:
     // Portamento smoothly glides between pitches instead of jumping instantly.
     // Classic synth feature for expressive leads and basses.
     //
-    // mPortamentoCoeff: Per-sample smoothing coefficient (0-1)
-    //   1.0 = instant (no portamento)
-    //   0.001 = slow glide (~500ms)
+    // IMPORTANT: We glide in the PITCH domain (1V/octave), NOT frequency domain!
+    // This ensures equal glide time across all octaves (musically correct).
+    //   - Gliding C2→C3 takes same time as C5→C6 (both 1 octave)
+    //   - Frequency domain would make high notes take much longer
     //
-    // mCurrentBaseFreq: The current (gliding) base frequency
-    //   Updated each sample towards the target frequency
+    // LINEAR INTERPOLATION GLIDE (predictable, exact timing):
+    // - mGlideTimeSamples: Total samples for a complete glide (from parameter)
+    // - mGlideSamplesRemaining: Countdown of samples left in current glide
+    // - mGlideStepPerSample: Pitch delta per sample (calculated when glide starts)
+    // - mCurrentPitch: Current interpolating pitch in 1V/octave format
+    //
+    // Target pitch is stored in mInputs[kVoiceControlPitch].endValue (single source of truth)
     // ─────────────────────────────────────────────────────────────────────────
-    float mPortamentoCoeff = 1.0f;          // 1.0 = off (instant), lower = slower glide
-    double mCurrentBaseFreq = 0.0;          // Current gliding frequency (Hz)
+
+    // Glide constants
+    static constexpr double kPitchUninitialized = -999.0;     // Sentinel: pitch not yet set
+    static constexpr double kPitchInitThreshold = -100.0;     // Below this = uninitialized
+    static constexpr double kMinGlideDistance = 0.0008;       // ~1 cent - skip glide if smaller
+
+    // Glide state (linear interpolation)
+    int mGlideTimeSamples = 0;              // Total samples for glide (from parameter, 0 = instant)
+    int mGlideSamplesRemaining = 0;         // Samples left in current glide (countdown)
+    double mGlideStepPerSample = 0.0;       // Pitch increment per sample
+    double mCurrentPitch = kPitchUninitialized;  // Current gliding pitch (1V/oct)
+    float mGlideTimeMs = 0.0f;              // Cached glide time for sample rate changes
   };
 
 public:
@@ -3965,6 +3937,9 @@ public:
 
     // Safety check: clamp block size to buffer limit to prevent overflow
     if (nFrames > kMaxBlockSize) nFrames = kMaxBlockSize;
+
+    // Reset mono voice processing flag for this block
+    mMonoVoiceProcessedThisBlock = false;
 
     // Clear outputs first
     for (int c = 0; c < nOutputs; c++)
@@ -4148,6 +4123,27 @@ public:
     mSynth.ProcessBlock(inputs, outputs, 0, nOutputs, nFrames);
 
     // ─────────────────────────────────────────────────────────────────────────
+    // MONO/LEGATO VOICE PROCESSING
+    // ─────────────────────────────────────────────────────────────────────────
+    // In mono/legato mode, we trigger voices directly (bypassing MIDI queue).
+    // MidiSynth::ProcessBlock has a fast-path that skips processing when
+    // mVoicesAreActive is false AND the queue is empty. Since we bypass the
+    // queue, mVoicesAreActive may be false even though our mono voice is busy.
+    // We must manually process the mono voice here.
+    //
+    // To prevent double processing (if MidiSynth DID process it), we use
+    // mMonoVoiceProcessedThisBlock flag.
+    // ─────────────────────────────────────────────────────────────────────────
+    if (mVoiceMode != 0 && mMonoVoice != nullptr && mMonoVoice->GetBusy())
+    {
+      if (!mMonoVoiceProcessedThisBlock)
+      {
+        mMonoVoice->ProcessSamplesAccumulating(inputs, outputs, 0, nOutputs, 0, nFrames);
+        mMonoVoiceProcessedThisBlock = true;
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // MASTER GAIN WITH SMOOTHING (Serum-style approach)
     // ─────────────────────────────────────────────────────────────────────────
     // We use a one-pole lowpass filter to smooth gain changes, preventing
@@ -4165,7 +4161,7 @@ public:
     //   - Serum/Vital don't do this - they rely on limiting instead
     //   - Dynamic gain causes "pumping" artifacts when voice count changes
     // ─────────────────────────────────────────────────────────────────────────
-    constexpr float kPolyScale = 0.15f;  // Fixed headroom (not voice-count dependent)
+    constexpr float kPolyScale = 0.10f;  // Fixed headroom - lower for more limiting headroom
 
     for (int s = 0; s < nFrames; s++)
     {
@@ -4211,6 +4207,11 @@ public:
 
         mDelay.Process(left, right);
 
+        // Post-delay soft clipping: delay can add dry+wet exceeding 1.0
+        // Must clip BEFORE limiter to prevent transients slipping through
+        left = fastTanh(left);
+        right = fastTanh(right);
+
         outputs[0][s] = static_cast<T>(left);
         outputs[1][s] = static_cast<T>(right);
       }
@@ -4226,9 +4227,9 @@ public:
     // STEREO LINKING: Both channels share the same gain reduction computed
     // from the maximum envelope of both channels. This preserves stereo image.
     //
-    // Three layers of protection:
-    //   1. Soft-knee limiter with attack/release - Musical limiting
-    //   2. Hard clamp - Absolute guarantee signal stays within ±1.0
+    // Two layers of protection:
+    //   1. Soft-knee limiter with fast attack (0.1ms) - Catches transients
+    //   2. Final fastTanh soft clipping - Musical saturation, no harsh clipping
     //   3. NaN/Inf check - Replace corrupt samples with silence
     // ─────────────────────────────────────────────────────────────────────────
     if (nOutputs >= 2)
@@ -4260,16 +4261,11 @@ public:
         left *= gain;
         right *= gain;
 
-        // Makeup gain: compensate for conservative kPolyScale (0.1)
-        // +6dB (2.0x) restores single-voice loudness to reasonable level
-        // Applied BEFORE final clamp so limiting happens at correct threshold
-        constexpr float kMakeupGain = 2.0f;  // +6dB
-        left *= kMakeupGain;
-        right *= kMakeupGain;
-
-        // Layer 2: Hard clamp - absolute safety net
-        left = std::max(-1.0f, std::min(1.0f, left));
-        right = std::max(-1.0f, std::min(1.0f, right));
+        // Layer 2: Final soft clipping - musical saturation instead of harsh digital clipping
+        // fastTanh smoothly limits to ~±1.0 without the harsh artifacts of hard clipping
+        // No makeup gain needed - kPolyScale and limiting handle overall level
+        left = fastTanh(left);
+        right = fastTanh(right);
 
         // Layer 3: NaN/Inf protection
         if (isAudioCorrupt(left)) left = 0.0f;
@@ -4297,11 +4293,8 @@ public:
 
         sample *= gain;
 
-        // Makeup gain (same as stereo path)
-        constexpr float kMakeupGain = 2.0f;
-        sample *= kMakeupGain;
-
-        sample = std::max(-1.0f, std::min(1.0f, sample));
+        // Final soft clipping (same as stereo path)
+        sample = fastTanh(sample);
         if (isAudioCorrupt(sample)) sample = 0.0f;
 
         outputs[0][s] = static_cast<T>(sample);
@@ -4330,9 +4323,9 @@ public:
     mDelay.Reset();
 
     // Initialize output limiter envelope followers with correct sample rate
-    // Attack: 1ms, Release: 100ms for transparent limiting
-    mLimiterEnvL.config(1_ms, 100_ms, static_cast<float>(sampleRate));
-    mLimiterEnvR.config(1_ms, 100_ms, static_cast<float>(sampleRate));
+    // Attack: 0.1ms (fast to catch transients), Release: 50ms for smooth recovery
+    mLimiterEnvL.config(0.1_ms, 50_ms, static_cast<float>(sampleRate));
+    mLimiterEnvR.config(0.1_ms, 50_ms, static_cast<float>(sampleRate));
     mLimiterEnvL = 0.0f;  // Reset envelope state
     mLimiterEnvR = 0.0f;
   }
@@ -4346,7 +4339,167 @@ public:
   void ProcessMidiMsg(const IMidiMsg& msg)
   {
     // ─────────────────────────────────────────────────────────────────────────
-    // SMART VOICE STEALING (Production-Quality Implementation)
+    // MONO/LEGATO MODE HANDLING
+    // ─────────────────────────────────────────────────────────────────────────
+    // In Mono/Legato modes, we handle voice allocation manually instead of
+    // using iPlug2's polyphonic allocator:
+    //
+    // MONO MODE (mVoiceMode == 1):
+    //   - Single voice always used
+    //   - New notes retrigger envelope (percussive)
+    //   - Note-off only releases if it's the current note
+    //   - Glide slides pitch to new note
+    //
+    // LEGATO MODE (mVoiceMode == 2):
+    //   - Single voice always used
+    //   - Overlapping notes DON'T retrigger (smooth transitions)
+    //   - Note-off only releases if no other notes held (requires note stack)
+    //   - Glide slides pitch to new note
+    //
+    // POLY MODE (mVoiceMode == 0):
+    //   - Standard polyphonic behavior via iPlug2's allocator
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const int status = msg.StatusMsg();
+    const int noteNum = msg.NoteNumber();
+    const int velocity = msg.Velocity();
+
+    // Handle Mono/Legato modes with direct voice control (bypass iPlug2's queue)
+    // We use mVoices[0] as the dedicated mono voice for predictable behavior
+    if (mVoiceMode != 0)  // Mono or Legato
+    {
+      if (status == IMidiMsg::kNoteOn && velocity > 0)
+      {
+        bool isLegato = (mVoiceMode == 2);
+        bool isFirstNote = (mNoteStackSize == 0);
+
+        // Add note to stack (if not already there and stack not full)
+        bool noteAlreadyInStack = false;
+        for (int i = 0; i < mNoteStackSize; i++)
+        {
+          if (mNoteStack[i] == noteNum)
+          {
+            noteAlreadyInStack = true;
+            break;
+          }
+        }
+        if (!noteAlreadyInStack && mNoteStackSize < kMaxNoteStackSize)
+        {
+          mNoteStack[mNoteStackSize++] = noteNum;
+        }
+
+        // Always use voice 0 for mono/legato
+        mMonoVoice = mVoices[0];
+        double velocityNorm = velocity / 127.0;
+
+        // Set glide time (glide only if not first note and glide enabled)
+        if (mGlideEnable && !isFirstNote)
+        {
+          mMonoVoice->SetPortamentoTime(mGlideTimeMs);
+        }
+        else
+        {
+          mMonoVoice->SetPortamentoTime(0.0f);  // Instant pitch change
+        }
+
+        // Set the target pitch
+        mMonoVoice->SetPitchFromMidi(noteNum);
+
+        if (isFirstNote)
+        {
+          // First note - trigger the voice (full attack)
+          mMonoVoice->Trigger(velocityNorm, false);
+        }
+        else
+        {
+          // Subsequent note
+          if (isLegato)
+          {
+            // LEGATO: Don't retrigger envelope, just pitch changes (already set above)
+            // The glide will handle the smooth transition
+          }
+          else
+          {
+            // MONO: Retrigger envelope for punchy attack on each note
+            mMonoVoice->Trigger(velocityNorm, true);  // isRetrigger=true for smooth transition
+          }
+        }
+
+        // LFO retrigger
+        if (mLFO1Retrigger)
+          mLFO1NeedsReset.store(true, std::memory_order_release);
+        if (mLFO2Retrigger)
+          mLFO2NeedsReset.store(true, std::memory_order_release);
+
+        return;  // Don't process through normal poly path
+      }
+      else if (status == IMidiMsg::kNoteOff || (status == IMidiMsg::kNoteOn && velocity == 0))
+      {
+        // Remove note from stack
+        int noteIndex = -1;
+        for (int i = 0; i < mNoteStackSize; i++)
+        {
+          if (mNoteStack[i] == noteNum)
+          {
+            noteIndex = i;
+            break;
+          }
+        }
+
+        if (noteIndex >= 0)
+        {
+          // Check if this was the top note BEFORE removing
+          bool wasTopNote = (noteIndex == mNoteStackSize - 1);
+
+          // Shift remaining notes down to remove this note
+          for (int i = noteIndex; i < mNoteStackSize - 1; i++)
+          {
+            mNoteStack[i] = mNoteStack[i + 1];
+          }
+          mNoteStackSize--;
+
+          if (mNoteStackSize == 0)
+          {
+            // No more notes held - release the voice
+            if (mMonoVoice)
+            {
+              mMonoVoice->Release();
+            }
+          }
+          else if (wasTopNote)
+          {
+            // Released top note but still have notes held - go back to previous
+            int previousNote = mNoteStack[mNoteStackSize - 1];
+
+            // Set glide for the return (if enabled)
+            if (mGlideEnable && mMonoVoice)
+            {
+              mMonoVoice->SetPortamentoTime(mGlideTimeMs);
+            }
+
+            // Change pitch to previous note
+            if (mMonoVoice)
+            {
+              mMonoVoice->SetPitchFromMidi(previousNote);
+            }
+
+            // In MONO mode, retrigger envelope when returning to previous note
+            // In LEGATO mode, don't retrigger (smooth return)
+            if (mVoiceMode == 1 && mMonoVoice)  // Mono
+            {
+              mMonoVoice->Trigger(mMonoVoice->GetVelocity(), true);
+            }
+          }
+          // If released a note that wasn't on top, just remove from stack (done above)
+        }
+
+        return;
+      }
+      // Other MIDI messages (CC, pitch bend, etc.) pass through to poly handler
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // POLY MODE: SMART VOICE STEALING (Production-Quality Implementation)
     //
     // Before processing a note-on, check if we need to steal a voice.
     // Prefer stealing voices that are in release phase (note-off received)
@@ -4367,7 +4520,7 @@ public:
     // is processing. All voice state access uses std::atomic with proper
     // memory ordering to ensure thread-safe operation.
     // ─────────────────────────────────────────────────────────────────────────
-    if (msg.StatusMsg() == IMidiMsg::kNoteOn && msg.Velocity() > 0)
+    if (status == IMidiMsg::kNoteOn && velocity > 0)
     {
       int freeVoices = 0;
       Voice* bestStealCandidate = nullptr;
@@ -4907,6 +5060,42 @@ public:
         mDelay.SetMode(static_cast<DelayMode>(static_cast<int>(value)));
         break;
 
+      // ─────────────────────────────────────────────────────────────────────────
+      // VOICE MODE & GLIDE PARAMETERS
+      // ─────────────────────────────────────────────────────────────────────────
+      case kParamVoiceMode:
+        mVoiceMode = static_cast<int>(value);
+        // Reset note stack when switching modes
+        if (mVoiceMode == 0)  // Switching to Poly
+        {
+          mNoteStackSize = 0;
+          mMonoVoice = nullptr;
+        }
+        break;
+
+      case kParamGlideEnable:
+        mGlideEnable = value > 0.5;
+        // Update all voices with new glide state
+        mSynth.ForEachVoice([this](SynthVoice& voice) {
+          Voice& v = dynamic_cast<Voice&>(voice);
+          if (mGlideEnable && (mVoiceMode == 1 || mVoiceMode == 2))
+            v.SetPortamentoTime(mGlideTimeMs);
+          else
+            v.SetPortamentoTime(0.0f);  // Instant pitch change
+        });
+        break;
+
+      case kParamGlideTime:
+        mGlideTimeMs = static_cast<float>(value);
+        // Update all voices with new glide time (if glide is enabled)
+        if (mGlideEnable && (mVoiceMode == 1 || mVoiceMode == 2))
+        {
+          mSynth.ForEachVoice([this](SynthVoice& voice) {
+            dynamic_cast<Voice&>(voice).SetPortamentoTime(mGlideTimeMs);
+          });
+        }
+        break;
+
       default:
         break;
     }
@@ -4924,6 +5113,29 @@ private:
   // VOICE MANAGEMENT - Track active voice count for dynamic release and hard cap
   // ─────────────────────────────────────────────────────────────────────────────
   int mActiveVoiceCount = 0;  // Current number of active voices
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // VOICE MODE & GLIDE (Portamento)
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Voice modes control how polyphony behaves:
+  //   0 = Poly:   Multiple voices, each note gets its own voice (default)
+  //   1 = Mono:   Single voice, new notes instantly take over, retriggering env
+  //   2 = Legato: Single voice, overlapping notes glide smoothly without retrigger
+  //
+  // Glide smoothly slides pitch between notes (essential for bass/lead sounds).
+  // Only active in Mono/Legato modes - Poly has no concept of "previous note".
+  // ─────────────────────────────────────────────────────────────────────────────
+  int mVoiceMode = 0;         // 0=Poly, 1=Mono, 2=Legato
+  bool mGlideEnable = false;  // Glide on/off
+  float mGlideTimeMs = 100.0f; // Glide time in milliseconds
+
+  // Note stack for mono/legato - tracks all currently held notes
+  // When top note is released, we glide back to previous held note
+  static constexpr int kMaxNoteStackSize = 16;
+  int mNoteStack[kMaxNoteStackSize] = {0};  // MIDI note numbers
+  int mNoteStackSize = 0;                    // Current number of held notes
+  Voice* mMonoVoice = nullptr;               // The single voice used in mono/legato mode
+  bool mMonoVoiceProcessedThisBlock = false; // Prevents double processing
 
   // ─────────────────────────────────────────────────────────────────────────────
   // GLOBAL FILTER ENABLE - Bypass all voice filters when off (hear raw oscillators)
@@ -4991,14 +5203,15 @@ private:
   // STEREO LINKING: Both channels share the same gain reduction to preserve
   // stereo image. Gain is computed from the maximum envelope of both channels.
   //
-  // GAIN STAGING: With kPolyScale=0.1 and +6dB makeup gain after limiter:
-  //   - Threshold: -7dB (so after +6dB makeup, output peaks at -1dB)
+  // GAIN STAGING: With kPolyScale=0.1 and no makeup gain (soft clip instead):
+  //   - Threshold: -7dB (conservative, catches peaks early)
   //   - Knee width: 6dB (smooth transition into limiting)
   //   - Ratio: 20:1 (0.05) - near-brickwall limiting
-  //   - Attack: 1ms (fast enough to catch transients)
-  //   - Release: 100ms (smooth recovery, avoids pumping)
+  //   - Attack: 0.1ms (very fast to catch transients from polyphony)
+  //   - Release: 50ms (faster recovery for dense playing)
+  //   - Final stage: fastTanh soft clipping (no harsh digital clipping)
   // ─────────────────────────────────────────────────────────────────────────────
-  q::ar_envelope_follower mLimiterEnvL{1_ms, 100_ms, 48000.0f};
-  q::ar_envelope_follower mLimiterEnvR{1_ms, 100_ms, 48000.0f};
+  q::ar_envelope_follower mLimiterEnvL{0.1_ms, 50_ms, 48000.0f};
+  q::ar_envelope_follower mLimiterEnvR{0.1_ms, 50_ms, 48000.0f};
   q::soft_knee_compressor mLimiter{-7_dB, 6_dB, 0.05f};  // threshold, width, ratio (20:1)
 };

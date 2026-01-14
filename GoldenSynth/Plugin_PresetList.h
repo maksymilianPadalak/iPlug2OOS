@@ -354,6 +354,92 @@ inline constexpr PresetDef kPresetDefs[] = {
   //
   // ═══════════════════════════════════════════════════════════════════════════
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Preset 5: CPU Stress Test
+  // Maximum CPU load: 8x unison on both oscs, both LFOs at max rate, high
+  // resonance filter, ping-pong delay with high feedback, long release
+  // ───────────────────────────────────────────────────────────────────────────
+  {
+    "CPU Stress Test",
+    false,
+    {
+      // Envelope: Long release for maximum voice accumulation
+      {kParamGain, 60.},                 // Lower gain - lots of signal!
+      {kParamAttack, 5.},
+      {kParamDecay, 500.},
+      {kParamSustain, 80.},
+      {kParamRelease, 3000.},            // Very long release = many active voices
+      {kParamEnvVelocity, 50.},
+
+      // Osc1: Pulse with 8 unison voices
+      {kParamWaveform, 4},               // Pulse
+      {kParamOsc1Level, 100.},
+      {kParamOsc1Octave, 2},
+      {kParamOsc1Detune, 0.},
+      {kParamOsc1Pan, -30.},
+      {kParamPulseWidth, 25.},           // Asymmetric for more harmonics
+
+      // Osc1 Unison: MAX (8 voices)
+      {kParamOsc1UnisonVoices, 7},       // 8 voices (0-indexed: 7 = 8)
+      {kParamOsc1UnisonDetune, 100.},    // Max detune
+      {kParamOsc1UnisonWidth, 100.},     // Max stereo width
+      {kParamOsc1UnisonBlend, 100.},     // Max blend
+
+      // Osc2: FM with 8 unison voices
+      {kParamOsc2Waveform, 5},           // FM
+      {kParamOsc2Octave, 3},             // +1 octave
+      {kParamOsc2Detune, 12.},
+      {kParamOsc2Level, 80.},
+      {kParamOsc2Pan, 30.},
+      {kParamOsc2FMRatio, 4},            // 4:1 ratio
+      {kParamOsc2FMFine, 15.},
+      {kParamOsc2FMDepth, 75.},          // Heavy FM
+
+      // Osc2 Unison: MAX (8 voices)
+      {kParamOsc2UnisonVoices, 7},       // 8 voices
+      {kParamOsc2UnisonDetune, 100.},    // Max detune
+      {kParamOsc2UnisonWidth, 100.},     // Max stereo width
+      {kParamOsc2UnisonBlend, 100.},     // Max blend
+
+      // Filter: High resonance (CPU intensive)
+      {kParamFilterEnable, 1},
+      {kParamFilterCutoff, 2000.},
+      {kParamFilterResonance, 95.},      // Near self-oscillation
+      {kParamFilterType, 0},             // Lowpass
+
+      // LFO1: Max rate, S&H waveform (most CPU intensive), filter modulation
+      {kParamLFO1Enable, 1},
+      {kParamLFO1Rate, 20.},             // Max rate (20 Hz)
+      {kParamLFO1Sync, 0},               // Free running
+      {kParamLFO1Low, -100.},            // Full range
+      {kParamLFO1High, 100.},
+      {kParamLFO1Waveform, 5},           // S&H (most calculations)
+      {kParamLFO1Retrigger, 0},          // Free
+      {kParamLFO1Destination, 1},        // Filter - causes recalculation
+
+      // LFO2: Max rate, square wave, pitch modulation
+      {kParamLFO2Enable, 1},
+      {kParamLFO2Rate, 18.},             // Near max rate
+      {kParamLFO2Sync, 0},
+      {kParamLFO2Low, -50.},
+      {kParamLFO2High, 50.},
+      {kParamLFO2Waveform, 4},           // Square
+      {kParamLFO2Retrigger, 0},
+      {kParamLFO2Destination, 2},        // Pitch - heavy on phase calcs
+
+      // Delay: Ping-pong with high feedback
+      {kParamDelayEnable, 1},
+      {kParamDelayTime, 333.},
+      {kParamDelaySync, 0},              // Free time
+      {kParamDelayFeedback, 85.},        // High feedback = long tail
+      {kParamDelayDry, 70.},
+      {kParamDelayWet, 60.},             // Lots of wet signal
+      {kParamDelayMode, 1},              // Ping-Pong
+
+      {END, 0}
+    }
+  },
+
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -257,6 +257,30 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   GetParam(kParamDelayMode)->InitEnum("Delay Mode", 0, 2, "", IParam::kFlagsNone, "",
     "Stereo", "Ping-Pong");
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // VOICE MODE & GLIDE PARAMETERS
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // Voice mode determines polyphony behavior:
+  //   Poly: Multiple voices, each note gets its own voice (standard synth)
+  //   Mono: Single voice, new notes instantly take over (bass synths)
+  //   Legato: Single voice, new notes glide if previous note held (lead synths)
+  //
+  // Glide (Portamento): Smoothly slides pitch between notes
+  //   Essential for expressive bass lines and lead melodies
+  //   Only active in Mono/Legato modes (Poly has no "previous note" to slide from)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  GetParam(kParamVoiceMode)->InitEnum("Voice Mode", 0, 3, "", IParam::kFlagsNone, "",
+    "Poly", "Mono", "Legato");  // Default Poly (index 0)
+
+  GetParam(kParamGlideEnable)->InitBool("Glide On", false);  // Default OFF
+
+  // Glide time: how long it takes to slide from one note to another
+  // 1ms = nearly instant (subtle smoothing)
+  // 50-200ms = typical bass/lead glide
+  // 500-2000ms = dramatic slow glide for effects
+  GetParam(kParamGlideTime)->InitDouble("Glide Time", 100., 1., 2000., 1., "ms",
+    IParam::kFlagsNone, "", IParam::ShapePowCurve(2.0));  // Exponential for natural feel
+
   // Voice count display (read-only parameter for UI feedback)
   // Shows 0-32 active voices - useful for monitoring polyphony usage
   GetParam(kParamVoiceCount)->InitInt("Voices", 0, 0, 32, "", IParam::kFlagCannotAutomate);

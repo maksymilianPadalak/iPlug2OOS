@@ -45,21 +45,21 @@ inline void InitPresets(iplug::Plugin* pPlugin)
         paramCount++;
       }
 
-      // Create preset with default values first
-      pPlugin->MakeDefaultPreset(preset.name);
+      // Reset ALL params to their defaults first
+      // This ensures we don't inherit values from previous presets
+      for (int p = 0; p < kNumParams; p++)
+      {
+        pPlugin->GetParam(p)->SetToDefault();
+      }
 
-      // Then override specific parameters
-      // Note: We can't use MakePresetFromNamedParams easily with a runtime array,
-      // so we set params individually after creating a default preset
+      // Then set custom parameters for this preset
       for (int p = 0; p < paramCount; p++)
       {
         pPlugin->GetParam(preset.params[p].idx)->Set(preset.params[p].val);
       }
 
-      // Store the preset (MakeDefaultPreset already did this, but the values
-      // were defaults - we need to re-store with our custom values)
-      // Use ModifyCurrentPreset to update the stored preset data
-      pPlugin->ModifyCurrentPreset(preset.name);
+      // Now create the preset - it will capture the values we just set
+      pPlugin->MakeDefaultPreset(preset.name);
     }
   }
 
