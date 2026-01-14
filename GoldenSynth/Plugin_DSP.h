@@ -730,12 +730,18 @@ inline float sanitizeAudio(float x)
   return std::max(-10.0f, std::min(10.0f, x));
 }
 
-// Wrap a phase angle to [0, 2π) using fmod - more robust than while loop
+// Wrap a phase angle to [0, 2π) - fast floor-based implementation
+// More robust than std::fmod which can have precision issues near 2π
 inline float wrapPhase(float phase)
 {
-  if (isAudioCorrupt(phase)) return 0.0f;
-  phase = std::fmod(phase, kTwoPi);
-  if (phase < 0.0f) phase += kTwoPi;
+  // Protect against NaN/Inf - clamp to middle of range (π) instead of 0
+  // to minimize the discontinuity (max jump is π instead of 2π)
+  if (isAudioCorrupt(phase)) return kPi;
+
+  // Fast wrap using floor - handles both positive and negative values correctly
+  // floor(-0.1 / 2π) = -1, so phase becomes -0.1 - 2π*(-1) = 2π - 0.1 ✓
+  constexpr float invTwoPi = 1.0f / kTwoPi;
+  phase -= kTwoPi * std::floor(phase * invTwoPi);
   return phase;
 }
 
@@ -1167,9 +1173,11 @@ public:
 
     // ─────────────────────────────────────────────────────────────────────────
     // OUTPUT: Separate dry and wet levels
+    // Use processedL/R (saturated) for wet output, not raw delayedL/R
+    // This prevents accumulated buffer values (>1.0) from hitting master output
     // ─────────────────────────────────────────────────────────────────────────
-    left = left * mDryLevelSmoothed + delayedL * mWetLevelSmoothed;
-    right = right * mDryLevelSmoothed + delayedR * mWetLevelSmoothed;
+    left = left * mDryLevelSmoothed + processedL * mWetLevelSmoothed;
+    right = right * mDryLevelSmoothed + processedR * mWetLevelSmoothed;
   }
 
 private:
@@ -2790,10 +2798,21 @@ public:
         for (int v = 0; v < mOsc1UnisonVoices; v++)
         {
           float osc1Sample = 0.0f;
-          // Pre-calculate modulated phase increment for pitch LFO
-          // This applies vibrato effect when LFO destination is Pitch or Osc1Pitch
+
+          // ─────────────────────────────────────────────────────────────────
+          // POLYBLEP ANTI-ALIASING FIX: Save original step, then modulate
+          // ─────────────────────────────────────────────────────────────────
+          // The Q library's anti-aliased oscillators (saw, square, pulse) use
+          // phase_iterator._step for poly_blep's 'dt' parameter. When pitch
+          // modulation is active, we must temporarily update _step to match
+          // the actual phase increment, then RESTORE IT to prevent compounding.
+          // Without restoration, each sample would multiply by pitchModRatio
+          // again, causing exponential pitch drift within each audio block.
+          // ─────────────────────────────────────────────────────────────────
+          uint32_t originalStep = mOsc1UnisonPhases[v]._step.rep;  // Save original
           uint32_t osc1ModulatedStep = static_cast<uint32_t>(
-              static_cast<float>(mOsc1UnisonPhases[v]._step.rep) * osc1PitchModRatio);
+              static_cast<float>(originalStep) * osc1PitchModRatio);
+          mOsc1UnisonPhases[v]._step.rep = osc1ModulatedStep;  // Set for poly_blep
 
           switch (mWaveform)
           {
@@ -2816,6 +2835,8 @@ public:
             case kWaveformPulse:
               mOsc1UnisonPulseOscs[v].width(mPulseWidth);
               osc1Sample = mOsc1UnisonPulseOscs[v](mOsc1UnisonPhases[v]);
+              // Protection: PolyBLEP can produce edge cases with extreme width/frequency
+              if (isAudioCorrupt(osc1Sample)) osc1Sample = 0.0f;
               mOsc1UnisonPhases[v]._phase.rep += osc1ModulatedStep;
               break;
             case kWaveformFM:
@@ -2843,6 +2864,10 @@ public:
               float carrierPhase = static_cast<float>(mOsc1UnisonPhases[v]._phase.rep) /
                                    static_cast<float>(0xFFFFFFFFu) * kTwoPi;
               osc1Sample = fastSin(carrierPhase + phaseModulation);
+
+              // Protection: if FM produces corrupt value, use 0 (silent) instead of NaN
+              if (isAudioCorrupt(osc1Sample)) osc1Sample = 0.0f;
+
               mOsc1UnisonPhases[v]._phase.rep += osc1ModulatedStep;
               break;
             }
@@ -2863,6 +2888,9 @@ public:
               mOsc1UnisonPhases[v]._phase.rep += osc1ModulatedStep;
               break;
           }
+
+          // Restore original step to prevent compounding on next sample
+          mOsc1UnisonPhases[v]._step.rep = originalStep;
 
           // ─────────────────────────────────────────────────────────────────
           // OSC1 STEREO PANNING
@@ -3036,10 +3064,16 @@ public:
           {
             float osc2Sample = 0.0f;
 
-            // Pre-calculate modulated phase increment for pitch LFO
-            // This applies vibrato effect when LFO destination is Pitch or Osc2Pitch
+            // ─────────────────────────────────────────────────────────────────
+            // POLYBLEP ANTI-ALIASING FIX: Save original step, then modulate
+            // ─────────────────────────────────────────────────────────────────
+            // Same as Osc1: Save original step, set modulated step for poly_blep,
+            // then restore after oscillator processing to prevent compounding.
+            // ─────────────────────────────────────────────────────────────────
+            uint32_t originalStep = mOsc2UnisonPhases[v]._step.rep;  // Save original
             uint32_t osc2ModulatedStep = static_cast<uint32_t>(
-                static_cast<float>(mOsc2UnisonPhases[v]._step.rep) * osc2PitchModRatio);
+                static_cast<float>(originalStep) * osc2PitchModRatio);
+            mOsc2UnisonPhases[v]._step.rep = osc2ModulatedStep;  // Set for poly_blep
 
             switch (mOsc2Waveform)
             {
@@ -3063,6 +3097,8 @@ public:
                 // Apply LFO pulse width modulation to Osc2
                 mOsc2UnisonPulseOscs[v].width(modulatedOsc2PW);
                 osc2Sample = mOsc2UnisonPulseOscs[v](mOsc2UnisonPhases[v]);
+                // Protection: PolyBLEP can produce edge cases with extreme width/frequency
+                if (isAudioCorrupt(osc2Sample)) osc2Sample = 0.0f;
                 mOsc2UnisonPhases[v]._phase.rep += osc2ModulatedStep;
                 break;
               case kWaveformFM:
@@ -3090,6 +3126,10 @@ public:
                 float carrierPhase = static_cast<float>(mOsc2UnisonPhases[v]._phase.rep) /
                                      static_cast<float>(0xFFFFFFFFu) * kTwoPi;
                 osc2Sample = fastSin(carrierPhase + phaseModulation);
+
+                // Protection: if FM produces corrupt value, use 0 (silent) instead of NaN
+                if (isAudioCorrupt(osc2Sample)) osc2Sample = 0.0f;
+
                 mOsc2UnisonPhases[v]._phase.rep += osc2ModulatedStep;
                 break;
               }
@@ -3110,6 +3150,9 @@ public:
                 mOsc2UnisonPhases[v]._phase.rep += osc2ModulatedStep;
                 break;
             }
+
+            // Restore original step to prevent compounding on next sample
+            mOsc2UnisonPhases[v]._step.rep = originalStep;
 
             // ─────────────────────────────────────────────────────────────────
             // OSC2 STEREO PANNING (same algorithm as Osc1)
@@ -3311,7 +3354,7 @@ public:
         //   - tanh(3.0) ≈ 0.995 (near-limit)
         //
         // This ensures each voice contributes max ~1.0 to the sum, so:
-        //   - 32 voices × ~1.0 × kPolyScale(0.1) = ~3.2 (limiter handles easily)
+        //   - 32 voices × ~1.0 × kPolyScale(0.25) = ~8.0 (limiter + soft clip handle it)
         // ─────────────────────────────────────────────────────────────────────────
         sampleLeft = fastTanh(sampleLeft);
         sampleRight = fastTanh(sampleRight);
@@ -4161,7 +4204,7 @@ public:
     //   - Serum/Vital don't do this - they rely on limiting instead
     //   - Dynamic gain causes "pumping" artifacts when voice count changes
     // ─────────────────────────────────────────────────────────────────────────
-    constexpr float kPolyScale = 0.10f;  // Fixed headroom - lower for more limiting headroom
+    constexpr float kPolyScale = 0.25f;  // Single voice at -12dB, leaves headroom for polyphony
 
     for (int s = 0; s < nFrames; s++)
     {
@@ -5203,7 +5246,7 @@ private:
   // STEREO LINKING: Both channels share the same gain reduction to preserve
   // stereo image. Gain is computed from the maximum envelope of both channels.
   //
-  // GAIN STAGING: With kPolyScale=0.1 and no makeup gain (soft clip instead):
+  // GAIN STAGING: With kPolyScale=0.25 (single voice at -12dB):
   //   - Threshold: -7dB (conservative, catches peaks early)
   //   - Knee width: 6dB (smooth transition into limiting)
   //   - Ratio: 20:1 (0.05) - near-brickwall limiting
