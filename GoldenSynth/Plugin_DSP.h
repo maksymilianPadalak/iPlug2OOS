@@ -2174,13 +2174,16 @@ public:
       else
       {
         // ─────────────────────────────────────────────────────────────────────────
-        // RETRIGGER FILTER RESET - Clean attacks in Mono mode
+        // RETRIGGER: Preserve oscillator phase and filter state
         // ─────────────────────────────────────────────────────────────────────────
-        // Reset filter state on retrigger to prevent resonance tail from bleeding
-        // into new note attack. Provides punchy, clean attacks in Mono mode.
+        // DO NOT reset filter here. Resetting SVF integrators mid-note causes
+        // clicks because the filter state holds signal that gets zeroed instantly.
+        // The envelope crossfade (mRetriggerOffset) handles amplitude smoothing,
+        // but can't fix discontinuities in the filter's internal state.
+        //
+        // Tradeoff: Some resonance tail may bleed into the new note, but this is
+        // far less audible than a hard click from filter reset.
         // ─────────────────────────────────────────────────────────────────────────
-        mFilterL.Reset();
-        mFilterR.Reset();
       }
 
       // ─────────────────────────────────────────────────────────────────────────
