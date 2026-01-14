@@ -44,6 +44,15 @@ enum EParams
   kParamFilterType,             // Filter type: 0=Lowpass, 1=Highpass, 2=Bandpass, 3=Notch
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // FILTER ENVELOPE PARAMETERS
+  // ─────────────────────────────────────────────────────────────────────────────
+  kParamFilterEnvAttack,        // Filter envelope attack time (1-1000 ms)
+  kParamFilterEnvDecay,         // Filter envelope decay time (1-2000 ms)
+  kParamFilterEnvSustain,       // Filter envelope sustain level (0-100%)
+  kParamFilterEnvRelease,       // Filter envelope release time (1-5000 ms)
+  kParamFilterEnvDepth,         // Filter envelope depth (-100% to +100%, ±4 octaves)
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // OSC1 PARAMETERS
   // ─────────────────────────────────────────────────────────────────────────────
   kParamPulseWidth,             // Pulse width (5-95%), 50% = square wave

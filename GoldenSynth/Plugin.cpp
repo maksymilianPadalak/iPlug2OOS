@@ -28,6 +28,14 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   GetParam(kParamFilterType)->InitEnum("Filter Type", 0, 4, "", IParam::kFlagsNone, "",
     "Lowpass", "Highpass", "Bandpass", "Notch");
 
+  // Filter envelope - modulates cutoff over note lifetime
+  // Depth is bipolar: +100% opens filter, -100% closes filter (±4 octaves)
+  GetParam(kParamFilterEnvAttack)->InitDouble("Filter Env Attack", 10., 1., 1000., 1., "ms");
+  GetParam(kParamFilterEnvDecay)->InitDouble("Filter Env Decay", 100., 1., 2000., 1., "ms");
+  GetParam(kParamFilterEnvSustain)->InitDouble("Filter Env Sustain", 0., 0., 100., 1., "%");
+  GetParam(kParamFilterEnvRelease)->InitDouble("Filter Env Release", 200., 1., 5000., 1., "ms");
+  GetParam(kParamFilterEnvDepth)->InitDouble("Filter Env Depth", 0., -100., 100., 1., "%");
+
   // Pulse width modulation (only affects Pulse waveform)
   GetParam(kParamPulseWidth)->InitDouble("Pulse Width", 50., 5., 95., 0.1, "%");
 

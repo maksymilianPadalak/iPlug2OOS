@@ -118,6 +118,11 @@ export function PluginBody() {
               <Dropdown paramId={EParams.kParamFilterType} label="Type" />
               <Knob paramId={EParams.kParamFilterCutoff} label="Cutoff" color="orange" />
               <Knob paramId={EParams.kParamFilterResonance} label="Reso" color="orange" />
+              <Knob paramId={EParams.kParamFilterEnvAttack} label="Env A" color="orange" />
+              <Knob paramId={EParams.kParamFilterEnvDecay} label="Env D" color="orange" />
+              <Knob paramId={EParams.kParamFilterEnvSustain} label="Env S" color="orange" />
+              <Knob paramId={EParams.kParamFilterEnvRelease} label="Env R" color="orange" />
+              <Knob paramId={EParams.kParamFilterEnvDepth} label="Env Amt" color="orange" />
             </SubGroup>
           </Section>
 

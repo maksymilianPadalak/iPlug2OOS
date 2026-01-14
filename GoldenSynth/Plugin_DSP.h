@@ -2042,6 +2042,16 @@ public:
         q::duration{0.2f}     // 200ms release
       };
 
+      // Filter envelope config - default to 0% sustain for classic "pluck" behavior
+      // where filter opens on attack and closes during decay
+      mFilterEnvConfig = q::adsr_envelope_gen::config{
+        q::duration{0.01f},     // 10ms attack
+        q::duration{0.1f},      // 100ms decay
+        q::lin_to_db(0.001f),   // ~0% sustain (filter closes after decay)
+        q::duration{100000.0f}, // Sustain rate disabled
+        q::duration{0.2f}       // 200ms release
+      };
+
       // ─────────────────────────────────────────────────────────────────────────
       // INITIALIZE UNISON PHASE ITERATORS
       // Without explicit initialization, phase_iterator arrays contain garbage
@@ -2228,6 +2238,14 @@ public:
       mEnv = q::adsr_envelope_gen{velEnvConfig, static_cast<float>(mSampleRate)};
       mEnv.attack();
 
+      // Filter envelope - same velocity scaling pattern as amp envelope
+      q::adsr_envelope_gen::config velFilterEnvConfig = mFilterEnvConfig;
+      velFilterEnvConfig.attack_rate = q::duration{mBaseFilterAttackMs * 0.001f * velScale};
+      velFilterEnvConfig.decay_rate = q::duration{mBaseFilterDecayMs * 0.001f * velScale};
+      velFilterEnvConfig.release_rate = q::duration{mBaseFilterReleaseMs * 0.001f * velScale};
+      mFilterEnv = q::adsr_envelope_gen{velFilterEnvConfig, static_cast<float>(mSampleRate)};
+      mFilterEnv.attack();
+
       // NOTE: LFO retrigger is now handled at the global level in ProcessMidiMsg.
       // Global LFOs are shared across all voices, so retrigger affects all notes.
 
@@ -2253,6 +2271,7 @@ public:
     void Release() override
     {
       mEnv.release();
+      mFilterEnv.release();
       // Mark as releasing for smart voice stealing
       // Using memory_order_release ensures this write is visible to ProcessMidiMsg
       mIsReleasing.store(true, std::memory_order_release);
@@ -3299,10 +3318,14 @@ public:
         float mixedRight = mOsc1Level * osc1Right * osc1PanR + mOsc2Level * osc2Right * osc2PanR;
 
         // ─────────────────────────────────────────────────────────────────────────
-        // LFO MODULATION OF FILTER CUTOFF
+        // FILTER MODULATION (LFO + ENVELOPE)
         // ─────────────────────────────────────────────────────────────────────────
-        // The LFO modulates the filter cutoff in octaves for musical results.
-        // At 100% depth, the LFO sweeps ±4 octaves around the base cutoff.
+        // Filter cutoff is modulated in octaves for musical results.
+        // Sources: LFO (already in filterMod) + Filter Envelope
+        //
+        // Filter Envelope: 0-1 output scaled by depth (±1.0 = ±4 octaves)
+        // Positive depth: envelope opens filter (classic pluck/bass sound)
+        // Negative depth: envelope closes filter (inverse/pad sound)
         //
         // Formula: modulatedCutoff = baseCutoff × 2^(filterMod)
         //
@@ -3311,10 +3334,13 @@ public:
         // the exponential creates discontinuities (flat spots) in the LFO sweep
         // that cause audible clicks. By clamping in the octave domain, the
         // sweep smoothly approaches the limits without discontinuity.
-        //
-        // OPTIMIZATION: mFilterModMin/Max are cached in SetFilterCutoff() to avoid
-        // 2× log2() calls per sample. Only recalculated when cutoff knob changes.
         // ─────────────────────────────────────────────────────────────────────────
+
+        // Add filter envelope modulation
+        // Envelope outputs 0-1, scale by depth (±1.0) and range (4 octaves)
+        float filterEnvValue = mFilterEnv();
+        filterMod += filterEnvValue * mFilterEnvDepth * 4.0f;
+
         // Clamp filterMod to valid octave range (uses cached limits)
         filterMod = std::max(mFilterModMin, std::min(mFilterModMax, filterMod));
 
@@ -3489,6 +3515,36 @@ public:
     // Velocity → envelope time modulation (0.0-1.0)
     // Higher values = velocity has more effect on envelope times
     void SetEnvVelocitySensitivity(float amount) { mEnvVelocitySensitivity = amount; }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FILTER ENVELOPE SETTERS
+    // ─────────────────────────────────────────────────────────────────────────
+    void SetFilterEnvAttack(float ms)
+    {
+      mBaseFilterAttackMs = ms;
+      mFilterEnvConfig.attack_rate = q::duration{ms * 0.001f};
+    }
+
+    void SetFilterEnvDecay(float ms)
+    {
+      mBaseFilterDecayMs = ms;
+      mFilterEnvConfig.decay_rate = q::duration{ms * 0.001f};
+    }
+
+    void SetFilterEnvSustain(float level)
+    {
+      // Clamp to tiny positive value to avoid -infinity dB from lin_to_db(0)
+      level = std::max(0.001f, level);
+      mFilterEnvConfig.sustain_level = q::lin_to_db(level);
+    }
+
+    void SetFilterEnvRelease(float ms)
+    {
+      mBaseFilterReleaseMs = ms;
+      mFilterEnvConfig.release_rate = q::duration{ms * 0.001f};
+    }
+
+    void SetFilterEnvDepth(float depth) { mFilterEnvDepth = depth; }
 
     // Filter setters (stereo - both L/R filters)
     // NOTE: Cutoff is stored as base value and modulated by LFO in ProcessSamplesAccumulating
@@ -3723,6 +3779,18 @@ public:
     float mBaseDecayMs = 100.0f;          // Base decay time from parameter
     float mBaseReleaseMs = 200.0f;        // Base release time from parameter
     float mEnvVelocitySensitivity = 0.5f; // How much velocity affects times (0-1)
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FILTER ENVELOPE - Modulates filter cutoff over note lifetime
+    // Separate from amp envelope for independent control of filter sweep.
+    // Depth controls direction and amount: +100% opens filter, -100% closes it.
+    // ─────────────────────────────────────────────────────────────────────────
+    q::adsr_envelope_gen mFilterEnv{q::adsr_envelope_gen::config{}, 44100.0f};
+    q::adsr_envelope_gen::config mFilterEnvConfig;
+    float mBaseFilterAttackMs = 10.0f;    // Base filter env attack time
+    float mBaseFilterDecayMs = 100.0f;    // Base filter env decay time
+    float mBaseFilterReleaseMs = 200.0f;  // Base filter env release time
+    float mFilterEnvDepth = 0.0f;         // ±1.0 = ±4 octaves of filter modulation
 
     WavetableOscillator mWavetableOsc;  // Wavetable oscillator (mipmapped, morphable)
     ResonantFilter mFilterL;             // Left channel filter (stereo processing)
@@ -4804,6 +4872,41 @@ public:
       case kParamFilterType:
         mSynth.ForEachVoice([value](SynthVoice& voice) {
           dynamic_cast<Voice&>(voice).SetFilterType(static_cast<int>(value));
+        });
+        break;
+
+      // ─────────────────────────────────────────────────────────────────────────
+      // FILTER ENVELOPE PARAMETERS
+      // ─────────────────────────────────────────────────────────────────────────
+      case kParamFilterEnvAttack:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          dynamic_cast<Voice&>(voice).SetFilterEnvAttack(static_cast<float>(value));
+        });
+        break;
+
+      case kParamFilterEnvDecay:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          dynamic_cast<Voice&>(voice).SetFilterEnvDecay(static_cast<float>(value));
+        });
+        break;
+
+      case kParamFilterEnvSustain:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert 0-100% to 0.0-1.0
+          dynamic_cast<Voice&>(voice).SetFilterEnvSustain(static_cast<float>(value) / 100.0f);
+        });
+        break;
+
+      case kParamFilterEnvRelease:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          dynamic_cast<Voice&>(voice).SetFilterEnvRelease(static_cast<float>(value));
+        });
+        break;
+
+      case kParamFilterEnvDepth:
+        mSynth.ForEachVoice([value](SynthVoice& voice) {
+          // Convert -100 to +100 to -1.0 to +1.0
+          dynamic_cast<Voice&>(voice).SetFilterEnvDepth(static_cast<float>(value) / 100.0f);
         });
         break;
 
