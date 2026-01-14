@@ -2145,7 +2145,26 @@ public:
       float currentLevel = mActive ? mEnv.current() : 0.0f;
 
       mActive = true;
-      mVelocity = static_cast<float>(level);
+
+      // ─────────────────────────────────────────────────────────────────────────
+      // VELOCITY SMOOTHING - Prevent clicks from instant velocity changes
+      // ─────────────────────────────────────────────────────────────────────────
+      // Problem: If velocity changes instantly on retrigger (e.g., 1.0 → 0.5),
+      // the audio amplitude halves immediately, causing a click. The envelope
+      // crossfade only handles envelope level, not velocity scaling.
+      //
+      // Solution: On retrigger, smooth velocity over ~5ms. On first note,
+      // set velocity instantly (no previous audio to click against).
+      // ─────────────────────────────────────────────────────────────────────────
+      mTargetVelocity = static_cast<float>(level);
+      mVelocitySmoothCoeff = calcSmoothingCoeff(0.005f, static_cast<float>(mSampleRate));
+
+      if (!isRetrigger)
+      {
+        // First note: set velocity instantly (no click risk - voice was silent)
+        mVelocity = mTargetVelocity;
+      }
+      // On retrigger: mVelocity stays at current value, smooths to mTargetVelocity in ProcessSamples
 
       // Reset voice stealing flags - this voice is now actively held
       // Using memory_order_release ensures these writes are visible to other threads
@@ -2585,6 +2604,13 @@ public:
           // Below threshold - clear to avoid denormals
           mRetriggerOffset = 0.0f;
         }
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // VELOCITY SMOOTHING
+        // Smooth velocity towards target to prevent clicks on retrigger.
+        // Uses same ~5ms time constant as envelope crossfade for consistency.
+        // ─────────────────────────────────────────────────────────────────────────
+        mVelocity += mVelocitySmoothCoeff * (mTargetVelocity - mVelocity);
 
         // Clamp envelope
         if (envAmp < 0.0f) envAmp = 0.0f;
@@ -3722,7 +3748,9 @@ public:
     q::dc_block mDCBlockerL{10_Hz, 48000.0f};  // Left channel DC blocker
     q::dc_block mDCBlockerR{10_Hz, 48000.0f};  // Right channel DC blocker
     double mSampleRate = 44100.0;
-    float mVelocity = 0.0f;              // MIDI velocity (0-1)
+    float mVelocity = 0.0f;              // Current smoothed velocity (0-1)
+    float mTargetVelocity = 0.0f;        // Target velocity to smooth towards
+    float mVelocitySmoothCoeff = 0.0f;   // Smoothing coefficient (~5ms)
     bool mActive = false;                // Voice is currently sounding
     int mWaveform = kWaveformSine;       // Current waveform selection
 
