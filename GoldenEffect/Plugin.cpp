@@ -34,6 +34,11 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   GetParam(kParamDamping)->InitDouble("Damping", 50., 0., 100., 0.1, "%");
   GetParam(kParamLowCut)->InitDouble("Low Cut", 80., 20., 1000., 1., "Hz");
   GetParam(kParamHighCut)->InitDouble("High Cut", 8000., 500., 20000., 10., "Hz");
+  // Color applies output filtering AFTER the reverb tank for tonal character.
+  // Bright = full bandwidth, Neutral = natural, Dark = warm, Studio = mix-ready
+  GetParam(kParamColor)->InitEnum("Color", kColorNeutral, kNumColorModes,
+    "", IParam::kFlagsNone, "",
+    "Bright", "Neutral", "Dark", "Studio");
 
   // ===========================================================================
   // MODULATION SECTION

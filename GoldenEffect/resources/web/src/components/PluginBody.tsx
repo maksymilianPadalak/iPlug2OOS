@@ -5,10 +5,10 @@
  * Based on the Lexicon 224 topology with figure-8 tank.
  * This is a "golden example" for LLMs to learn from.
  *
- * PARAMETERS (14 total):
+ * PARAMETERS (15 total):
  * - Mix: Dry, Wet
  * - Space: Size, Decay, Pre-Delay, Diffusion, Density, Early/Late
- * - Tone: Damping, Low Cut, High Cut
+ * - Tone: Damping, Low Cut, High Cut, Color
  * - Modulation: Mod Rate, Mod Depth
  * - Output: Width
  */
@@ -19,6 +19,7 @@ import { GridFoundation } from 'sharedUi/components/GridFoundation';
 import { Meter } from 'sharedUi/components/Meter';
 import { Title } from 'sharedUi/components/Title';
 import { Knob } from 'sharedUi/components/Knob';
+import { Dropdown } from 'sharedUi/components/Dropdown';
 import { EParams } from '@/config/runtimeParameters';
 
 
@@ -67,13 +68,16 @@ export function PluginBody() {
           </Section>
 
           {/* Tone Section - Frequency shaping */}
-          <Section title="Tone" size="wide" description="Input and decay tone shaping">
+          <Section title="Tone" size="wide" description="Input EQ, decay damping, and output color">
             <SubGroup title="Input EQ" layout="row">
               <Knob paramId={EParams.kParamLowCut} label="Low Cut" color="cyan" size="medium" />
               <Knob paramId={EParams.kParamHighCut} label="High Cut" color="magenta" size="medium" />
             </SubGroup>
             <SubGroup title="Decay" layout="row">
               <Knob paramId={EParams.kParamDamping} label="Damping" color="orange" size="medium" />
+            </SubGroup>
+            <SubGroup title="Output Color" layout="row">
+              <Dropdown paramId={EParams.kParamColor} label="Color" color="green" />
             </SubGroup>
           </Section>
 

@@ -21,6 +21,21 @@
 const int kNumPresets = 1;
 
 // =============================================================================
+// COLOR MODES
+// =============================================================================
+// Output color modes for tonal character.
+// These apply filtering AFTER the reverb tank (not in the feedback loop).
+// =============================================================================
+enum EColorMode
+{
+  kColorBright = 0,   // No filtering - full bandwidth, airy
+  kColorNeutral,      // Subtle 16kHz lowpass - natural, realistic
+  kColorDark,         // 8kHz lowpass - warm, vintage character
+  kColorStudio,       // 600Hz highpass + 10kHz lowpass - mix-ready
+  kNumColorModes
+};
+
+// =============================================================================
 // PARAMETERS
 // =============================================================================
 // Parameters are organized by section for clarity.
@@ -43,6 +58,7 @@ enum EParams
   kParamDamping,      // High frequency decay rate (0-100%)
   kParamLowCut,       // Input highpass frequency (20-500Hz)
   kParamHighCut,      // Tank lowpass frequency (1000-20000Hz)
+  kParamColor,        // Output color mode (Bright/Neutral/Dark/Studio)
 
   // --- Modulation Section ---
   kParamModRate,      // LFO speed for chorus effect (0.1-2Hz)

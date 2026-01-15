@@ -1146,7 +1146,36 @@ public:
       float wetR = (earlyR * earlyGain + lateR * lateGain) * mWetGain;
 
       // =======================================================================
-      // STEP 10: Stereo Width Control (Mid/Side Processing)
+      // STEP 10: Color Filtering (Output Tonal Character)
+      // =======================================================================
+      // Color modes apply output filtering AFTER the reverb for tonal character.
+      // Bright = bypass, Neutral = 16kHz LPF, Dark = 8kHz LPF,
+      // Studio = 600Hz HPF + 10kHz LPF (removes mud and harshness)
+      switch (mColorMode) {
+        case kColorBright:
+          // No filtering - full bandwidth, airy
+          break;
+        case kColorNeutral:
+          // Subtle 16kHz lowpass - natural, realistic
+          wetL = mColorLPF_L.process(wetL);
+          wetR = mColorLPF_R.process(wetR);
+          break;
+        case kColorDark:
+          // 8kHz lowpass - warm, vintage character
+          wetL = mColorLPF_L.process(wetL);
+          wetR = mColorLPF_R.process(wetR);
+          break;
+        case kColorStudio:
+          // 600Hz highpass + 10kHz lowpass - mix-ready, no mud
+          wetL = mColorHPF_L.process(wetL);
+          wetR = mColorHPF_R.process(wetR);
+          wetL = mColorLPF_L.process(wetL);
+          wetR = mColorLPF_R.process(wetR);
+          break;
+      }
+
+      // =======================================================================
+      // STEP 11: Stereo Width Control (Mid/Side Processing)
       // =======================================================================
       {
         float mid = (wetL + wetR) * 0.5f;
@@ -1156,7 +1185,7 @@ public:
       }
 
       // =======================================================================
-      // STEP 11: Mix Dry and Wet
+      // STEP 12: Mix Dry and Wet
       // =======================================================================
       float outL = inputL * dry + wetL * wet;
       float outR = inputR * dry + wetR * wet;
@@ -1248,6 +1277,21 @@ public:
     mDCBlockerR.clear();
     mDCBlockerL.setCutoff(5.0f, mSampleRate);  // 5Hz cutoff
     mDCBlockerR.setCutoff(5.0f, mSampleRate);
+
+    // ===========================================================================
+    // INITIALIZE COLOR OUTPUT FILTERS
+    // ===========================================================================
+    // Color filters are applied after the reverb tank for tonal character.
+    // Default to Neutral mode (subtle 16kHz lowpass for natural sound).
+    mColorMode = kColorNeutral;
+    mColorLPF_L.clear();
+    mColorLPF_R.clear();
+    mColorHPF_L.clear();
+    mColorHPF_R.clear();
+    mColorLPF_L.setCutoff(16000.0f, mSampleRate);
+    mColorLPF_R.setCutoff(16000.0f, mSampleRate);
+    mColorHPF_L.setCutoff(600.0f, mSampleRate);  // Pre-configured for Studio mode
+    mColorHPF_R.setCutoff(600.0f, mSampleRate);
 
     // Set scaled input diffusion delay times
     mInputDiffusionDelay1 = static_cast<int>(DattorroConstants::kInputDiffusion1 * scale);
@@ -1343,6 +1387,35 @@ public:
       case kParamHighCut:
         // High Cut (low-pass filter) - removes brightness from reverb input
         mHighCut.setCutoff(static_cast<float>(value), mSampleRate);
+        break;
+
+      case kParamColor:
+        // Color mode - output filtering for tonal character
+        // Bright = no filtering, Neutral = subtle 16kHz LPF,
+        // Dark = 8kHz LPF, Studio = 600Hz HPF + 10kHz LPF
+        mColorMode = static_cast<int>(value);
+        switch (mColorMode) {
+          case kColorBright:
+            // No filtering - bypass (filters won't be applied in ProcessBlock)
+            break;
+          case kColorNeutral:
+            // Subtle 16kHz lowpass for natural sound
+            mColorLPF_L.setCutoff(16000.0f, mSampleRate);
+            mColorLPF_R.setCutoff(16000.0f, mSampleRate);
+            break;
+          case kColorDark:
+            // 8kHz lowpass for warm, vintage character
+            mColorLPF_L.setCutoff(8000.0f, mSampleRate);
+            mColorLPF_R.setCutoff(8000.0f, mSampleRate);
+            break;
+          case kColorStudio:
+            // 600Hz highpass + 10kHz lowpass for mix-ready sound
+            mColorHPF_L.setCutoff(600.0f, mSampleRate);
+            mColorHPF_R.setCutoff(600.0f, mSampleRate);
+            mColorLPF_L.setCutoff(10000.0f, mSampleRate);
+            mColorLPF_R.setCutoff(10000.0f, mSampleRate);
+            break;
+        }
         break;
 
       case kParamWidth:
@@ -1451,4 +1524,17 @@ private:
   // Replaces the old 2-LFO system with 8 decorrelated modulators.
   // Each delay line gets its own LFO for complex, organic movement.
   ModulationBank mModBank;
+
+  // ===========================================================================
+  // COLOR OUTPUT FILTERS - Tonal character applied after reverb
+  // ===========================================================================
+  // Color modes apply output filtering AFTER the tank for tonal character.
+  // This doesn't affect the reverb decay - just the final output EQ.
+  // Bright = no filter, Neutral = subtle 16kHz LPF, Dark = 8kHz LPF,
+  // Studio = 600Hz HPF + 10kHz LPF (removes mud and harshness)
+  int mColorMode = kColorNeutral;
+  LowPassFilter mColorLPF_L;   // Color lowpass filter (left)
+  LowPassFilter mColorLPF_R;   // Color lowpass filter (right)
+  HighPassFilter mColorHPF_L;  // Color highpass filter (left) - Studio mode only
+  HighPassFilter mColorHPF_R;  // Color highpass filter (right) - Studio mode only
 };
