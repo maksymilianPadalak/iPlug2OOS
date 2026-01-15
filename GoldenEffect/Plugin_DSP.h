@@ -1149,8 +1149,8 @@ public:
       // STEP 10: Color Filtering (Output Tonal Character)
       // =======================================================================
       // Color modes apply output filtering AFTER the reverb for tonal character.
-      // Bright = bypass, Neutral = 16kHz LPF, Dark = 8kHz LPF,
-      // Studio = 600Hz HPF + 10kHz LPF (removes mud and harshness)
+      // Bright = bypass, Neutral = 10kHz LPF, Dark = 4kHz LPF,
+      // Studio = 600Hz HPF + 8kHz LPF (bandpass for mix clarity)
       switch (mColorMode) {
         case kColorBright:
           // No filtering - full bandwidth, airy
@@ -1288,8 +1288,8 @@ public:
     mColorLPF_R.clear();
     mColorHPF_L.clear();
     mColorHPF_R.clear();
-    mColorLPF_L.setCutoff(16000.0f, mSampleRate);
-    mColorLPF_R.setCutoff(16000.0f, mSampleRate);
+    mColorLPF_L.setCutoff(10000.0f, mSampleRate);  // Neutral mode default
+    mColorLPF_R.setCutoff(10000.0f, mSampleRate);
     mColorHPF_L.setCutoff(600.0f, mSampleRate);  // Pre-configured for Studio mode
     mColorHPF_R.setCutoff(600.0f, mSampleRate);
 
@@ -1391,29 +1391,28 @@ public:
 
       case kParamColor:
         // Color mode - output filtering for tonal character
-        // Bright = no filtering, Neutral = subtle 16kHz LPF,
-        // Dark = 8kHz LPF, Studio = 600Hz HPF + 10kHz LPF
+        // More aggressive cutoffs for clearly audible differences
         mColorMode = static_cast<int>(value);
         switch (mColorMode) {
           case kColorBright:
-            // No filtering - bypass (filters won't be applied in ProcessBlock)
+            // No filtering - full bandwidth, airy
             break;
           case kColorNeutral:
-            // Subtle 16kHz lowpass for natural sound
-            mColorLPF_L.setCutoff(16000.0f, mSampleRate);
-            mColorLPF_R.setCutoff(16000.0f, mSampleRate);
-            break;
-          case kColorDark:
-            // 8kHz lowpass for warm, vintage character
-            mColorLPF_L.setCutoff(8000.0f, mSampleRate);
-            mColorLPF_R.setCutoff(8000.0f, mSampleRate);
-            break;
-          case kColorStudio:
-            // 600Hz highpass + 10kHz lowpass for mix-ready sound
-            mColorHPF_L.setCutoff(600.0f, mSampleRate);
-            mColorHPF_R.setCutoff(600.0f, mSampleRate);
+            // 10kHz lowpass - takes off harshness, still open
             mColorLPF_L.setCutoff(10000.0f, mSampleRate);
             mColorLPF_R.setCutoff(10000.0f, mSampleRate);
+            break;
+          case kColorDark:
+            // 4kHz lowpass - clearly warm/dark, vintage character
+            mColorLPF_L.setCutoff(4000.0f, mSampleRate);
+            mColorLPF_R.setCutoff(4000.0f, mSampleRate);
+            break;
+          case kColorStudio:
+            // 600Hz highpass + 8kHz lowpass - bandpass for mix clarity
+            mColorHPF_L.setCutoff(600.0f, mSampleRate);
+            mColorHPF_R.setCutoff(600.0f, mSampleRate);
+            mColorLPF_L.setCutoff(8000.0f, mSampleRate);
+            mColorLPF_R.setCutoff(8000.0f, mSampleRate);
             break;
         }
         break;
