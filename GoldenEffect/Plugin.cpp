@@ -43,10 +43,12 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   GetParam(kParamWidth)->InitDouble("Width", 100., 0., 100., 0.1, "%");
 
   // ===========================================================================
-  // EARLY/LATE SECTION
+  // EARLY/LATE (Listener Position)
   // ===========================================================================
-  // Controls the balance between early reflections (room character) and
-  // late reverb tail (diffuse decay). 0% = all late, 100% = all early.
+  // Controls the amount of early reflections - simulates listener distance.
+  // 0% = Close to source (full early reflections, punchy attack)
+  // 100% = Far from source (no early reflections, slow diffuse attack)
+  // Late reverb is always at full volume.
   GetParam(kParamEarlyLate)->InitDouble("Early/Late", 50., 0., 100., 0.1, "%");
 
   // ===========================================================================

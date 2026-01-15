@@ -5,9 +5,9 @@
  * Based on the Lexicon 224 topology with figure-8 tank.
  * This is a "golden example" for LLMs to learn from.
  *
- * PARAMETERS (12 total):
+ * PARAMETERS (13 total):
  * - Mix: Dry, Wet
- * - Space: Size, Decay, Pre-Delay, Diffusion
+ * - Space: Size, Decay, Pre-Delay, Diffusion, Early/Late
  * - Tone: Damping, Low Cut, High Cut
  * - Modulation: Mod Rate, Mod Depth
  * - Output: Width
@@ -56,14 +56,12 @@ export function PluginBody() {
 
           {/* Space Section - Room characteristics */}
           <Section title="Space" size="wide" description="Room size and decay">
-            <SubGroup title="Tank" layout="row">
+            <SubGroup title="Reverb" layout="row">
               <Knob paramId={EParams.kParamSize} label="Size" color="cyan" size="medium" />
               <Knob paramId={EParams.kParamDecay} label="Decay" color="magenta" size="medium" />
               <Knob paramId={EParams.kParamPreDelay} label="Pre-Delay" color="orange" size="medium" />
               <Knob paramId={EParams.kParamDiffusion} label="Diffusion" color="green" size="medium" />
-            </SubGroup>
-            <SubGroup title="Character" layout="row">
-              <Knob paramId={EParams.kParamEarlyLate} label="Tail" color="cyan" size="medium" />
+              <Knob paramId={EParams.kParamEarlyLate} label="Early/Late" color="cyan" size="medium" />
             </SubGroup>
           </Section>
 

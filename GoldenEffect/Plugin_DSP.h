@@ -855,9 +855,12 @@ struct TankSystem
    * @param wetR Output: right wet signal
    * @param modOffset1 LFO modulation offset for left tank allpass (default 0)
    * @param modOffset3 LFO modulation offset for right tank allpass (default 0)
+   * @param outputModL LFO modulation for left output taps (default 0)
+   * @param outputModR LFO modulation for right output taps (default 0)
    */
   void process(float diffusedInput, float decay, float& wetL, float& wetR,
-               float modOffset1 = 0.0f, float modOffset3 = 0.0f)
+               float modOffset1 = 0.0f, float modOffset3 = 0.0f,
+               float outputModL = 0.0f, float outputModR = 0.0f)
   {
     // Save previous frame's outputs for cross-feedback
     float prevLeftOut = leftTankOut;
@@ -903,24 +906,26 @@ struct TankSystem
     leftTankOut = leftDelay2Out;
     rightTankOut = rightDelay2Out;
 
-    // Output taps
+    // Output taps - with modulation for obvious shimmer/chorus effect
+    // Each tap gets different modulation amount for complex movement
+    // Using full modulation on primary taps, reduced on secondary
     wetL = 0.0f;
-    wetL += tankDelay3.read(outputTapL1);
-    wetL += tankDelay3.read(outputTapL2);
-    wetL -= tankAP4.delay.read(outputTapL3);
-    wetL += tankDelay4.read(outputTapL4);
-    wetL -= tankDelay1.read(outputTapL5);
-    wetL -= tankAP2.delay.read(outputTapL6);
-    wetL -= tankDelay2.read(outputTapL7);
+    wetL += tankDelay3.read(outputTapL1 + outputModL);
+    wetL += tankDelay3.read(outputTapL2 + outputModL * 1.2f);
+    wetL -= tankAP4.delay.read(outputTapL3 + outputModL * 0.8f);
+    wetL += tankDelay4.read(outputTapL4 + outputModL * 1.1f);
+    wetL -= tankDelay1.read(outputTapL5 + outputModL * 0.9f);
+    wetL -= tankAP2.delay.read(outputTapL6 + outputModL * 0.7f);
+    wetL -= tankDelay2.read(outputTapL7 + outputModL * 1.3f);
 
     wetR = 0.0f;
-    wetR += tankDelay1.read(outputTapR1);
-    wetR += tankDelay1.read(outputTapR2);
-    wetR -= tankAP2.delay.read(outputTapR3);
-    wetR += tankDelay2.read(outputTapR4);
-    wetR -= tankDelay3.read(outputTapR5);
-    wetR -= tankAP4.delay.read(outputTapR6);
-    wetR -= tankDelay4.read(outputTapR7);
+    wetR += tankDelay1.read(outputTapR1 + outputModR);
+    wetR += tankDelay1.read(outputTapR2 + outputModR * 1.2f);
+    wetR -= tankAP2.delay.read(outputTapR3 + outputModR * 0.8f);
+    wetR += tankDelay2.read(outputTapR4 + outputModR * 1.1f);
+    wetR -= tankDelay3.read(outputTapR5 + outputModR * 0.9f);
+    wetR -= tankAP4.delay.read(outputTapR6 + outputModR * 0.7f);
+    wetR -= tankDelay4.read(outputTapR7 + outputModR * 1.3f);
   }
 };
 
@@ -1003,9 +1008,14 @@ public:
       // Update tank when size changes
       if (std::abs(size - mLastSize) > 0.0001f) {
         mTankA.updateDelayTimes(size, scale);
-        mTankA.setDamping(damping);
         mEarlyReflections.updateTapTimes(size);
         mLastSize = size;
+      }
+
+      // Update damping when it changes (independent of size)
+      if (std::abs(damping - mLastDamping) > 0.0001f) {
+        mTankA.setDamping(damping);
+        mLastDamping = damping;
       }
 
       float inputL = static_cast<float>(inL[s]);
@@ -1054,21 +1064,30 @@ public:
 
       // Get modulation offsets for different delay lines
       // Each delay line gets its own LFO for complex, organic movement
-      // Excursion: how many samples the delay time varies by (±50 at full depth)
-      float excursion = modDepth * 50.0f;
+      //
+      // EXCURSION CALCULATION:
+      // Professional reverbs use aggressive modulation for "lush" sound.
+      // At 48kHz, 200 samples = ~4ms pitch variation = very audible chorus.
+      float excursion = 50.0f + modDepth * 200.0f;  // 50 to 250 samples
 
       // LFO assignment (see ModulationBank for decorrelation details):
-      // - LFO 0-1: Reserved for input diffusion (not yet implemented)
+      // - LFO 0-1: Output tap modulation (for immediate stereo shimmer)
       // - LFO 2: Left tank allpass modulation
       // - LFO 4: Right tank allpass modulation
       float modOffset1 = mModBank.get(2) * excursion;
       float modOffset3 = mModBank.get(4) * excursion;
 
+      // Output tap modulation - makes modulation immediately audible
+      // This is the key to hearing chorus on first reflection, not just tail
+      // ±32 samples at 48kHz = ~0.7ms = obvious pitch wobble
+      float outputModL = mModBank.get(0) * modDepth * 32.0f;
+      float outputModR = mModBank.get(1) * modDepth * 32.0f;
+
       // =======================================================================
       // STEP 7: Tank Processing (Late Reverb)
       // =======================================================================
       float lateL = 0.0f, lateR = 0.0f;
-      mTankA.process(diffused, decay, lateL, lateR, modOffset1, modOffset3);
+      mTankA.process(diffused, decay, lateL, lateR, modOffset1, modOffset3, outputModL, outputModR);
 
       // =======================================================================
       // STEP 8: DC BLOCKING (Prevent DC buildup in feedback)
@@ -1082,12 +1101,15 @@ public:
       lateR *= 0.6f;
 
       // =======================================================================
-      // STEP 9: EARLY/LATE MIX (Controlled by "Tail" knob in UI)
+      // STEP 9: EARLY/LATE MIX (Listener Position)
       // =======================================================================
-      // earlyLate: 0 = all early (room reflections), 1 = all late (diffuse tail)
-      float lateGain = earlyLate;
-      // Early reflections are quieter than late reverb, so boost by 1.5x to match levels
-      float earlyGain = (1.0f - earlyLate) * 1.5f;
+      // Early/Late controls the amount of early reflections, NOT a crossfade!
+      // - 0% (Early): Full early reflections = close to source = punchy attack
+      // - 100% (Late): No early reflections = far from source = slow attack
+      // Late reverb is ALWAYS at full volume - it's the main reverb tail.
+      float lateGain = 1.0f;  // Always full
+      // Boost early reflections significantly (3x) so they're clearly audible
+      float earlyGain = (1.0f - earlyLate) * 3.0f;
 
       float wetL = (earlyL * earlyGain + lateL * lateGain) * mWetGain;
       float wetR = (earlyR * earlyGain + lateR * lateGain) * mWetGain;
@@ -1159,6 +1181,7 @@ public:
     mEarlyLate.setTarget(0.5f); mEarlyLate.snap();
 
     mLastSize = 0.7f;
+    mLastDamping = 0.5f;
 
     // ===========================================================================
     // CLEAR INPUT PROCESSING
@@ -1301,10 +1324,10 @@ public:
         break;
 
       case kParamEarlyLate:
-        // Early/Late balance control (UI shows as "Tail")
-        // 0% = early reflections only (room character, distinct echoes)
-        // 50% = balanced mix of early reflections and late reverb
-        // 100% = late reverb only (diffuse tail, smooth decay)
+        // Early/Late - Listener position control
+        // Controls the amount of early reflections (late reverb is always full)
+        // 0% = Close to source - full early reflections, punchy attack
+        // 100% = Far from source - no early reflections, slow diffuse attack
         mEarlyLate.setTarget(static_cast<float>(value / 100.0));
         break;
 
@@ -1341,6 +1364,7 @@ private:
   float mWetGain = 1.0f;      // 0.0 = wet muted, 1.0 = wet at full level
   int mSettleCounter = 0;     // Countdown: blocks to wait after size stabilizes
   float mLastSize = 0.5f;     // Track size changes for freeze-and-blend
+  float mLastDamping = 0.5f;  // Track damping changes
 
   // ===========================================================================
   // INPUT PROCESSING
