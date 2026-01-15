@@ -618,6 +618,21 @@ struct EarlyReflections
   // ==========================================================================
   // PLATE MODE - Sparse, widely spaced (plate has minimal ERs)
   // ==========================================================================
+  // TAP TIME DESIGN (applies to all modes):
+  // - Times follow ~logarithmic spacing (each tap ~1.3× the previous)
+  // - This avoids comb filtering that occurs with evenly-spaced taps
+  // - Evenly-spaced taps create resonant peaks at f = 1/spacing
+  // - Logarithmic spacing spreads energy across frequencies smoothly
+  //
+  // GAIN DESIGN:
+  // - Gains decay with time (later reflections are quieter - inverse square law)
+  // - Alternating positive/negative signs create phase variation
+  // - Phase variation prevents constructive interference (metallic sound)
+  //
+  // PAN DESIGN:
+  // - Pseudo-random L/R distribution (-1 to +1)
+  // - Avoids symmetric patterns that sound artificial
+  // - Creates enveloping stereo image
   static constexpr float kPlateTapTimes[NUM_TAPS] = {
     3.1f, 5.2f, 7.8f, 11.3f, 15.7f, 19.2f,
     24.1f, 31.5f, 38.2f, 47.6f, 58.3f, 72.1f
@@ -634,17 +649,19 @@ struct EarlyReflections
   // ==========================================================================
   // CHAMBER MODE - Dense, tightly packed (small reflective room)
   // ==========================================================================
-  // Chamber ERs are closer together (faster buildup) and louder (reflective walls)
+  // Chamber ERs differ from Plate:
+  // - Shorter times (2-40ms vs 3-72ms) = smaller perceived space
+  // - Tighter spacing = faster echo density buildup
+  // - Higher gains = more reflective surfaces (hard walls vs open plate)
+  // - Narrower pans = smaller stereo image (intimate room vs wide plate)
   static constexpr float kChamberTapTimes[NUM_TAPS] = {
     2.1f, 3.8f, 5.2f, 7.1f, 9.3f, 11.8f,
     14.6f, 18.2f, 22.4f, 27.3f, 33.1f, 40.2f
   };
-  // Chamber has higher gains (more reflective surfaces) and less decay
   static constexpr float kChamberTapGains[NUM_TAPS] = {
     0.92f, -0.85f, 0.80f, -0.74f, 0.68f, 0.62f,
     -0.56f, 0.50f, -0.44f, 0.38f, 0.32f, -0.26f
   };
-  // Chamber has narrower stereo spread (smaller room)
   static constexpr float kChamberTapPans[NUM_TAPS] = {
     -0.2f, 0.3f, -0.4f, 0.15f, -0.25f, 0.45f,
     -0.35f, 0.1f, 0.5f, -0.4f, 0.25f, -0.15f
@@ -1424,8 +1441,27 @@ public:
         // Mode selects reverb type - each mode sets internal diffusion and ER patterns
         // Plate: instant attack, high diffusion, minimal ERs
         // Chamber: fast attack, medium-high diffusion, dense ERs
+        //
+        // VALHALLA-STYLE MODE CHANGE:
+        // When mode changes, we soft-clear the tank so the old tail fades quickly
+        // and the new character builds fresh. This prevents the old tail (built with
+        // old diffusion settings) from playing through the new algorithm weirdly.
         {
-          mReverbMode = static_cast<int>(value);
+          int newMode = static_cast<int>(value);
+
+          // Only clear if mode actually changed
+          if (newMode != mReverbMode) {
+            // Soft-clear tank and input diffusers (-40dB attenuation)
+            // This fades the old tail quickly without a hard click
+            mTankA.softClear(0.01f);
+            mInputAP1.softClear(0.01f);
+            mInputAP2.softClear(0.01f);
+            mInputAP3.softClear(0.01f);
+            mInputAP4.softClear(0.01f);
+            mEarlyReflections.delay.softClear(0.01f);
+          }
+
+          mReverbMode = newMode;
           mEarlyReflections.setMode(mReverbMode);
           mEarlyReflections.updateTapTimes(mSize.current);
 
