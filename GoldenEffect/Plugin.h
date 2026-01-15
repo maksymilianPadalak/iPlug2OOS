@@ -29,9 +29,9 @@ const int kNumPresets = 1;
 enum EColorMode
 {
   kColorBright = 0,   // No filtering - full bandwidth, airy
-  kColorNeutral,      // Subtle 16kHz lowpass - natural, realistic
-  kColorDark,         // 8kHz lowpass - warm, vintage character
-  kColorStudio,       // 600Hz highpass + 10kHz lowpass - mix-ready
+  kColorNeutral,      // 10kHz lowpass - takes off harshness, still open
+  kColorDark,         // 4kHz lowpass - clearly warm, vintage character
+  kColorStudio,       // 600Hz highpass + 8kHz lowpass - bandpass for mix clarity
   kNumColorModes
 };
 

@@ -1156,17 +1156,17 @@ public:
           // No filtering - full bandwidth, airy
           break;
         case kColorNeutral:
-          // Subtle 16kHz lowpass - natural, realistic
+          // 10kHz lowpass - takes off harshness, still open
           wetL = mColorLPF_L.process(wetL);
           wetR = mColorLPF_R.process(wetR);
           break;
         case kColorDark:
-          // 8kHz lowpass - warm, vintage character
+          // 4kHz lowpass - clearly warm, vintage character
           wetL = mColorLPF_L.process(wetL);
           wetR = mColorLPF_R.process(wetR);
           break;
         case kColorStudio:
-          // 600Hz highpass + 10kHz lowpass - mix-ready, no mud
+          // 600Hz highpass + 8kHz lowpass - bandpass for mix clarity
           wetL = mColorHPF_L.process(wetL);
           wetR = mColorHPF_R.process(wetR);
           wetL = mColorLPF_L.process(wetL);
@@ -1282,7 +1282,7 @@ public:
     // INITIALIZE COLOR OUTPUT FILTERS
     // ===========================================================================
     // Color filters are applied after the reverb tank for tonal character.
-    // Default to Neutral mode (subtle 16kHz lowpass for natural sound).
+    // Default to Neutral mode (10kHz lowpass - takes off harshness).
     mColorMode = kColorNeutral;
     mColorLPF_L.clear();
     mColorLPF_R.clear();
@@ -1529,8 +1529,8 @@ private:
   // ===========================================================================
   // Color modes apply output filtering AFTER the tank for tonal character.
   // This doesn't affect the reverb decay - just the final output EQ.
-  // Bright = no filter, Neutral = subtle 16kHz LPF, Dark = 8kHz LPF,
-  // Studio = 600Hz HPF + 10kHz LPF (removes mud and harshness)
+  // Bright = bypass, Neutral = 10kHz LPF, Dark = 4kHz LPF,
+  // Studio = 600Hz HPF + 8kHz LPF (bandpass for mix clarity)
   int mColorMode = kColorNeutral;
   LowPassFilter mColorLPF_L;   // Color lowpass filter (left)
   LowPassFilter mColorLPF_R;   // Color lowpass filter (right)
