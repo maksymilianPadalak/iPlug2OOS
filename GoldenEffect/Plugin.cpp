@@ -21,9 +21,10 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   // ===========================================================================
   // Mode selects the reverb type - each mode sets internal diffusion and ER patterns
   // Plate = instant attack, bright shimmer | Chamber = fast attack, dense ERs, warm
+  // Cathedral = very slow attack, sparse long ERs, huge ethereal space
   GetParam(kParamMode)->InitEnum("Mode", kModePlate, kNumReverbModes,
     "", IParam::kFlagsNone, "",
-    "Plate", "Chamber");
+    "Plate", "Chamber", "Cathedral");
   GetParam(kParamSize)->InitDouble("Size", 70., 0., 100., 0.1, "%");
   GetParam(kParamDecay)->InitDouble("Decay", 70., 0., 99., 0.1, "%");
   GetParam(kParamPreDelay)->InitDouble("Pre-Delay", 10., 0., 200., 0.1, "ms");

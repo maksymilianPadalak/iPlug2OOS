@@ -667,6 +667,33 @@ struct EarlyReflections
     -0.35f, 0.1f, 0.5f, -0.4f, 0.25f, -0.15f
   };
 
+  // ==========================================================================
+  // CATHEDRAL MODE - Very sparse, long delays (massive stone space)
+  // ==========================================================================
+  // Cathedral ERs differ from Plate/Chamber:
+  // - Much longer times (15-180ms) = walls are very far away
+  // - Very sparse spacing = you hear distinct echoes before they smear
+  // - Slower gain decay = far walls have more similar levels (less inverse-square)
+  // - Very wide pans = massive enveloping space
+  // - Medium overall gain (0.6×) = prominent but not overwhelming
+  //
+  // This creates the "ethereal" quality where transients pass through initially,
+  // then distinct echoes arrive, then finally the dense tail builds up.
+  static constexpr float kCathedralTapTimes[NUM_TAPS] = {
+    15.2f, 28.7f, 42.3f, 58.1f, 76.4f, 95.8f,
+    112.3f, 131.5f, 148.7f, 162.4f, 174.1f, 183.6f
+  };
+  // Slower decay than Plate/Chamber - far walls are more similar in level
+  static constexpr float kCathedralTapGains[NUM_TAPS] = {
+    0.78f, -0.72f, 0.67f, -0.62f, 0.58f, 0.54f,
+    -0.50f, 0.46f, -0.42f, 0.38f, 0.35f, -0.32f
+  };
+  // Very wide stereo spread - massive space perception
+  static constexpr float kCathedralTapPans[NUM_TAPS] = {
+    -0.9f, 0.85f, -0.95f, 0.7f, -0.8f, 0.92f,
+    -0.75f, 0.6f, 0.98f, -0.88f, 0.78f, -0.65f
+  };
+
   // Active tap parameters (set by mode)
   std::array<float, NUM_TAPS> tapTimes{};
   std::array<float, NUM_TAPS> tapGains{};
@@ -693,7 +720,7 @@ struct EarlyReflections
 
   /**
    * Set the reverb mode - changes ER pattern and gain.
-   * @param mode 0=Plate (sparse ERs), 1=Chamber (dense ERs)
+   * @param mode 0=Plate (sparse), 1=Chamber (dense), 2=Cathedral (very sparse, long)
    */
   void setMode(int mode)
   {
@@ -714,6 +741,14 @@ struct EarlyReflections
           tapPans[i] = kChamberTapPans[i];
         }
         mModeGain = 1.0f;  // Chambers have prominent ERs
+        break;
+      case 2:  // Cathedral - very sparse, long ERs (massive stone space)
+        for (int i = 0; i < NUM_TAPS; ++i) {
+          tapTimes[i] = kCathedralTapTimes[i];
+          tapGains[i] = kCathedralTapGains[i];
+          tapPans[i] = kCathedralTapPans[i];
+        }
+        mModeGain = 0.6f;  // Prominent but not overwhelming
         break;
     }
   }
@@ -1441,6 +1476,7 @@ public:
         // Mode selects reverb type - each mode sets internal diffusion and ER patterns
         // Plate: instant attack, high diffusion, minimal ERs
         // Chamber: fast attack, medium-high diffusion, dense ERs
+        // Cathedral: very slow attack, low diffusion, sparse long ERs
         //
         // VALHALLA-STYLE MODE CHANGE:
         // When mode changes, we soft-clear the tank so the old tail fades quickly
@@ -1479,6 +1515,15 @@ public:
               mInputAP2.setFeedback(0.68f);
               mInputAP3.setFeedback(0.58f);
               mInputAP4.setFeedback(0.58f);
+              break;
+            case kModeCathedral:
+              // Cathedral: Low diffusion (0.4-0.5) = transients pass through, then smear
+              // This creates the "ethereal" buildup - you hear the attack, then echoes,
+              // then finally the dense tail develops. Very different from instant plates.
+              mInputAP1.setFeedback(0.48f);
+              mInputAP2.setFeedback(0.48f);
+              mInputAP3.setFeedback(0.42f);
+              mInputAP4.setFeedback(0.42f);
               break;
           }
         }

@@ -73,19 +73,20 @@ export const runtimeParameters: RuntimeParameter[] = [
   // === CHARACTER SECTION ===
   // Mode selects reverb type - each mode sets internal diffusion and ER patterns
   // Plate = instant attack, bright shimmer | Chamber = fast attack, dense ERs, warm
+  // Cathedral = very slow attack, sparse long ERs, huge ethereal space
   {
     "id": 2,
     "name": "Mode",
     "type": "int",
     "min": 0,
-    "max": 1,
+    "max": 2,
     "default": 0,
     "step": 1,
     "unit": "",
     "group": "Character",
     "shape": "ShapeLinear",
     "shapeParameter": 0,
-    "enumValues": ["Plate", "Chamber"],
+    "enumValues": ["Plate", "Chamber", "Cathedral"],
     "automatable": true,
     "key": "kParamMode"
   },
