@@ -1,13 +1,13 @@
 /**
- * Plugin Body - Golden Effect (Dattorro Plate Reverb)
+ * Plugin Body - Golden Effect (Multi-Mode Reverb)
  *
- * Professional Dattorro plate reverb UI.
+ * Professional algorithmic reverb UI with multiple space types.
  * Based on the Lexicon 224 topology with figure-8 tank.
  * This is a "golden example" for LLMs to learn from.
  *
- * PARAMETERS (15 total):
+ * PARAMETERS (14 total):
  * - Mix: Dry, Wet
- * - Space: Size, Decay, Pre-Delay, Diffusion, Density, Early/Late
+ * - Space: Mode, Size, Decay, Pre-Delay, Density, Early/Late
  * - Tone: Damping, Low Cut, High Cut, Color
  * - Modulation: Mod Rate, Mod Depth
  * - Output: Width
@@ -56,13 +56,15 @@ export function PluginBody() {
           </Section>
 
           {/* Space Section - Room characteristics */}
-          <Section title="Space" size="wide" description="Room size and decay">
+          <Section title="Space" size="wide" description="Reverb type and room characteristics">
+            <SubGroup title="Type" layout="row">
+              <Dropdown paramId={EParams.kParamMode} label="Mode" color="cyan" />
+            </SubGroup>
             <SubGroup title="Reverb" layout="row">
               <Knob paramId={EParams.kParamSize} label="Size" color="cyan" size="medium" />
               <Knob paramId={EParams.kParamDecay} label="Decay" color="magenta" size="medium" />
               <Knob paramId={EParams.kParamPreDelay} label="Pre-Delay" color="orange" size="medium" />
-              <Knob paramId={EParams.kParamDiffusion} label="Diffusion" color="green" size="medium" />
-              <Knob paramId={EParams.kParamDensity} label="Density" color="magenta" size="medium" />
+              <Knob paramId={EParams.kParamDensity} label="Density" color="green" size="medium" />
               <Knob paramId={EParams.kParamEarlyLate} label="Early/Late" color="cyan" size="medium" />
             </SubGroup>
           </Section>

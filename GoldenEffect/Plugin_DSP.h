@@ -615,29 +615,50 @@ struct EarlyReflections
   static constexpr int NUM_TAPS = 12;
   DelayLine<8192> delay;  // ~170ms at 48kHz
 
-  // Tap times in milliseconds (at size=1.0)
-  // Logarithmically spaced to match real room behavior
-  static constexpr float kBaseTapTimes[NUM_TAPS] = {
+  // ==========================================================================
+  // PLATE MODE - Sparse, widely spaced (plate has minimal ERs)
+  // ==========================================================================
+  static constexpr float kPlateTapTimes[NUM_TAPS] = {
     3.1f, 5.2f, 7.8f, 11.3f, 15.7f, 19.2f,
     24.1f, 31.5f, 38.2f, 47.6f, 58.3f, 72.1f
   };
-
-  // Tap gains (decaying with time, some negative for phase variation)
-  // Negative gains reduce comb filtering artifacts
-  static constexpr float kTapGains[NUM_TAPS] = {
+  static constexpr float kPlateTapGains[NUM_TAPS] = {
     0.85f, -0.72f, 0.68f, -0.55f, 0.48f, 0.42f,
     -0.35f, 0.30f, -0.25f, 0.20f, 0.16f, -0.12f
   };
-
-  // Tap pans (-1 = full left, +1 = full right)
-  // Spread across stereo field for natural imaging
-  static constexpr float kTapPans[NUM_TAPS] = {
+  static constexpr float kPlateTapPans[NUM_TAPS] = {
     -0.3f, 0.5f, -0.7f, 0.2f, -0.4f, 0.8f,
     -0.6f, 0.1f, 0.9f, -0.8f, 0.4f, -0.2f
   };
 
+  // ==========================================================================
+  // CHAMBER MODE - Dense, tightly packed (small reflective room)
+  // ==========================================================================
+  // Chamber ERs are closer together (faster buildup) and louder (reflective walls)
+  static constexpr float kChamberTapTimes[NUM_TAPS] = {
+    2.1f, 3.8f, 5.2f, 7.1f, 9.3f, 11.8f,
+    14.6f, 18.2f, 22.4f, 27.3f, 33.1f, 40.2f
+  };
+  // Chamber has higher gains (more reflective surfaces) and less decay
+  static constexpr float kChamberTapGains[NUM_TAPS] = {
+    0.92f, -0.85f, 0.80f, -0.74f, 0.68f, 0.62f,
+    -0.56f, 0.50f, -0.44f, 0.38f, 0.32f, -0.26f
+  };
+  // Chamber has narrower stereo spread (smaller room)
+  static constexpr float kChamberTapPans[NUM_TAPS] = {
+    -0.2f, 0.3f, -0.4f, 0.15f, -0.25f, 0.45f,
+    -0.35f, 0.1f, 0.5f, -0.4f, 0.25f, -0.15f
+  };
+
+  // Active tap parameters (set by mode)
+  std::array<float, NUM_TAPS> tapTimes{};
+  std::array<float, NUM_TAPS> tapGains{};
+  std::array<float, NUM_TAPS> tapPans{};
   std::array<int, NUM_TAPS> tapSamples{};  // Tap times in samples
+
   float mSampleRate = 44100.0f;
+  float mModeGain = 1.0f;  // Overall ER gain (Plate: 0.3, Chamber: 1.0)
+  int mMode = 0;  // kModePlate
 
   void clear()
   {
@@ -649,7 +670,35 @@ struct EarlyReflections
   {
     mSampleRate = sampleRate;
     delay.clear();
+    setMode(0);  // Default to Plate
     updateTapTimes(0.5f);  // Default size
+  }
+
+  /**
+   * Set the reverb mode - changes ER pattern and gain.
+   * @param mode 0=Plate (sparse ERs), 1=Chamber (dense ERs)
+   */
+  void setMode(int mode)
+  {
+    mMode = mode;
+    switch (mode) {
+      case 0:  // Plate - minimal ERs (plate reverbs have instant onset, no room)
+        for (int i = 0; i < NUM_TAPS; ++i) {
+          tapTimes[i] = kPlateTapTimes[i];
+          tapGains[i] = kPlateTapGains[i];
+          tapPans[i] = kPlateTapPans[i];
+        }
+        mModeGain = 0.3f;  // Plates have weak/no ERs
+        break;
+      case 1:  // Chamber - dense ERs (small reflective room)
+        for (int i = 0; i < NUM_TAPS; ++i) {
+          tapTimes[i] = kChamberTapTimes[i];
+          tapGains[i] = kChamberTapGains[i];
+          tapPans[i] = kChamberTapPans[i];
+        }
+        mModeGain = 1.0f;  // Chambers have prominent ERs
+        break;
+    }
   }
 
   /**
@@ -662,7 +711,7 @@ struct EarlyReflections
     float sizeScale = 0.3f + size * 1.4f;
 
     for (int i = 0; i < NUM_TAPS; ++i) {
-      float timeMs = kBaseTapTimes[i] * sizeScale;
+      float timeMs = tapTimes[i] * sizeScale;
       tapSamples[i] = static_cast<int>(timeMs * 0.001f * mSampleRate);
       // Clamp to valid range
       tapSamples[i] = std::max(1, std::min(tapSamples[i], 8191));
@@ -683,8 +732,8 @@ struct EarlyReflections
     outR = 0.0f;
 
     for (int i = 0; i < NUM_TAPS; ++i) {
-      float tap = delay.readInt(tapSamples[i]) * kTapGains[i];
-      float pan = kTapPans[i];
+      float tap = delay.readInt(tapSamples[i]) * tapGains[i] * mModeGain;
+      float pan = tapPans[i];
 
       // Equal-power panning
       float leftGain = 0.5f * (1.0f - pan);
@@ -1307,11 +1356,18 @@ public:
     mInputDiffusionDelay3 = static_cast<int>(DattorroConstants::kInputDiffusion3 * scale);
     mInputDiffusionDelay4 = static_cast<int>(DattorroConstants::kInputDiffusion4 * scale);
 
-    // Set diffusion coefficients (from Dattorro's paper)
-    mInputAP1.setFeedback(DattorroConstants::kInputDiffusionCoeff1);
-    mInputAP2.setFeedback(DattorroConstants::kInputDiffusionCoeff1);
-    mInputAP3.setFeedback(DattorroConstants::kInputDiffusionCoeff2);
-    mInputAP4.setFeedback(DattorroConstants::kInputDiffusionCoeff2);
+    // ===========================================================================
+    // INITIALIZE REVERB MODE
+    // ===========================================================================
+    // Default to Plate mode - sets input diffusion coefficients and ER pattern.
+    // Mode is controlled by user param, diffusion is internal (not user-exposed).
+    mReverbMode = kModePlate;
+    mEarlyReflections.setMode(mReverbMode);
+    // Plate: High diffusion (instant smear, bright shimmer)
+    mInputAP1.setFeedback(0.80f);
+    mInputAP2.setFeedback(0.80f);
+    mInputAP3.setFeedback(0.70f);
+    mInputAP4.setFeedback(0.70f);
 
     // Set default input filter cutoffs
     mLowCut.setCutoff(80.0f, mSampleRate);
@@ -1364,19 +1420,31 @@ public:
         mPreDelaySamples = std::min(mPreDelaySamples, DattorroConstants::kMaxPreDelay - 1);
         break;
 
-      case kParamDiffusion:
-        // Diffusion controls how much the input is "smeared" before entering the tank
-        // Low diffusion = you hear distinct echoes/reflections (attack character)
-        // High diffusion = smooth, washed-out, blended sound
+      case kParamMode:
+        // Mode selects reverb type - each mode sets internal diffusion and ER patterns
+        // Plate: instant attack, high diffusion, minimal ERs
+        // Chamber: fast attack, medium-high diffusion, dense ERs
         {
-          float diff = static_cast<float>(value / 100.0);
-          // Wide range for audible effect: 0.1 to 0.9
-          float coeff1 = 0.1f + diff * 0.8f;   // 0.1 to 0.9
-          float coeff2 = 0.1f + diff * 0.7f;   // 0.1 to 0.8
-          mInputAP1.setFeedback(coeff1);
-          mInputAP2.setFeedback(coeff1);
-          mInputAP3.setFeedback(coeff2);
-          mInputAP4.setFeedback(coeff2);
+          mReverbMode = static_cast<int>(value);
+          mEarlyReflections.setMode(mReverbMode);
+          mEarlyReflections.updateTapTimes(mSize.current);
+
+          switch (mReverbMode) {
+            case kModePlate:
+              // Plate: High diffusion (0.75-0.9) = instant smear, bright shimmer
+              mInputAP1.setFeedback(0.80f);
+              mInputAP2.setFeedback(0.80f);
+              mInputAP3.setFeedback(0.70f);
+              mInputAP4.setFeedback(0.70f);
+              break;
+            case kModeChamber:
+              // Chamber: Medium-high diffusion (0.6-0.75) = slight onset delay, warm
+              mInputAP1.setFeedback(0.68f);
+              mInputAP2.setFeedback(0.68f);
+              mInputAP3.setFeedback(0.58f);
+              mInputAP4.setFeedback(0.58f);
+              break;
+          }
         }
         break;
 
@@ -1488,6 +1556,13 @@ private:
   float mLastSize = 0.5f;     // Track size changes for freeze-and-blend
   float mLastDamping = 0.5f;  // Track damping changes
   float mLastDensity = 0.7f;  // Track density changes
+
+  // ===========================================================================
+  // REVERB MODE - Controls diffusion and ER character
+  // ===========================================================================
+  // Mode determines the overall character: Plate (instant/bright) vs Chamber (fast/warm)
+  // Diffusion is controlled internally by mode, not exposed to user.
+  int mReverbMode = kModePlate;
 
   // ===========================================================================
   // INPUT PROCESSING

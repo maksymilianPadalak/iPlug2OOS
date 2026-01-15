@@ -21,6 +21,19 @@
 const int kNumPresets = 1;
 
 // =============================================================================
+// REVERB MODES
+// =============================================================================
+// Different reverb space types with distinct characteristics.
+// Each mode sets internal diffusion and early reflection patterns.
+// =============================================================================
+enum EReverbMode
+{
+  kModePlate = 0,     // Classic plate - instant attack, bright shimmer, no early reflections
+  kModeChamber,       // Echo chamber - fast attack, dense early reflections, warm
+  kNumReverbModes
+};
+
+// =============================================================================
 // COLOR MODES
 // =============================================================================
 // Output color modes for tonal character.
@@ -48,10 +61,10 @@ enum EParams
   kParamWet,          // Wet signal level (0-100%)
 
   // --- Character Section ---
+  kParamMode,         // Reverb type - Plate/Chamber (controls diffusion internally)
   kParamSize,         // Room size - scales all delay times (0-100%)
   kParamDecay,        // Feedback amount - controls tail length (0-100%)
   kParamPreDelay,     // Time before reverb starts (0-100ms)
-  kParamDiffusion,    // Input smearing - affects attack character (0-100%)
   kParamDensity,      // Tank diffusion - affects tail texture (0-100%)
 
   // --- Tone Section ---

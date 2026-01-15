@@ -19,10 +19,14 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   // ===========================================================================
   // CHARACTER SECTION
   // ===========================================================================
+  // Mode selects the reverb type - each mode sets internal diffusion and ER patterns
+  // Plate = instant attack, bright shimmer | Chamber = fast attack, dense ERs, warm
+  GetParam(kParamMode)->InitEnum("Mode", kModePlate, kNumReverbModes,
+    "", IParam::kFlagsNone, "",
+    "Plate", "Chamber");
   GetParam(kParamSize)->InitDouble("Size", 70., 0., 100., 0.1, "%");
   GetParam(kParamDecay)->InitDouble("Decay", 70., 0., 99., 0.1, "%");
   GetParam(kParamPreDelay)->InitDouble("Pre-Delay", 10., 0., 200., 0.1, "ms");
-  GetParam(kParamDiffusion)->InitDouble("Diffusion", 75., 0., 100., 0.1, "%");
   // Density controls the tank allpass feedback - texture of the tail
   // Low = grainy, you hear individual reflections
   // High = smooth, continuous wash
