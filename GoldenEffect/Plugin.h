@@ -50,6 +50,9 @@ enum EParams
   // --- Output Section ---
   kParamWidth,        // Stereo spread (0-100%)
 
+  // --- Early/Late Section ---
+  kParamEarlyLate,    // Balance between early reflections and late reverb (0-100%)
+
   kNumParams
 };
 

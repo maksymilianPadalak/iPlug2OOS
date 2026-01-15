@@ -5,10 +5,12 @@
  * Based on the Lexicon 224 topology with figure-8 tank.
  * This is a "golden example" for LLMs to learn from.
  *
- * PARAMETERS (7 total):
+ * PARAMETERS (12 total):
  * - Mix: Dry, Wet
  * - Space: Size, Decay, Pre-Delay, Diffusion
- * - Tone: Damping
+ * - Tone: Damping, Low Cut, High Cut
+ * - Modulation: Mod Rate, Mod Depth
+ * - Output: Width
  */
 
 import { Section } from 'sharedUi/components/Section';
@@ -60,12 +62,34 @@ export function PluginBody() {
               <Knob paramId={EParams.kParamPreDelay} label="Pre-Delay" color="orange" size="medium" />
               <Knob paramId={EParams.kParamDiffusion} label="Diffusion" color="green" size="medium" />
             </SubGroup>
+            <SubGroup title="Character" layout="row">
+              <Knob paramId={EParams.kParamEarlyLate} label="Tail" color="cyan" size="medium" />
+            </SubGroup>
           </Section>
 
           {/* Tone Section - Frequency shaping */}
-          <Section title="Tone" size="compact" description="High frequency damping">
-            <SubGroup title="Color" layout="row">
+          <Section title="Tone" size="wide" description="Input and decay tone shaping">
+            <SubGroup title="Input EQ" layout="row">
+              <Knob paramId={EParams.kParamLowCut} label="Low Cut" color="cyan" size="medium" />
+              <Knob paramId={EParams.kParamHighCut} label="High Cut" color="magenta" size="medium" />
+            </SubGroup>
+            <SubGroup title="Decay" layout="row">
               <Knob paramId={EParams.kParamDamping} label="Damping" color="orange" size="medium" />
+            </SubGroup>
+          </Section>
+
+          {/* Modulation Section - Tank LFO for lushness */}
+          <Section title="Modulation" size="compact" description="Tank LFO for lushness">
+            <SubGroup title="LFO" layout="row">
+              <Knob paramId={EParams.kParamModRate} label="Rate" color="magenta" size="medium" />
+              <Knob paramId={EParams.kParamModDepth} label="Depth" color="cyan" size="medium" />
+            </SubGroup>
+          </Section>
+
+          {/* Output Section - Stereo image */}
+          <Section title="Output" size="compact" description="Stereo width control">
+            <SubGroup title="Stereo" layout="row">
+              <Knob paramId={EParams.kParamWidth} label="Width" color="green" size="medium" />
             </SubGroup>
           </Section>
         </GridFoundation>

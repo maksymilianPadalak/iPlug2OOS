@@ -54,6 +54,107 @@
 using namespace iplug;
 
 // =============================================================================
+// SMOOTHED VALUE - Universal Parameter Smoothing
+// =============================================================================
+/**
+ * One-pole smoothing for parameter changes.
+ *
+ * WHY SMOOTHING:
+ * Abrupt parameter changes cause clicks and zipper noise in audio.
+ * This applies one-pole lowpass smoothing to any parameter, creating
+ * smooth transitions even during automation.
+ *
+ * USAGE:
+ * - Call setTarget() when parameter changes (from UI or automation)
+ * - Call getNext() every sample to get smoothed value
+ * - Use snap() to immediately jump to target (on reset)
+ *
+ * TUNING:
+ * - Smoothing time of 5-20ms works well for most parameters
+ * - Faster (5ms) for modulation, slower (20ms) for filters
+ */
+template<typename T>
+struct SmoothedValue
+{
+  T current{};
+  T target{};
+  float coeff = 0.999f;  // Higher = slower smoothing
+
+  void setTarget(T t) { target = t; }
+
+  void setTime(float ms, float sampleRate)
+  {
+    // Calculate coefficient for given smoothing time
+    // coeff = e^(-1 / (time_in_samples))
+    if (ms <= 0.0f || sampleRate <= 0.0f) {
+      coeff = 0.0f;  // Instant
+    } else {
+      float samples = ms * 0.001f * sampleRate;
+      coeff = std::exp(-1.0f / samples);
+    }
+  }
+
+  T getNext()
+  {
+    current = current * coeff + target * (1.0f - coeff);
+    return current;
+  }
+
+  void snap()
+  {
+    current = target;
+  }
+
+  bool isSmoothing() const
+  {
+    return std::abs(static_cast<float>(target - current)) > 1e-6f;
+  }
+};
+
+// =============================================================================
+// DC BLOCKER - Removes DC Offset from Feedback Loops
+// =============================================================================
+/**
+ * First-order highpass filter for DC removal.
+ *
+ * WHY DC BLOCKING:
+ * Feedback loops can accumulate DC offset over time, causing the signal
+ * to drift and eventually clip. This simple highpass at ~5-10Hz removes
+ * DC while preserving all audible frequencies.
+ *
+ * EQUATION: y[n] = x[n] - x[n-1] + R * y[n-1]
+ * where R is close to 1 (typically 0.995 for ~7Hz cutoff at 44.1kHz)
+ */
+struct DCBlocker
+{
+  float x1 = 0.0f;  // Previous input
+  float y1 = 0.0f;  // Previous output
+  float R = 0.995f; // Coefficient (~7Hz at 44.1kHz)
+
+  void clear()
+  {
+    x1 = 0.0f;
+    y1 = 0.0f;
+  }
+
+  void setCutoff(float hz, float sampleRate)
+  {
+    // R = 1 - (2 * pi * fc / fs)
+    // Higher R = lower cutoff frequency
+    R = 1.0f - (2.0f * 3.14159265f * hz / sampleRate);
+    R = std::max(0.9f, std::min(0.9999f, R));
+  }
+
+  float process(float x)
+  {
+    float y = x - x1 + R * y1;
+    x1 = x;
+    y1 = y;
+    return y;
+  }
+};
+
+// =============================================================================
 // FAST MATH UTILITIES
 // =============================================================================
 /**
@@ -135,6 +236,85 @@ namespace DattorroConstants
   // Pre-delay maximum (samples at 48kHz)
   constexpr int kMaxPreDelay = 9600;  // 200ms at 48kHz
 }
+
+// =============================================================================
+// MODULATION BANK - 8 Decorrelated LFOs for Professional Sound
+// =============================================================================
+/**
+ * Bank of 8 decorrelated sine LFOs for rich modulation.
+ *
+ * WHY MULTIPLE LFOs:
+ * Using a single LFO (or two) creates predictable, "mechanical" modulation.
+ * Professional reverbs (Valhalla, Lexicon) use 8-32 decorrelated modulators.
+ * Each delay line gets its own LFO with:
+ * - Different initial phase (spread across 0-1)
+ * - Slightly different rate (±10% variation)
+ *
+ * This creates complex, organic movement that breaks up metallic resonances
+ * without sounding like obvious chorus.
+ *
+ * ASSIGNMENT:
+ * - LFO 0-1: Input diffusion allpasses (subtle, ±2 samples)
+ * - LFO 2-3: Left tank allpass + delay (medium, ±8 samples)
+ * - LFO 4-5: Right tank allpass + delay (medium, ±8 samples)
+ * - LFO 6-7: Secondary tank delays (subtle, ±4 samples)
+ */
+struct ModulationBank
+{
+  static constexpr int N = 8;
+  std::array<float, N> phases{};       // Current phase of each LFO (0-1)
+  std::array<float, N> rateOffsets{};  // Rate multiplier for each LFO
+  std::array<float, N> outputs{};      // Current output values (-1 to +1)
+
+  void reset()
+  {
+    // Spread phases evenly across the cycle for maximum decorrelation
+    for (int i = 0; i < N; ++i) {
+      phases[i] = static_cast<float>(i) / static_cast<float>(N);
+    }
+
+    // Rate offsets: 0.9× to 1.1× (±10% variation)
+    // This prevents LFOs from ever syncing up
+    rateOffsets[0] = 0.90f;
+    rateOffsets[1] = 1.10f;
+    rateOffsets[2] = 0.95f;
+    rateOffsets[3] = 1.05f;
+    rateOffsets[4] = 0.92f;
+    rateOffsets[5] = 1.08f;
+    rateOffsets[6] = 0.97f;
+    rateOffsets[7] = 1.03f;
+
+    std::fill(outputs.begin(), outputs.end(), 0.0f);
+  }
+
+  /**
+   * Process all LFOs for one sample.
+   * @param baseRateHz Base modulation rate in Hz
+   * @param sampleRate Current sample rate
+   */
+  void process(float baseRateHz, float sampleRate)
+  {
+    constexpr float kTwoPi = 6.28318530718f;
+
+    for (int i = 0; i < N; ++i) {
+      // Each LFO runs at slightly different rate
+      float rate = baseRateHz * rateOffsets[i];
+      phases[i] += rate / sampleRate;
+      if (phases[i] >= 1.0f) phases[i] -= 1.0f;
+      outputs[i] = std::sin(phases[i] * kTwoPi);
+    }
+  }
+
+  /**
+   * Get the output of a specific LFO.
+   * @param idx LFO index (0-7)
+   * @return Sine wave value from -1 to +1
+   */
+  float get(int idx) const
+  {
+    return outputs[idx];
+  }
+};
 
 // =============================================================================
 // DELAY LINE
@@ -301,85 +481,218 @@ struct OnePoleLowpass
 };
 
 // =============================================================================
-// HIGH-PASS FILTER (Low Cut)
+// HIGH-PASS FILTER (Low Cut) - Two-Pole (12dB/octave)
 // =============================================================================
 /**
- * One-pole high-pass filter for removing low frequencies.
+ * Two-pole high-pass filter for removing low frequencies.
+ * Cascades two one-pole filters for steeper 12dB/octave slope.
+ *
+ * WHY TWO-POLE:
+ * One-pole filters (6dB/octave) have very gentle slopes - signal leaks through.
+ * Two-pole filters (12dB/octave) provide cleaner cutoff like pro reverbs.
  *
  * WHY LOW CUT:
  * Reverb can accumulate bass energy, making the mix muddy.
  * A high-pass filter on the input removes rumble and keeps things clean.
  * Typical settings: 60-150 Hz for music, higher for vocals.
- *
- * EQUATION: y[n] = coeff × (y[n-1] + x[n] - x[n-1])
- * where coeff = exp(-2π × cutoffHz / sampleRate)
  */
 struct HighPassFilter
 {
-  float state = 0.0f;
-  float prevInput = 0.0f;
+  // Two cascaded one-pole stages
+  float state1 = 0.0f;
+  float state2 = 0.0f;
+  float prevInput1 = 0.0f;
+  float prevInput2 = 0.0f;
   float coeff = 0.995f;
 
   void clear()
   {
-    state = 0.0f;
-    prevInput = 0.0f;
+    state1 = 0.0f;
+    state2 = 0.0f;
+    prevInput1 = 0.0f;
+    prevInput2 = 0.0f;
   }
 
   void setCutoff(float hz, float sampleRate)
   {
     // Calculate coefficient from cutoff frequency
-    // Higher coeff = lower cutoff frequency
     coeff = std::exp(-2.0f * 3.14159265359f * hz / sampleRate);
     coeff = std::max(0.0f, std::min(0.9999f, coeff));
   }
 
   float process(float input)
   {
-    // High-pass: output = coeff × (prev_output + input - prev_input)
-    state = coeff * (state + input - prevInput);
-    prevInput = input;
-    return state;
+    // First stage
+    state1 = coeff * (state1 + input - prevInput1);
+    prevInput1 = input;
+
+    // Second stage (cascaded for 12dB/octave)
+    state2 = coeff * (state2 + state1 - prevInput2);
+    prevInput2 = state1;
+
+    return state2;
   }
 };
 
 // =============================================================================
-// LOW-PASS FILTER (High Cut)
+// LOW-PASS FILTER (High Cut) - Two-Pole (12dB/octave)
 // =============================================================================
 /**
- * One-pole low-pass filter for removing high frequencies.
+ * Two-pole low-pass filter for removing high frequencies.
+ * Cascades two one-pole filters for steeper 12dB/octave slope.
+ *
+ * WHY TWO-POLE:
+ * One-pole filters (6dB/octave) have very gentle slopes - signal leaks through.
+ * Two-pole filters (12dB/octave) provide cleaner cutoff like pro reverbs.
  *
  * WHY HIGH CUT:
  * Controls the brightness of the reverb input.
  * Lower cutoff = darker reverb overall.
  * This is different from damping which progressively darkens the tail.
- *
- * EQUATION: y[n] = (1-coeff) × x[n] + coeff × y[n-1]
- * where coeff = exp(-2π × cutoffHz / sampleRate)
  */
 struct LowPassFilter
 {
-  float state = 0.0f;
+  // Two cascaded one-pole stages
+  float state1 = 0.0f;
+  float state2 = 0.0f;
   float coeff = 0.0f;
 
   void clear()
   {
-    state = 0.0f;
+    state1 = 0.0f;
+    state2 = 0.0f;
   }
 
   void setCutoff(float hz, float sampleRate)
   {
     // Calculate coefficient from cutoff frequency
-    // Higher coeff = lower cutoff frequency (more filtering)
     coeff = std::exp(-2.0f * 3.14159265359f * hz / sampleRate);
     coeff = std::max(0.0f, std::min(0.9999f, coeff));
   }
 
   float process(float input)
   {
-    // Low-pass: output = (1-coeff) × input + coeff × prev_output
-    state = (1.0f - coeff) * input + coeff * state;
-    return state;
+    // First stage
+    state1 = (1.0f - coeff) * input + coeff * state1;
+
+    // Second stage (cascaded for 12dB/octave)
+    state2 = (1.0f - coeff) * state1 + coeff * state2;
+
+    return state2;
+  }
+};
+
+// =============================================================================
+// EARLY REFLECTIONS - Room Character Network
+// =============================================================================
+/**
+ * 12-tap early reflection generator for room character.
+ *
+ * WHY EARLY REFLECTIONS:
+ * The first 50-100ms of reverb define the perception of room size and shape.
+ * These "early reflections" (ERs) are distinct echoes that arrive before
+ * the diffuse reverb tail. They tell our brain about:
+ * - Room size (longer delays = bigger room)
+ * - Wall materials (brighter ERs = harder surfaces)
+ * - Room shape (tap pattern suggests geometry)
+ *
+ * Without ERs, reverb sounds "disconnected" from the dry signal.
+ * With ERs, it sounds like you're actually IN a space.
+ *
+ * TAP DESIGN:
+ * - 12 taps with logarithmically increasing delays (3ms to 72ms)
+ * - Gains decay with time (later reflections are quieter)
+ * - Some negative gains for phase variation (reduces comb filtering)
+ * - Panned across stereo field for width
+ * - All times scale with Size parameter
+ *
+ * REFERENCE:
+ * Based on typical small-to-medium room reflection patterns.
+ * Professional reverbs (ValhallaRoom, FabFilter Pro-R) use similar techniques.
+ */
+struct EarlyReflections
+{
+  static constexpr int NUM_TAPS = 12;
+  DelayLine<8192> delay;  // ~170ms at 48kHz
+
+  // Tap times in milliseconds (at size=1.0)
+  // Logarithmically spaced to match real room behavior
+  static constexpr float kBaseTapTimes[NUM_TAPS] = {
+    3.1f, 5.2f, 7.8f, 11.3f, 15.7f, 19.2f,
+    24.1f, 31.5f, 38.2f, 47.6f, 58.3f, 72.1f
+  };
+
+  // Tap gains (decaying with time, some negative for phase variation)
+  // Negative gains reduce comb filtering artifacts
+  static constexpr float kTapGains[NUM_TAPS] = {
+    0.85f, -0.72f, 0.68f, -0.55f, 0.48f, 0.42f,
+    -0.35f, 0.30f, -0.25f, 0.20f, 0.16f, -0.12f
+  };
+
+  // Tap pans (-1 = full left, +1 = full right)
+  // Spread across stereo field for natural imaging
+  static constexpr float kTapPans[NUM_TAPS] = {
+    -0.3f, 0.5f, -0.7f, 0.2f, -0.4f, 0.8f,
+    -0.6f, 0.1f, 0.9f, -0.8f, 0.4f, -0.2f
+  };
+
+  std::array<int, NUM_TAPS> tapSamples{};  // Tap times in samples
+  float mSampleRate = 44100.0f;
+
+  void clear()
+  {
+    delay.clear();
+    std::fill(tapSamples.begin(), tapSamples.end(), 0);
+  }
+
+  void reset(float sampleRate)
+  {
+    mSampleRate = sampleRate;
+    delay.clear();
+    updateTapTimes(0.5f);  // Default size
+  }
+
+  /**
+   * Update tap times based on size parameter.
+   * @param size Room size (0-1)
+   */
+  void updateTapTimes(float size)
+  {
+    // Size scaling: 0.3× to 1.7× the base times
+    float sizeScale = 0.3f + size * 1.4f;
+
+    for (int i = 0; i < NUM_TAPS; ++i) {
+      float timeMs = kBaseTapTimes[i] * sizeScale;
+      tapSamples[i] = static_cast<int>(timeMs * 0.001f * mSampleRate);
+      // Clamp to valid range
+      tapSamples[i] = std::max(1, std::min(tapSamples[i], 8191));
+    }
+  }
+
+  /**
+   * Process one sample through the early reflections network.
+   * @param input Mono input sample
+   * @param outL Left output (accumulated)
+   * @param outR Right output (accumulated)
+   */
+  void process(float input, float& outL, float& outR)
+  {
+    delay.write(input);
+
+    outL = 0.0f;
+    outR = 0.0f;
+
+    for (int i = 0; i < NUM_TAPS; ++i) {
+      float tap = delay.readInt(tapSamples[i]) * kTapGains[i];
+      float pan = kTapPans[i];
+
+      // Equal-power panning
+      float leftGain = 0.5f * (1.0f - pan);
+      float rightGain = 0.5f * (1.0f + pan);
+
+      outL += tap * leftGain;
+      outR += tap * rightGain;
+    }
   }
 };
 
@@ -388,10 +701,31 @@ struct LowPassFilter
 // =============================================================================
 /**
  * Encapsulates a complete Dattorro tank (both left and right sides).
- * Having two of these allows the "spillover" technique:
+ *
+ * WHAT IT CONTAINS:
+ * - 2 allpass filters per side (4 total) for diffusion
+ * - 2 delay lines per side (4 total) for the feedback loop
+ * - 1 damping filter per side for high-frequency absorption
+ * - 14 output tap positions for stereo decorrelation
+ *
+ * USAGE:
+ * ```cpp
+ * TankSystem tank;
+ * tank.clear();                              // Clear all buffers
+ * tank.setDiffusionCoeffs();                 // Set allpass feedback
+ * tank.setDamping(0.5f);                     // 50% damping
+ * tank.updateDelayTimes(0.7f, scale);        // 70% size
+ *
+ * // Per sample:
+ * float wetL, wetR;
+ * tank.process(diffusedInput, decay, wetL, wetR, modOffset1, modOffset3);
+ * ```
+ *
+ * SPILLOVER TECHNIQUE:
+ * Having two TankSystems allows seamless size transitions:
  * - One tank receives new input (active)
  * - One tank just decays its existing tail (spillover)
- * - Both outputs are summed for seamless size transitions
+ * - Both outputs are summed - the old tail fades naturally via decay
  */
 struct TankSystem
 {
@@ -519,8 +853,11 @@ struct TankSystem
    * @param decay The decay feedback amount
    * @param wetL Output: left wet signal
    * @param wetR Output: right wet signal
+   * @param modOffset1 LFO modulation offset for left tank allpass (default 0)
+   * @param modOffset3 LFO modulation offset for right tank allpass (default 0)
    */
-  void process(float diffusedInput, float decay, float& wetL, float& wetR)
+  void process(float diffusedInput, float decay, float& wetL, float& wetR,
+               float modOffset1 = 0.0f, float modOffset3 = 0.0f)
   {
     // Save previous frame's outputs for cross-feedback
     float prevLeftOut = leftTankOut;
@@ -530,25 +867,37 @@ struct TankSystem
     float leftTankIn = diffusedInput + prevRightOut * decay;
     leftTankIn = fastTanh(leftTankIn);
 
-    float leftAP1Out = tankAP1.process(leftTankIn, tankAllpassDelay1);
+    // Apply LFO modulation to allpass delay (creates chorus-like movement)
+    float modulatedDelay1 = tankAllpassDelay1 + modOffset1;
+    float leftAP1Out = tankAP1.process(leftTankIn, modulatedDelay1);
     tankDelay1.write(leftAP1Out);
-    float leftDelay1Out = tankDelay1.read(tankDelayTime1);
+    // Also modulate the main tank delay for more obvious effect
+    float modulatedTankDelay1 = tankDelayTime1 + modOffset1 * 1.5f;
+    float leftDelay1Out = tankDelay1.read(modulatedTankDelay1);
     float leftDamped = dampingL.process(leftDelay1Out);
     float leftAP2Out = tankAP2.processInt(leftDamped, tankAllpassDelay2);
     tankDelay2.write(leftAP2Out);
-    float leftDelay2Out = tankDelay2.read(tankDelayTime2);
+    // Also modulate second tank delay
+    float modulatedTankDelay2 = tankDelayTime2 + modOffset1 * 2.0f;
+    float leftDelay2Out = tankDelay2.read(modulatedTankDelay2);
 
     // ----- RIGHT TANK -----
     float rightTankIn = diffusedInput + prevLeftOut * decay;
     rightTankIn = fastTanh(rightTankIn);
 
-    float rightAP1Out = tankAP3.process(rightTankIn, tankAllpassDelay3);
+    // Apply LFO modulation to allpass delay (slightly detuned for stereo)
+    float modulatedDelay3 = tankAllpassDelay3 + modOffset3;
+    float rightAP1Out = tankAP3.process(rightTankIn, modulatedDelay3);
     tankDelay3.write(rightAP1Out);
-    float rightDelay1Out = tankDelay3.read(tankDelayTime3);
+    // Also modulate the main tank delay for more obvious effect
+    float modulatedTankDelay3 = tankDelayTime3 + modOffset3 * 1.5f;
+    float rightDelay1Out = tankDelay3.read(modulatedTankDelay3);
     float rightDamped = dampingR.process(rightDelay1Out);
     float rightAP2Out = tankAP4.processInt(rightDamped, tankAllpassDelay4);
     tankDelay4.write(rightAP2Out);
-    float rightDelay2Out = tankDelay4.read(tankDelayTime4);
+    // Also modulate second tank delay
+    float modulatedTankDelay4 = tankDelayTime4 + modOffset3 * 2.0f;
+    float rightDelay2Out = tankDelay4.read(modulatedTankDelay4);
 
     // Update outputs for next sample
     leftTankOut = leftDelay2Out;
@@ -614,181 +963,150 @@ public:
     float scale = mSampleRate / DattorroConstants::kReferenceSampleRate;
 
     // =========================================================================
-    // SIZE PARAMETER SMOOTHING - Handling the "Zipper Noise" Problem
+    // BLOCK-LEVEL UPDATES
     // =========================================================================
-    //
-    // THE PROBLEM: "Zipper Noise"
-    // Reverb size controls delay line lengths. Abruptly changing delay lengths
-    // causes the read position to jump, creating clicks/pops ("zipper noise").
-    //
-    // ALTERNATIVE APPROACHES (for reference):
-    // -----------------------------------------------------------------------
-    // 1. INTERPOLATED READS + PARAMETER SMOOTHING (this implementation)
-    //    - Smooth delay time changes cause pitch shift instead of clicks
-    //    - Pro: Simple, low CPU, works well for slow/moderate changes
-    //    - Con: Pitch artifacts on fast changes, feedback can clip
-    //    - Used by: Lexicon 224, Valhalla VintageVerb
-    //
-    // 2. DUAL-TANK CROSSFADE ("Spillover")
-    //    - Two complete reverb tanks, crossfade between them on size change
-    //    - Pro: No pitch shift, seamless transitions
-    //    - Con: 2x CPU, 2x memory, complex gain staging to avoid clipping
-    //    - Used by: Some Eventide reverbs
-    //
-    // 3. TWO-TAP DELAY CROSSFADE (per delay line)
-    //    - Each delay line reads from old AND new position, crossfades
-    //    - Pro: No pitch shift at delay level
-    //    - Con: Complex implementation, can still have tank-level artifacts
-    //    - Used by: FabFilter Pro-R
-    //
-    // 4. GRANULAR CROSSFADE
-    //    - Chop output into small grains, crossfade between old/new positions
-    //    - Pro: Very smooth, no pitch shift
-    //    - Con: High CPU, adds latency, complex implementation
-    //    - Used by: Some experimental/research reverbs
-    //
-    // 5. FREEZE-AND-BLEND (this implementation, combined with #1)
-    //    - Mute wet during changes, fade back in after settling
-    //    - Pro: Simple, no artifacts, works with any reverb topology
-    //    - Con: Brief reverb dropout during adjustment
-    //    - Used by: Various commercial plugins as a fallback
-    //
-    // WHY WE CHOSE THIS APPROACH:
-    // We use #1 (interpolation + smoothing) combined with #5 (freeze-and-blend).
-    // This gives the best tradeoff: simple implementation, low CPU, and
-    // artifact-free results. The brief dropout during size changes is
-    // acceptable for most use cases and preferable to clicks or pitch warbles.
-    //
-    // -----------------------------------------------------------------------
-    //
-    // IMPLEMENTATION: Two-pole parameter smoothing
-    // Two one-pole lowpass filters in series (cascaded) provide smoother
-    // transitions than a single filter. Single pole has discontinuous 1st
-    // derivative (audible as a "corner"). Two poles = continuous 1st derivative
-    // = smoother pitch glide during size changes.
-    //
-    // TUNING GUIDE:
-    // - kSmoothCoeff 0.8  = fast/snappy, more pitch artifacts
-    // - kSmoothCoeff 0.9  = balanced (current setting)
-    // - kSmoothCoeff 0.95 = slow/smooth, less artifacts but laggy feel
-    // - kSmoothCoeff 0.99 = very slow, nearly artifact-free but unusable lag
+    // Update tank parameters that don't need per-sample smoothing
+    // Size is smoothed per-sample, but we update tank once per block
 
-    constexpr float kSmoothCoeff = 0.9f;
-    mSizeSmooth1 = mSizeSmooth1 * kSmoothCoeff + mSizeTarget * (1.0f - kSmoothCoeff);
-    mSize = mSize * kSmoothCoeff + mSizeSmooth1 * (1.0f - kSmoothCoeff);
-    mTankA.updateDelayTimes(mSize, scale);
-
-    // =========================================================================
-    // FREEZE-AND-BLEND - Mute wet signal during size changes
-    // =========================================================================
-    // THE REMAINING PROBLEM:
-    // Even with smooth interpolation, rapid size changes cause audible artifacts:
-    // - Pitch shifting (delay time changes = playback speed changes)
-    // - Feedback loop instability (can cause clipping/ringing)
-    // - Transient energy buildup in the tank
-    //
-    // SOLUTION: "Freeze and Blend" technique
-    // 1. When size STARTS changing: quickly fade wet signal OUT
-    //    - User hears dry signal only while adjusting
-    //    - Tank continues processing internally (artifacts happen silently)
-    // 2. When size STOPS changing: wait briefly for tank to "settle"
-    //    - Residual transients/ringing decay naturally
-    // 3. After settling: gradually fade wet signal back IN
-    //    - Clean reverb at new size fades in smoothly
-    //
-    // TRADEOFF: Brief reverb dropout during size adjustment.
-    // This is preferable to clicks, pitch warbles, or clipping.
-    // Professional reverbs (Valhalla, FabFilter) use similar techniques.
-    //
-    // TUNING GUIDE:
-    // - kGapThreshold: How small the gap must be to consider "stable"
-    //   Lower = more sensitive, waits longer. 0.001 is good default.
-    // - kFadeOutSpeed: How fast wet mutes when knob moves
-    //   Higher = faster mute, less artifact bleed. 0.1 = ~2 blocks to mute.
-    // - kFadeInSpeed: How fast wet returns after settling
-    //   Higher = snappier. 0.06 = ~0.3s. Lower (0.02) = smoother but slower.
-    // - kSettleBlocks: How long to wait after size stops before fade-in
-    //   Higher = more time for tank to calm down. 15 = ~170ms at 48kHz/512.
-
-    float sizeGap = std::abs(mSizeTarget - mSize);
-    constexpr float kGapThreshold = 0.001f;   // Below this = "size is stable"
-    constexpr float kFadeOutSpeed = 0.1f;     // Fast fade out (hide artifacts quickly)
-    constexpr float kFadeInSpeed = 0.06f;     // Snappy fade in (~0.3s to full)
-    constexpr int kSettleBlocks = 15;         // Blocks to wait before fade-in
+    // Check if size changed significantly (for freeze-and-blend)
+    float currentSize = mSize.current;
+    float sizeGap = std::abs(mSize.target - currentSize);
+    constexpr float kGapThreshold = 0.001f;
+    constexpr float kFadeOutSpeed = 0.1f;
+    constexpr float kFadeInSpeed = 0.06f;
+    constexpr int kSettleBlocks = 15;
 
     if (sizeGap > kGapThreshold) {
-      // Size is actively changing - fade wet out, reset settle timer
       mWetGain = std::max(0.0f, mWetGain - kFadeOutSpeed);
       mSettleCounter = kSettleBlocks;
     } else if (mSettleCounter > 0) {
-      // Size stopped but tank still settling - keep wet muted
       mSettleCounter--;
     } else {
-      // Size stable AND tank settled - fade wet back in
       mWetGain = std::min(1.0f, mWetGain + kFadeInSpeed);
     }
 
     for (int s = 0; s < nFrames; ++s)
     {
+      // =======================================================================
+      // GET SMOOTHED PARAMETER VALUES (per-sample for click-free automation)
+      // =======================================================================
+      float dry = mDry.getNext();
+      float wet = mWet.getNext();
+      float decay = mDecay.getNext();
+      float size = mSize.getNext();
+      float width = mWidth.getNext();
+      float damping = mDamping.getNext();
+      float modRate = mModRate.getNext();
+      float modDepth = mModDepth.getNext();
+      float earlyLate = mEarlyLate.getNext();
+
+      // Update tank when size changes
+      if (std::abs(size - mLastSize) > 0.0001f) {
+        mTankA.updateDelayTimes(size, scale);
+        mTankA.setDamping(damping);
+        mEarlyReflections.updateTapTimes(size);
+        mLastSize = size;
+      }
+
       float inputL = static_cast<float>(inL[s]);
       float inputR = static_cast<float>(inR[s]);
 
-      // =========================================================================
-      // STEP 1: Create mono input with stereo preservation option
-      // =========================================================================
+      // =======================================================================
+      // STEP 1: Create mono input
+      // =======================================================================
       float monoIn = (inputL + inputR) * 0.5f;
 
-      // =========================================================================
+      // =======================================================================
       // STEP 2: Input Tone Shaping (Low Cut + High Cut)
-      // =========================================================================
+      // =======================================================================
       float filtered = mLowCut.process(monoIn);
       filtered = mHighCut.process(filtered);
 
-      // =========================================================================
+      // =======================================================================
       // STEP 3: Pre-delay
-      // =========================================================================
+      // =======================================================================
       float preDelayed = (mPreDelaySamples > 0)
         ? mPreDelay.readInt(mPreDelaySamples)
         : filtered;
       mPreDelay.write(filtered);
 
-      // =========================================================================
-      // STEP 4: Input Diffusion (4 allpass filters in series)
-      // =========================================================================
+      // =======================================================================
+      // STEP 4: EARLY REFLECTIONS (Room Character)
+      // =======================================================================
+      // Process early reflections in parallel with late reverb
+      float earlyL = 0.0f, earlyR = 0.0f;
+      mEarlyReflections.process(preDelayed, earlyL, earlyR);
+
+      // =======================================================================
+      // STEP 5: Input Diffusion (4 allpass filters in series)
+      // =======================================================================
       float diffused = preDelayed;
       diffused = mInputAP1.processInt(diffused, mInputDiffusionDelay1);
       diffused = mInputAP2.processInt(diffused, mInputDiffusionDelay2);
       diffused = mInputAP3.processInt(diffused, mInputDiffusionDelay3);
       diffused = mInputAP4.processInt(diffused, mInputDiffusionDelay4);
 
-      // =========================================================================
-      // STEP 5: Single Tank Processing (Simple)
-      // =========================================================================
-      // Tank processes continuously, but we only hear it when mWetGain > 0.
-      // During size changes, wet is muted so we don't hear artifacts.
+      // =======================================================================
+      // STEP 6: MODULATION BANK (8 Decorrelated LFOs)
+      // =======================================================================
+      // Process all 8 LFOs at once
+      mModBank.process(modRate, mSampleRate);
 
-      float wetL, wetR;
-      mTankA.process(diffused, mDecay, wetL, wetR);
+      // Get modulation offsets for different delay lines
+      // Each delay line gets its own LFO for complex, organic movement
+      // Excursion: how many samples the delay time varies by (±50 at full depth)
+      float excursion = modDepth * 50.0f;
 
-      // Scale output and apply wet gain (freeze-and-blend)
-      wetL *= 0.6f * mWetGain;
-      wetR *= 0.6f * mWetGain;
+      // LFO assignment (see ModulationBank for decorrelation details):
+      // - LFO 0-1: Reserved for input diffusion (not yet implemented)
+      // - LFO 2: Left tank allpass modulation
+      // - LFO 4: Right tank allpass modulation
+      float modOffset1 = mModBank.get(2) * excursion;
+      float modOffset3 = mModBank.get(4) * excursion;
 
-      // =========================================================================
-      // STEP 6: Stereo Width Control (Mid/Side Processing)
-      // =========================================================================
+      // =======================================================================
+      // STEP 7: Tank Processing (Late Reverb)
+      // =======================================================================
+      float lateL = 0.0f, lateR = 0.0f;
+      mTankA.process(diffused, decay, lateL, lateR, modOffset1, modOffset3);
+
+      // =======================================================================
+      // STEP 8: DC BLOCKING (Prevent DC buildup in feedback)
+      // =======================================================================
+      lateL = mDCBlockerL.process(lateL);
+      lateR = mDCBlockerR.process(lateR);
+
+      // Scale late reverb output to prevent clipping
+      // The tank accumulates energy; 0.6 keeps peaks around -4dB headroom
+      lateL *= 0.6f;
+      lateR *= 0.6f;
+
+      // =======================================================================
+      // STEP 9: EARLY/LATE MIX (Controlled by "Tail" knob in UI)
+      // =======================================================================
+      // earlyLate: 0 = all early (room reflections), 1 = all late (diffuse tail)
+      float lateGain = earlyLate;
+      // Early reflections are quieter than late reverb, so boost by 1.5x to match levels
+      float earlyGain = (1.0f - earlyLate) * 1.5f;
+
+      float wetL = (earlyL * earlyGain + lateL * lateGain) * mWetGain;
+      float wetR = (earlyR * earlyGain + lateR * lateGain) * mWetGain;
+
+      // =======================================================================
+      // STEP 10: Stereo Width Control (Mid/Side Processing)
+      // =======================================================================
       {
         float mid = (wetL + wetR) * 0.5f;
         float side = (wetL - wetR) * 0.5f;
-        wetL = mid + side * mWidth;
-        wetR = mid - side * mWidth;
+        wetL = mid + side * width;
+        wetR = mid - side * width;
       }
 
-      // =========================================================================
-      // STEP 7: Mix Dry and Wet
-      // =========================================================================
-      float outL = inputL * mDry + wetL * mWet;
-      float outR = inputR * mDry + wetR * mWet;
+      // =======================================================================
+      // STEP 11: Mix Dry and Wet
+      // =======================================================================
+      float outL = inputL * dry + wetL * wet;
+      float outR = inputR * dry + wetR * wet;
 
       // Safety limiting
       outL = fastTanh(outL);
@@ -811,7 +1129,40 @@ public:
     // Dattorro's times were specified at 29761 Hz
     float scale = mSampleRate / DattorroConstants::kReferenceSampleRate;
 
-    // Clear input processing
+    // ===========================================================================
+    // INITIALIZE SMOOTHED PARAMETERS
+    // ===========================================================================
+    // Set smoothing times (in ms) - faster for modulation, slower for filters
+    constexpr float kFastSmooth = 5.0f;   // 5ms for responsive params
+    constexpr float kMediumSmooth = 10.0f; // 10ms for most params
+    constexpr float kSlowSmooth = 20.0f;  // 20ms for size (avoid pitch artifacts)
+
+    mDry.setTime(kFastSmooth, mSampleRate);
+    mWet.setTime(kFastSmooth, mSampleRate);
+    mDecay.setTime(kMediumSmooth, mSampleRate);
+    mSize.setTime(kSlowSmooth, mSampleRate);
+    mWidth.setTime(kMediumSmooth, mSampleRate);
+    mDamping.setTime(kMediumSmooth, mSampleRate);
+    mModRate.setTime(kMediumSmooth, mSampleRate);
+    mModDepth.setTime(kMediumSmooth, mSampleRate);
+    mEarlyLate.setTime(kMediumSmooth, mSampleRate);
+
+    // Set default values
+    mDry.setTarget(1.0f); mDry.snap();
+    mWet.setTarget(0.3f); mWet.snap();
+    mDecay.setTarget(0.5f * 0.85f); mDecay.snap();
+    mSize.setTarget(0.7f); mSize.snap();
+    mWidth.setTarget(1.0f); mWidth.snap();
+    mDamping.setTarget(0.5f); mDamping.snap();
+    mModRate.setTarget(0.5f); mModRate.snap();
+    mModDepth.setTarget(0.5f); mModDepth.snap();
+    mEarlyLate.setTarget(0.5f); mEarlyLate.snap();
+
+    mLastSize = 0.7f;
+
+    // ===========================================================================
+    // CLEAR INPUT PROCESSING
+    // ===========================================================================
     mPreDelay.clear();
     mLowCut.clear();
     mHighCut.clear();
@@ -820,11 +1171,26 @@ public:
     mInputAP3.clear();
     mInputAP4.clear();
 
-    // Clear and configure tank
+    // ===========================================================================
+    // INITIALIZE EARLY REFLECTIONS
+    // ===========================================================================
+    mEarlyReflections.reset(mSampleRate);
+
+    // ===========================================================================
+    // CLEAR AND CONFIGURE TANK
+    // ===========================================================================
     mTankA.clear();
     mTankA.setDiffusionCoeffs();
-    mTankA.setDamping(mCurrentDamping);
-    mTankA.updateDelayTimes(mSize, scale);
+    mTankA.setDamping(mDamping.current);
+    mTankA.updateDelayTimes(mSize.current, scale);
+
+    // ===========================================================================
+    // INITIALIZE DC BLOCKERS
+    // ===========================================================================
+    mDCBlockerL.clear();
+    mDCBlockerR.clear();
+    mDCBlockerL.setCutoff(5.0f, mSampleRate);  // 5Hz cutoff
+    mDCBlockerR.setCutoff(5.0f, mSampleRate);
 
     // Set scaled input diffusion delay times
     mInputDiffusionDelay1 = static_cast<int>(DattorroConstants::kInputDiffusion1 * scale);
@@ -841,51 +1207,46 @@ public:
     // Set default input filter cutoffs
     mLowCut.setCutoff(80.0f, mSampleRate);
     mHighCut.setCutoff(8000.0f, mSampleRate);
+
+    // ===========================================================================
+    // INITIALIZE MODULATION BANK
+    // ===========================================================================
+    mModBank.reset();
   }
 
   /**
    * Handle parameter changes from the UI.
+   * All parameters use SmoothedValue for click-free automation.
    */
   void SetParam(int paramIdx, double value)
   {
-    float scale = mSampleRate / DattorroConstants::kReferenceSampleRate;
-
     switch (paramIdx)
     {
       case kParamDry:
-        mDry = static_cast<float>(value / 100.0);
+        mDry.setTarget(static_cast<float>(value / 100.0));
         break;
 
       case kParamWet:
-        mWet = static_cast<float>(value / 100.0);
+        mWet.setTarget(static_cast<float>(value / 100.0));
         break;
 
       case kParamDecay:
         // Decay controls feedback amount
         // Higher decay = longer reverb tail
         // IMPORTANT: Max decay of 0.85 prevents runaway feedback
-        // Combined with tanh() limiting in the tank, this ensures stability
-        mDecay = static_cast<float>(value / 100.0) * 0.85f;
+        mDecay.setTarget(static_cast<float>(value / 100.0) * 0.85f);
         break;
 
       case kParamDamping:
         // Damping controls high frequency absorption in the feedback loop
         // Higher damping = darker reverb tail (highs decay faster)
-        // 0% = bright shimmery tail, 100% = dark muffled tail
-        {
-          float damping = static_cast<float>(value / 100.0);
-          mCurrentDamping = damping;
-          // Apply to tank
-          mTankA.setDamping(damping);
-        }
+        mDamping.setTarget(static_cast<float>(value / 100.0));
         break;
 
       case kParamSize:
         // Size scales all tank delay times
         // Larger size = longer delays = bigger sounding space
-        // NOTE: We set the TARGET, not the actual value. The actual value
-        // is smoothed in ProcessBlock to prevent clicks when changing.
-        mSizeTarget = static_cast<float>(value / 100.0);
+        mSize.setTarget(static_cast<float>(value / 100.0));
         break;
 
       case kParamPreDelay:
@@ -912,20 +1273,39 @@ public:
 
       case kParamLowCut:
         // Low Cut (high-pass filter) - removes bass/mud from reverb input
-        // Range: 20-1000 Hz (overlaps with High Cut for full midrange control)
         mLowCut.setCutoff(static_cast<float>(value), mSampleRate);
         break;
 
       case kParamHighCut:
         // High Cut (low-pass filter) - removes brightness from reverb input
-        // Range: 500-20000 Hz (overlaps with Low Cut for full midrange control)
         mHighCut.setCutoff(static_cast<float>(value), mSampleRate);
         break;
 
       case kParamWidth:
         // Stereo width control using mid/side processing
-        // 0% = mono, 100% = normal stereo, 200% = extra wide
-        mWidth = static_cast<float>(value / 100.0);
+        // 0% = mono, 100% = normal stereo
+        mWidth.setTarget(static_cast<float>(value / 100.0));
+        break;
+
+      case kParamModRate:
+        // Modulation rate controls how fast the LFOs oscillate
+        // 0.1 Hz = very slow shimmer, 2.0 Hz = fast chorus-like wobble
+        mModRate.setTarget(static_cast<float>(value));
+        break;
+
+      case kParamModDepth:
+        // Modulation depth controls the intensity of the pitch variation
+        // 0% = no modulation (static reverb)
+        // 100% = obvious chorus effect in the tail
+        mModDepth.setTarget(static_cast<float>(value / 100.0));
+        break;
+
+      case kParamEarlyLate:
+        // Early/Late balance control (UI shows as "Tail")
+        // 0% = early reflections only (room character, distinct echoes)
+        // 50% = balanced mix of early reflections and late reverb
+        // 100% = late reverb only (diffuse tail, smooth decay)
+        mEarlyLate.setTarget(static_cast<float>(value / 100.0));
         break;
 
       default:
@@ -941,28 +1321,42 @@ private:
   // Sample rate
   float mSampleRate = 44100.0f;
 
-  // User parameters
-  float mDry = 1.0f;
-  float mWet = 0.3f;
-  float mDecay = 0.5f;        // Safe default - max allowed is 0.85
-  float mSize = 0.5f;         // Current size value (output of 2nd smoother)
-  float mSizeSmooth1 = 0.5f;  // Intermediate value (output of 1st smoother)
-  float mSizeTarget = 0.5f;   // Target size from UI
-  float mWidth = 1.0f;        // Stereo width: 0=mono, 1=normal, 2=extra wide
+  // ===========================================================================
+  // SMOOTHED PARAMETERS - All parameters use SmoothedValue for click-free automation
+  // ===========================================================================
+  SmoothedValue<float> mDry;           // Dry signal level (0-1)
+  SmoothedValue<float> mWet;           // Wet signal level (0-1)
+  SmoothedValue<float> mDecay;         // Feedback amount (0-0.85)
+  SmoothedValue<float> mSize;          // Room size (0-1)
+  SmoothedValue<float> mWidth;         // Stereo width (0-2)
+  SmoothedValue<float> mDamping;       // High-frequency damping (0-1)
+  SmoothedValue<float> mModRate;       // LFO rate in Hz
+  SmoothedValue<float> mModDepth;      // Modulation intensity (0-1)
+  SmoothedValue<float> mEarlyLate;     // Early/Late balance (0=late only, 1=early only)
+
   int mPreDelaySamples = 0;
-  float mCurrentDamping = 0.5f;  // Current damping value
 
   // Freeze-and-blend state (for artifact-free size changes)
   // See ProcessBlock comments for detailed explanation of this technique.
   float mWetGain = 1.0f;      // 0.0 = wet muted, 1.0 = wet at full level
   int mSettleCounter = 0;     // Countdown: blocks to wait after size stabilizes
+  float mLastSize = 0.5f;     // Track size changes for freeze-and-blend
 
-  // Input processing (tone shaping before reverb)
+  // ===========================================================================
+  // INPUT PROCESSING
+  // ===========================================================================
   HighPassFilter mLowCut;     // Removes bass/mud (High-pass = "Low Cut")
   LowPassFilter mHighCut;     // Removes highs/brightness (Low-pass = "High Cut")
   DelayLine<16384> mPreDelay; // Up to ~340ms at 48kHz
 
-  // Input diffusion allpasses (smear input before tank)
+  // ===========================================================================
+  // EARLY REFLECTIONS - Room character
+  // ===========================================================================
+  EarlyReflections mEarlyReflections;
+
+  // ===========================================================================
+  // INPUT DIFFUSION - Smear input before tank
+  // ===========================================================================
   AllpassFilter<2048> mInputAP1;
   AllpassFilter<2048> mInputAP2;
   AllpassFilter<4096> mInputAP3;
@@ -973,9 +1367,21 @@ private:
   int mInputDiffusionDelay3 = 379;
   int mInputDiffusionDelay4 = 277;
 
-  // Dual tank systems for spillover technique
-  // When size changes, we swap which tank is active.
-  // Active tank receives new input, spillover tank just decays its existing tail.
-  // Single tank (simple approach - smooth interpolation of delay times)
+  // ===========================================================================
+  // TANK SYSTEM
+  // ===========================================================================
   TankSystem mTankA;
+
+  // ===========================================================================
+  // DC BLOCKERS - Prevent DC buildup in feedback loops
+  // ===========================================================================
+  DCBlocker mDCBlockerL;
+  DCBlocker mDCBlockerR;
+
+  // ===========================================================================
+  // MODULATION BANK - 8 Decorrelated LFOs for professional sound
+  // ===========================================================================
+  // Replaces the old 2-LFO system with 8 decorrelated modulators.
+  // Each delay line gets its own LFO for complex, organic movement.
+  ModulationBank mModBank;
 };

@@ -28,8 +28,8 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   // TONE SECTION
   // ===========================================================================
   GetParam(kParamDamping)->InitDouble("Damping", 50., 0., 100., 0.1, "%");
-  GetParam(kParamLowCut)->InitDouble("Low Cut", 80., 20., 500., 1., "Hz");
-  GetParam(kParamHighCut)->InitDouble("High Cut", 8000., 1000., 20000., 10., "Hz");
+  GetParam(kParamLowCut)->InitDouble("Low Cut", 80., 20., 1000., 1., "Hz");
+  GetParam(kParamHighCut)->InitDouble("High Cut", 8000., 500., 20000., 10., "Hz");
 
   // ===========================================================================
   // MODULATION SECTION
@@ -41,6 +41,13 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   // OUTPUT SECTION
   // ===========================================================================
   GetParam(kParamWidth)->InitDouble("Width", 100., 0., 100., 0.1, "%");
+
+  // ===========================================================================
+  // EARLY/LATE SECTION
+  // ===========================================================================
+  // Controls the balance between early reflections (room character) and
+  // late reverb tail (diffuse decay). 0% = all late, 100% = all early.
+  GetParam(kParamEarlyLate)->InitDouble("Early/Late", 50., 0., 100., 0.1, "%");
 
   // ===========================================================================
   // EDITOR SETUP

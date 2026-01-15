@@ -158,7 +158,7 @@ export const runtimeParameters: RuntimeParameter[] = [
     "name": "Low Cut",
     "type": "float",
     "min": 20,
-    "max": 500,
+    "max": 1000,
     "default": 80,
     "step": 1,
     "unit": "Hz",
@@ -173,7 +173,7 @@ export const runtimeParameters: RuntimeParameter[] = [
     "id": 8,
     "name": "High Cut",
     "type": "float",
-    "min": 1000,
+    "min": 500,
     "max": 20000,
     "default": 8000,
     "step": 10,
@@ -236,6 +236,24 @@ export const runtimeParameters: RuntimeParameter[] = [
     "enumValues": null,
     "automatable": true,
     "key": "kParamWidth"
+  },
+
+  // === EARLY/LATE SECTION ===
+  {
+    "id": 12,
+    "name": "Early/Late",
+    "type": "float",
+    "min": 0,
+    "max": 100,
+    "default": 50,
+    "step": 0.1,
+    "unit": "%",
+    "group": "Character",
+    "shape": "ShapeLinear",
+    "shapeParameter": 0,
+    "enumValues": null,
+    "automatable": true,
+    "key": "kParamEarlyLate"
   }
 ];
 
@@ -264,6 +282,7 @@ export const EParams = {
   kParamModRate: 9,
   kParamModDepth: 10,
   kParamWidth: 11,
+  kParamEarlyLate: 12,
 } as const;
 
 export const EControlTags = {
