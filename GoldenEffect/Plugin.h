@@ -36,7 +36,8 @@ enum EParams
   kParamSize,         // Room size - scales all delay times (0-100%)
   kParamDecay,        // Feedback amount - controls tail length (0-100%)
   kParamPreDelay,     // Time before reverb starts (0-100ms)
-  kParamDiffusion,    // Input smearing - affects echo density (0-100%)
+  kParamDiffusion,    // Input smearing - affects attack character (0-100%)
+  kParamDensity,      // Tank diffusion - affects tail texture (0-100%)
 
   // --- Tone Section ---
   kParamDamping,      // High frequency decay rate (0-100%)

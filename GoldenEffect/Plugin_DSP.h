@@ -808,6 +808,30 @@ struct TankSystem
     tankAP4.setFeedback(DattorroConstants::kDecayDiffusionCoeff2);
   }
 
+  /**
+   * Set tank density (allpass diffusion in the feedback loop).
+   *
+   * WHAT DENSITY DOES:
+   * Controls the texture of the reverb tail by adjusting tank allpass feedback.
+   * - Low density (0%): Grainy, you can hear individual reflections, more "echo-like"
+   * - High density (100%): Smooth, continuous wash, more "diffuse"
+   *
+   * @param density 0-1 range
+   */
+  void setDensity(float density)
+  {
+    // Scale density to useful coefficient range
+    // Low density: 0.3-0.4 (grainy, discrete echoes)
+    // High density: 0.7-0.8 (smooth, washed out)
+    float coeff1 = 0.3f + density * 0.5f;  // 0.3 to 0.8
+    float coeff2 = 0.2f + density * 0.5f;  // 0.2 to 0.7
+
+    tankAP1.setFeedback(coeff1);
+    tankAP2.setFeedback(coeff2);
+    tankAP3.setFeedback(coeff1);
+    tankAP4.setFeedback(coeff2);
+  }
+
   void setDamping(float damping)
   {
     dampingL.setCoeff(damping * 0.95f);
@@ -1001,6 +1025,7 @@ public:
       float size = mSize.getNext();
       float width = mWidth.getNext();
       float damping = mDamping.getNext();
+      float density = mDensity.getNext();
       float modRate = mModRate.getNext();
       float modDepth = mModDepth.getNext();
       float earlyLate = mEarlyLate.getNext();
@@ -1016,6 +1041,12 @@ public:
       if (std::abs(damping - mLastDamping) > 0.0001f) {
         mTankA.setDamping(damping);
         mLastDamping = damping;
+      }
+
+      // Update density when it changes (controls tank allpass diffusion)
+      if (std::abs(density - mLastDensity) > 0.0001f) {
+        mTankA.setDensity(density);
+        mLastDensity = density;
       }
 
       float inputL = static_cast<float>(inL[s]);
@@ -1165,6 +1196,7 @@ public:
     mSize.setTime(kSlowSmooth, mSampleRate);
     mWidth.setTime(kMediumSmooth, mSampleRate);
     mDamping.setTime(kMediumSmooth, mSampleRate);
+    mDensity.setTime(kMediumSmooth, mSampleRate);
     mModRate.setTime(kMediumSmooth, mSampleRate);
     mModDepth.setTime(kMediumSmooth, mSampleRate);
     mEarlyLate.setTime(kMediumSmooth, mSampleRate);
@@ -1176,12 +1208,14 @@ public:
     mSize.setTarget(0.7f); mSize.snap();
     mWidth.setTarget(1.0f); mWidth.snap();
     mDamping.setTarget(0.5f); mDamping.snap();
+    mDensity.setTarget(0.7f); mDensity.snap();
     mModRate.setTarget(0.5f); mModRate.snap();
     mModDepth.setTarget(0.5f); mModDepth.snap();
     mEarlyLate.setTarget(0.5f); mEarlyLate.snap();
 
     mLastSize = 0.7f;
     mLastDamping = 0.5f;
+    mLastDensity = 0.7f;
 
     // ===========================================================================
     // CLEAR INPUT PROCESSING
@@ -1280,7 +1314,7 @@ public:
 
       case kParamDiffusion:
         // Diffusion controls how much the input is "smeared" before entering the tank
-        // Low diffusion = you hear distinct echoes/reflections
+        // Low diffusion = you hear distinct echoes/reflections (attack character)
         // High diffusion = smooth, washed-out, blended sound
         {
           float diff = static_cast<float>(value / 100.0);
@@ -1292,6 +1326,13 @@ public:
           mInputAP3.setFeedback(coeff2);
           mInputAP4.setFeedback(coeff2);
         }
+        break;
+
+      case kParamDensity:
+        // Density controls the tank allpass diffusion (tail texture)
+        // Low density = grainy, you hear individual reflections
+        // High density = smooth, continuous wash
+        mDensity.setTarget(static_cast<float>(value / 100.0));
         break;
 
       case kParamLowCut:
@@ -1356,6 +1397,7 @@ private:
   SmoothedValue<float> mModRate;       // LFO rate in Hz
   SmoothedValue<float> mModDepth;      // Modulation intensity (0-1)
   SmoothedValue<float> mEarlyLate;     // Early/Late balance (0=late only, 1=early only)
+  SmoothedValue<float> mDensity;       // Tank diffusion - tail texture (0-1)
 
   int mPreDelaySamples = 0;
 
@@ -1365,6 +1407,7 @@ private:
   int mSettleCounter = 0;     // Countdown: blocks to wait after size stabilizes
   float mLastSize = 0.5f;     // Track size changes for freeze-and-blend
   float mLastDamping = 0.5f;  // Track damping changes
+  float mLastDensity = 0.7f;  // Track density changes
 
   // ===========================================================================
   // INPUT PROCESSING

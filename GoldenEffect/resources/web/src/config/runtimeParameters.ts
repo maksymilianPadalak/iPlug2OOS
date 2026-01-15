@@ -136,9 +136,29 @@ export const runtimeParameters: RuntimeParameter[] = [
     "key": "kParamDiffusion"
   },
 
-  // === TONE SECTION ===
+  // Density controls the tank allpass feedback - texture of the tail
+  // Low = grainy, you hear individual reflections
+  // High = smooth, continuous wash
   {
     "id": 6,
+    "name": "Density",
+    "type": "float",
+    "min": 0,
+    "max": 100,
+    "default": 70,
+    "step": 0.1,
+    "unit": "%",
+    "group": "Character",
+    "shape": "ShapeLinear",
+    "shapeParameter": 0,
+    "enumValues": null,
+    "automatable": true,
+    "key": "kParamDensity"
+  },
+
+  // === TONE SECTION ===
+  {
+    "id": 7,
     "name": "Damping",
     "type": "float",
     "min": 0,
@@ -154,7 +174,7 @@ export const runtimeParameters: RuntimeParameter[] = [
     "key": "kParamDamping"
   },
   {
-    "id": 7,
+    "id": 8,
     "name": "Low Cut",
     "type": "float",
     "min": 20,
@@ -170,7 +190,7 @@ export const runtimeParameters: RuntimeParameter[] = [
     "key": "kParamLowCut"
   },
   {
-    "id": 8,
+    "id": 9,
     "name": "High Cut",
     "type": "float",
     "min": 500,
@@ -188,7 +208,7 @@ export const runtimeParameters: RuntimeParameter[] = [
 
   // === MODULATION SECTION ===
   {
-    "id": 9,
+    "id": 10,
     "name": "Mod Rate",
     "type": "float",
     "min": 0.1,
@@ -204,7 +224,7 @@ export const runtimeParameters: RuntimeParameter[] = [
     "key": "kParamModRate"
   },
   {
-    "id": 10,
+    "id": 11,
     "name": "Mod Depth",
     "type": "float",
     "min": 0,
@@ -222,7 +242,7 @@ export const runtimeParameters: RuntimeParameter[] = [
 
   // === OUTPUT SECTION ===
   {
-    "id": 11,
+    "id": 12,
     "name": "Width",
     "type": "float",
     "min": 0,
@@ -240,7 +260,7 @@ export const runtimeParameters: RuntimeParameter[] = [
 
   // === EARLY/LATE SECTION ===
   {
-    "id": 12,
+    "id": 13,
     "name": "Early/Late",
     "type": "float",
     "min": 0,
@@ -276,13 +296,14 @@ export const EParams = {
   kParamDecay: 3,
   kParamPreDelay: 4,
   kParamDiffusion: 5,
-  kParamDamping: 6,
-  kParamLowCut: 7,
-  kParamHighCut: 8,
-  kParamModRate: 9,
-  kParamModDepth: 10,
-  kParamWidth: 11,
-  kParamEarlyLate: 12,
+  kParamDensity: 6,
+  kParamDamping: 7,
+  kParamLowCut: 8,
+  kParamHighCut: 9,
+  kParamModRate: 10,
+  kParamModDepth: 11,
+  kParamWidth: 12,
+  kParamEarlyLate: 13,
 } as const;
 
 export const EControlTags = {

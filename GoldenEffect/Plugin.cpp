@@ -23,6 +23,10 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   GetParam(kParamDecay)->InitDouble("Decay", 70., 0., 99., 0.1, "%");
   GetParam(kParamPreDelay)->InitDouble("Pre-Delay", 10., 0., 200., 0.1, "ms");
   GetParam(kParamDiffusion)->InitDouble("Diffusion", 75., 0., 100., 0.1, "%");
+  // Density controls the tank allpass feedback - texture of the tail
+  // Low = grainy, you hear individual reflections
+  // High = smooth, continuous wash
+  GetParam(kParamDensity)->InitDouble("Density", 70., 0., 100., 0.1, "%");
 
   // ===========================================================================
   // TONE SECTION
