@@ -1180,6 +1180,28 @@ public:
       mEarlyReflections.process(preDelayed, earlyL, earlyR);
 
       // =======================================================================
+      // STEP 4b: ER DIFFUSION (Density-Controlled Smearing)
+      // =======================================================================
+      // At low density: ERs are distinct taps (individual echoes audible)
+      // At high density: ERs are smeared through allpasses (smooth onset)
+      // This is what Valhalla does - density affects the ENTIRE reverb.
+      //
+      // Feedback scales from 0 (no smearing) to 0.7 (heavy smearing)
+      // We use 2 allpasses per channel for adequate diffusion.
+      {
+        float erDiffFeedback = density * 0.7f;  // 0 to 0.7
+        mERDiffuserL1.setFeedback(erDiffFeedback);
+        mERDiffuserL2.setFeedback(erDiffFeedback * 0.85f);  // Slightly less
+        mERDiffuserR1.setFeedback(erDiffFeedback);
+        mERDiffuserR2.setFeedback(erDiffFeedback * 0.85f);
+
+        earlyL = mERDiffuserL1.processInt(earlyL, mERDiffuserDelay1);
+        earlyL = mERDiffuserL2.processInt(earlyL, mERDiffuserDelay2);
+        earlyR = mERDiffuserR1.processInt(earlyR, mERDiffuserDelay1);
+        earlyR = mERDiffuserR2.processInt(earlyR, mERDiffuserDelay2);
+      }
+
+      // =======================================================================
       // STEP 5: Input Diffusion (4 allpass filters in series)
       // =======================================================================
       float diffused = preDelayed;
@@ -1370,6 +1392,18 @@ public:
     // INITIALIZE EARLY REFLECTIONS
     // ===========================================================================
     mEarlyReflections.reset(mSampleRate);
+
+    // ===========================================================================
+    // INITIALIZE ER DIFFUSERS (Density-controlled smearing)
+    // ===========================================================================
+    // These allpasses smear the ER output when density is high.
+    // Prime-number delay times prevent resonances.
+    mERDiffuserL1.clear();
+    mERDiffuserL2.clear();
+    mERDiffuserR1.clear();
+    mERDiffuserR2.clear();
+    mERDiffuserDelay1 = static_cast<int>(7.1f * 0.001f * mSampleRate);   // ~7.1ms
+    mERDiffuserDelay2 = static_cast<int>(11.3f * 0.001f * mSampleRate);  // ~11.3ms
 
     // ===========================================================================
     // CLEAR AND CONFIGURE TANK
@@ -1656,6 +1690,19 @@ private:
   // EARLY REFLECTIONS - Room character
   // ===========================================================================
   EarlyReflections mEarlyReflections;
+
+  // ===========================================================================
+  // ER DIFFUSION - Density-controlled smearing of early reflections
+  // ===========================================================================
+  // At low density: ERs are distinct taps (individual echoes audible)
+  // At high density: ERs are smeared through allpasses (smooth onset)
+  // This is what Valhalla does - density affects the ENTIRE reverb, not just tail.
+  AllpassFilter<1024> mERDiffuserL1;
+  AllpassFilter<1024> mERDiffuserL2;
+  AllpassFilter<1024> mERDiffuserR1;
+  AllpassFilter<1024> mERDiffuserR2;
+  int mERDiffuserDelay1 = 311;  // ~7ms at 44.1kHz (prime number)
+  int mERDiffuserDelay2 = 491;  // ~11ms at 44.1kHz (prime number)
 
   // ===========================================================================
   // INPUT DIFFUSION - Smear input before tank
