@@ -821,8 +821,8 @@ struct TankSystem
   void setDensity(float density)
   {
     // Scale density to useful coefficient range
-    // Low density: 0.3-0.4 (grainy, discrete echoes)
-    // High density: 0.7-0.8 (smooth, washed out)
+    // coeff1: 0.3 (grainy) to 0.8 (smooth)
+    // coeff2: 0.2 (grainy) to 0.7 (smooth)
     float coeff1 = 0.3f + density * 0.5f;  // 0.3 to 0.8
     float coeff2 = 0.2f + density * 0.5f;  // 0.2 to 0.7
 
