@@ -254,10 +254,18 @@ namespace DattorroConstants
  * without sounding like obvious chorus.
  *
  * ASSIGNMENT:
- * - LFO 0-1: Input diffusion allpasses (subtle, ±2 samples)
- * - LFO 2-3: Left tank allpass + delay (medium, ±8 samples)
- * - LFO 4-5: Right tank allpass + delay (medium, ±8 samples)
- * - LFO 6-7: Secondary tank delays (subtle, ±4 samples)
+ * LFO ASSIGNMENT (all 8 are used):
+ * - LFO 0: Output tap modulation L (user-controlled via Mod Depth)
+ * - LFO 1: Output tap modulation R (user-controlled via Mod Depth)
+ * - LFO 2: Left tank allpass modulation (user-controlled via Mod Depth)
+ * - LFO 3: Input diffusion allpass 1-2 (always active, ±5 samples)
+ * - LFO 4: Right tank allpass modulation (user-controlled via Mod Depth)
+ * - LFO 5: Input diffusion allpass 3-4 (always active, ±5 samples)
+ * - LFO 6: ER diffuser 1-2 (always active, ±5 samples)
+ * - LFO 7: ER diffuser 3-4 (always active, ±5 samples)
+ *
+ * The diffuser modulation (LFO 3, 5, 6, 7) is ALWAYS active regardless of
+ * Mod Depth setting. This is essential for preventing metallic "pipe" sound.
  */
 struct ModulationBank
 {
@@ -1217,7 +1225,44 @@ public:
       mPreDelay.write(filtered);
 
       // =======================================================================
-      // STEP 4: EARLY REFLECTIONS (Room Character)
+      // STEP 4: MODULATION BANK (8 Decorrelated LFOs)
+      // =======================================================================
+      // Process modulation FIRST so we can use it for ALL diffusers.
+      // This is CRITICAL for preventing metallic "hitting a pipe" artifacts!
+      //
+      // WHY MODULATE ALL DIFFUSERS:
+      // Static allpass delays create resonant peaks at specific frequencies.
+      // When impulsive sounds (drums, consonants) pass through, these frequencies
+      // ring out = metallic sound. Adding even subtle modulation (±4-8 samples)
+      // breaks up resonances without audible pitch wobble.
+      // See: https://valhalladsp.com/2011/01/21/reverbs-diffusion-allpass-delays-and-metallic-artifacts/
+      mModBank.process(modRate, mSampleRate);
+
+      // TANK MODULATION (user-controlled via Mod Depth knob)
+      // Professional reverbs use aggressive modulation for "lush" sound.
+      // At 48kHz, 200 samples = ~4ms pitch variation = very audible chorus.
+      float excursion = 50.0f + modDepth * 200.0f;  // 50 to 250 samples
+      float modOffset1 = mModBank.get(2) * excursion;  // Left tank
+      float modOffset3 = mModBank.get(4) * excursion;  // Right tank
+
+      // OUTPUT TAP MODULATION (user-controlled via Mod Depth knob)
+      // Makes modulation immediately audible on first reflection, not just tail
+      // ±32 samples at 48kHz = ~0.7ms = obvious pitch wobble
+      float outputModL = mModBank.get(0) * modDepth * 32.0f;
+      float outputModR = mModBank.get(1) * modDepth * 32.0f;
+
+      // DIFFUSER MODULATION (always active - essential for removing metallic sound)
+      // These are SUBTLE and NOT tied to Mod Depth knob - always running.
+      // Just enough to break up resonances (±5 samples), no audible pitch wobble.
+      // Using spare LFOs: 3, 5 for input diffusion; 6, 7 for ER diffusion
+      constexpr float kDiffuserModAmt = 5.0f;  // ±5 samples - subtle but effective
+      float inputDiffMod1 = mModBank.get(3) * kDiffuserModAmt;
+      float inputDiffMod2 = mModBank.get(5) * kDiffuserModAmt;
+      float erDiffMod1 = mModBank.get(6) * kDiffuserModAmt;
+      float erDiffMod2 = mModBank.get(7) * kDiffuserModAmt;
+
+      // =======================================================================
+      // STEP 5: EARLY REFLECTIONS (Room Character)
       // =======================================================================
       // Process early reflections in parallel with late reverb.
       //
@@ -1225,75 +1270,49 @@ public:
       // At low density: raw input -> distinct ER taps (you hear bouncing echoes)
       // At high density: diffused input -> blended ER taps (smooth onset)
       //
-      // This is the correct approach per Valhalla DSP research:
-      // - Allpasses at INPUT expand impulses into many echoes (good)
-      // - Allpasses at OUTPUT cause metallic coloration (bad)
+      // MODULATED DELAYS: Each allpass gets subtle delay modulation to prevent
+      // metallic ringing. Pairs share LFOs but with opposite polarity.
       //
-      // 4 DIFFUSERS with Fibonacci delays (5, 8, 13, 21ms) for heavy smearing.
-      //
-      // WHY 0.78 MAX FEEDBACK:
-      // - Below 0.7: Not enough smearing for Cathedral's long ER taps (up to 183ms).
-      //              Individual echoes remain audible even at 100% density.
-      // - Above 0.8: Allpass approaches instability, causes audible ringing/resonance.
-      //              The feedback loop starts to self-oscillate on transients.
-      // - 0.78 is the sweet spot: aggressive diffusion without metallic artifacts.
+      // REDUCED FEEDBACK: Max 0.60 (was 0.78) to further minimize resonances.
+      // Combined with modulation, this eliminates the "pipe" sound.
       float erInput = preDelayed;
       {
-        // Scale feedback with density: 0% = no diffusion, 100% = heavy diffusion
-        float erDiffFeedback = density * 0.78f;
+        // Scale feedback with density: 0% = no diffusion, 100% = max 0.60
+        // REDUCED from 0.78 to 0.60 - modulation handles the smearing now
+        float erDiffFeedback = density * 0.60f;
 
-        // Decreasing feedback per stage (1.0, 0.95, 0.90, 0.85) prevents buildup
-        // of resonances that occur when all allpasses have identical feedback.
-        // This is a standard technique from Lexicon/Valhalla reverb design.
+        // Decreasing feedback per stage prevents resonance buildup
         mERInputDiffuser1.setFeedback(erDiffFeedback);
-        mERInputDiffuser2.setFeedback(erDiffFeedback * 0.95f);
-        mERInputDiffuser3.setFeedback(erDiffFeedback * 0.90f);
-        mERInputDiffuser4.setFeedback(erDiffFeedback * 0.85f);
+        mERInputDiffuser2.setFeedback(erDiffFeedback * 0.92f);
+        mERInputDiffuser3.setFeedback(erDiffFeedback * 0.84f);
+        mERInputDiffuser4.setFeedback(erDiffFeedback * 0.76f);
 
-        erInput = mERInputDiffuser1.processInt(erInput, mERDiffuserDelay1);
-        erInput = mERInputDiffuser2.processInt(erInput, mERDiffuserDelay2);
-        erInput = mERInputDiffuser3.processInt(erInput, mERDiffuserDelay3);
-        erInput = mERInputDiffuser4.processInt(erInput, mERDiffuserDelay4);
+        // Process with MODULATED delay times (subtle ±5 samples)
+        // Pairs share LFOs but with opposite polarity for decorrelation
+        int erMod1 = static_cast<int>(erDiffMod1);
+        int erMod2 = static_cast<int>(erDiffMod2);
+        erInput = mERInputDiffuser1.processInt(erInput, mERDiffuserDelay1 + erMod1);
+        erInput = mERInputDiffuser2.processInt(erInput, mERDiffuserDelay2 - erMod1);
+        erInput = mERInputDiffuser3.processInt(erInput, mERDiffuserDelay3 + erMod2);
+        erInput = mERInputDiffuser4.processInt(erInput, mERDiffuserDelay4 - erMod2);
       }
 
       float earlyL = 0.0f, earlyR = 0.0f;
       mEarlyReflections.process(erInput, earlyL, earlyR);
 
       // =======================================================================
-      // STEP 5: Input Diffusion (4 allpass filters in series)
+      // STEP 6: Input Diffusion (4 allpass filters in series)
       // =======================================================================
+      // MODULATED DELAYS: Each allpass gets subtle delay modulation to prevent
+      // metallic ringing. This is the #1 cause of "hitting a pipe" sound.
+      // Pairs share LFOs but with opposite polarity for maximum decorrelation.
+      int inMod1 = static_cast<int>(inputDiffMod1);
+      int inMod2 = static_cast<int>(inputDiffMod2);
       float diffused = preDelayed;
-      diffused = mInputAP1.processInt(diffused, mInputDiffusionDelay1);
-      diffused = mInputAP2.processInt(diffused, mInputDiffusionDelay2);
-      diffused = mInputAP3.processInt(diffused, mInputDiffusionDelay3);
-      diffused = mInputAP4.processInt(diffused, mInputDiffusionDelay4);
-
-      // =======================================================================
-      // STEP 6: MODULATION BANK (8 Decorrelated LFOs)
-      // =======================================================================
-      // Process all 8 LFOs at once
-      mModBank.process(modRate, mSampleRate);
-
-      // Get modulation offsets for different delay lines
-      // Each delay line gets its own LFO for complex, organic movement
-      //
-      // EXCURSION CALCULATION:
-      // Professional reverbs use aggressive modulation for "lush" sound.
-      // At 48kHz, 200 samples = ~4ms pitch variation = very audible chorus.
-      float excursion = 50.0f + modDepth * 200.0f;  // 50 to 250 samples
-
-      // LFO assignment (see ModulationBank for decorrelation details):
-      // - LFO 0-1: Output tap modulation (for immediate stereo shimmer)
-      // - LFO 2: Left tank allpass modulation
-      // - LFO 4: Right tank allpass modulation
-      float modOffset1 = mModBank.get(2) * excursion;
-      float modOffset3 = mModBank.get(4) * excursion;
-
-      // Output tap modulation - makes modulation immediately audible
-      // This is the key to hearing chorus on first reflection, not just tail
-      // ±32 samples at 48kHz = ~0.7ms = obvious pitch wobble
-      float outputModL = mModBank.get(0) * modDepth * 32.0f;
-      float outputModR = mModBank.get(1) * modDepth * 32.0f;
+      diffused = mInputAP1.processInt(diffused, mInputDiffusionDelay1 + inMod1);
+      diffused = mInputAP2.processInt(diffused, mInputDiffusionDelay2 - inMod1);
+      diffused = mInputAP3.processInt(diffused, mInputDiffusionDelay3 + inMod2);
+      diffused = mInputAP4.processInt(diffused, mInputDiffusionDelay4 - inMod2);
 
       // =======================================================================
       // STEP 7: Tank Processing (Late Reverb)
@@ -1526,11 +1545,12 @@ public:
     // Mode is controlled by user param, diffusion is internal (not user-exposed).
     mReverbMode = kModePlate;
     mEarlyReflections.setMode(mReverbMode);
-    // Plate: High diffusion (instant smear, bright shimmer)
-    mInputAP1.setFeedback(0.80f);
-    mInputAP2.setFeedback(0.80f);
-    mInputAP3.setFeedback(0.70f);
-    mInputAP4.setFeedback(0.70f);
+    // Plate: Medium-high diffusion - REDUCED from 0.80/0.70 to prevent metallic ringing
+    // Modulation now handles smearing, so we can use lower feedback safely
+    mInputAP1.setFeedback(0.65f);
+    mInputAP2.setFeedback(0.65f);
+    mInputAP3.setFeedback(0.55f);
+    mInputAP4.setFeedback(0.55f);
 
     // Set default input filter cutoffs
     mLowCut.setCutoff(80.0f, mSampleRate);
@@ -1608,35 +1628,34 @@ public:
 
           switch (mReverbMode) {
             case kModePlate:
-              // Plate: High diffusion (0.75-0.9) = instant smear, bright shimmer
-              mInputAP1.setFeedback(0.80f);
-              mInputAP2.setFeedback(0.80f);
-              mInputAP3.setFeedback(0.70f);
-              mInputAP4.setFeedback(0.70f);
+              // Plate: Medium-high diffusion - REDUCED to prevent metallic ringing
+              // Modulation now handles smearing, so we can use lower feedback safely
+              mInputAP1.setFeedback(0.65f);
+              mInputAP2.setFeedback(0.65f);
+              mInputAP3.setFeedback(0.55f);
+              mInputAP4.setFeedback(0.55f);
               break;
             case kModeChamber:
-              // Chamber: Medium-high diffusion (0.6-0.75) = slight onset delay, warm
-              mInputAP1.setFeedback(0.68f);
-              mInputAP2.setFeedback(0.68f);
-              mInputAP3.setFeedback(0.58f);
-              mInputAP4.setFeedback(0.58f);
+              // Chamber: Medium diffusion - warm onset, less metallic than before
+              mInputAP1.setFeedback(0.55f);
+              mInputAP2.setFeedback(0.55f);
+              mInputAP3.setFeedback(0.48f);
+              mInputAP4.setFeedback(0.48f);
               break;
             case kModeHall:
-              // Hall: Medium diffusion (0.50-0.58) = balanced attack, wide and smooth
-              // Between Chamber's warmth (0.58-0.68) and Cathedral's clarity (0.42-0.48)
-              mInputAP1.setFeedback(0.58f);
-              mInputAP2.setFeedback(0.58f);
-              mInputAP3.setFeedback(0.50f);
-              mInputAP4.setFeedback(0.50f);
-              break;
-            case kModeCathedral:
-              // Cathedral: Low diffusion (0.4-0.5) = transients pass through, then smear
-              // This creates the "ethereal" buildup - you hear the attack, then echoes,
-              // then finally the dense tail develops. Very different from instant plates.
+              // Hall: Medium diffusion - balanced attack, wide and smooth
               mInputAP1.setFeedback(0.48f);
               mInputAP2.setFeedback(0.48f);
               mInputAP3.setFeedback(0.42f);
               mInputAP4.setFeedback(0.42f);
+              break;
+            case kModeCathedral:
+              // Cathedral: Low diffusion - transients pass through, then smear
+              // Creates "ethereal" buildup: attack → echoes → dense tail
+              mInputAP1.setFeedback(0.42f);
+              mInputAP2.setFeedback(0.42f);
+              mInputAP3.setFeedback(0.36f);
+              mInputAP4.setFeedback(0.36f);
               break;
           }
         }
