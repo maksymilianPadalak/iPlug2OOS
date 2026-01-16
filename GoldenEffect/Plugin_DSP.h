@@ -458,10 +458,13 @@ struct AllpassFilter
  * HOW IT'S CONTROLLED:
  * Damping is NOT exposed as a separate parameter. Instead, it's controlled
  * internally by the Color mode (FutureVerb-style approach):
- * - Bright: Low damping (0.15) - highs sustain, shimmering tail
+ * - Bright: Minimal damping (0.10) - highs sustain, shimmering tail
  * - Neutral: Medium damping (0.35) - natural acoustic decay
- * - Dark: High damping (0.65) - highs decay fast, vintage character
- * - Studio: Medium-high damping (0.45) - controlled, mix-friendly
+ * - Dark: Aggressive damping (0.75) - highs decay fast, vintage character
+ * - Studio: Moderate damping (0.50) - controlled, mix-friendly
+ *
+ * Damping SNAPS on mode change (no smoothing) because mode switches are
+ * discrete selections where users expect immediate character change.
  *
  * EQUATION: y[n] = x[n]×(1-g) + y[n-1]×g
  * where g = damping coefficient (0 = no filtering, 1 = full filtering)
@@ -1670,17 +1673,23 @@ public:
         // - Together they create cohesive character that users understand intuitively
         //
         // DAMPING VALUES (0.0 = no damping, 1.0 = full damping):
-        // - Bright (0.15): Almost no HF absorption, highs sustain like a plate
+        // Values spread wide for OBVIOUS differences between modes:
+        // - Bright (0.10): Minimal HF absorption, highs sustain, shimmering plate-like
         // - Neutral (0.35): Natural acoustic absorption, balanced decay
-        // - Dark (0.65): Significant absorption, vintage warm tail
-        // - Studio (0.45): Controlled decay, sits well in dense mixes
+        // - Dark (0.75): Aggressive absorption, highs die fast, vintage warm tail
+        // - Studio (0.50): Moderate control, sits in mix without buildup
+        //
+        // WHY SNAP (not smooth):
+        // Mode changes are discrete selections - user expects immediate character change.
+        // Smoothing would cause weird in-between states during transition.
         // =======================================================================
         mColorMode = static_cast<int>(value);
         switch (mColorMode) {
           case kColorBright:
             // No output filtering - full bandwidth, airy
-            // Low damping (0.15) - highs sustain, shimmering tail
-            mDamping.setTarget(0.15f);
+            // Minimal damping (0.10) - highs sustain, shimmering tail
+            mDamping.setTarget(0.10f);
+            mDamping.snap();  // Instant change on mode switch
             break;
           case kColorNeutral:
             // 8kHz lowpass (12dB/oct) - gentle rolloff, still open
@@ -1688,22 +1697,25 @@ public:
             mColorLPF_L.setCutoff(8000.0f, mSampleRate);
             mColorLPF_R.setCutoff(8000.0f, mSampleRate);
             mDamping.setTarget(0.35f);
+            mDamping.snap();  // Instant change on mode switch
             break;
           case kColorDark:
             // 3kHz lowpass (24dB/oct via cascade) - steep, clearly dark
-            // High damping (0.65) - highs decay fast, vintage character
+            // Aggressive damping (0.75) - highs decay fast, vintage character
             mColorLPF_L.setCutoff(3000.0f, mSampleRate);
             mColorLPF_R.setCutoff(3000.0f, mSampleRate);
-            mDamping.setTarget(0.65f);
+            mDamping.setTarget(0.75f);
+            mDamping.snap();  // Instant change on mode switch
             break;
           case kColorStudio:
             // 600Hz HPF + 6kHz LPF (both 24dB/oct) - tight bandpass
-            // Medium-high damping (0.45) - controlled, mix-friendly
+            // Moderate damping (0.50) - controlled, mix-friendly
             mColorHPF_L.setCutoff(600.0f, mSampleRate);
             mColorHPF_R.setCutoff(600.0f, mSampleRate);
             mColorLPF_L.setCutoff(6000.0f, mSampleRate);
             mColorLPF_R.setCutoff(6000.0f, mSampleRate);
-            mDamping.setTarget(0.45f);
+            mDamping.setTarget(0.50f);
+            mDamping.snap();  // Instant change on mode switch
             break;
         }
         break;
@@ -1859,11 +1871,11 @@ private:
   // - Dark: 3kHz LPF (24dB/oct) - steep, clearly dark
   // - Studio: 600Hz HPF + 6kHz LPF (24dB/oct) - tight bandpass
   //
-  // FEEDBACK DAMPING (set in SetParam, used in tank):
-  // - Bright: 0.15 (highs sustain, shimmering)
-  // - Neutral: 0.35 (natural acoustic decay)
-  // - Dark: 0.65 (highs decay fast, vintage)
-  // - Studio: 0.45 (controlled, mix-friendly)
+  // FEEDBACK DAMPING (snaps instantly on mode change):
+  // - Bright: 0.10 (minimal - highs sustain, shimmering)
+  // - Neutral: 0.35 (medium - natural acoustic decay)
+  // - Dark: 0.75 (aggressive - highs die fast, vintage)
+  // - Studio: 0.50 (moderate - controlled, mix-friendly)
   int mColorMode = kColorNeutral;
   LowPassFilter mColorLPF_L;   // Color lowpass filter (left)
   LowPassFilter mColorLPF_R;   // Color lowpass filter (right)

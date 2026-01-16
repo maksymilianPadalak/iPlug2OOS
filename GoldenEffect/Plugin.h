@@ -51,10 +51,10 @@ enum EReverbMode
 // =============================================================================
 enum EColorMode
 {
-  kColorBright = 0,   // No output filter + low damping (0.15) - full bandwidth, airy, highs sustain
+  kColorBright = 0,   // No output filter + minimal damping (0.10) - full bandwidth, highs sustain
   kColorNeutral,      // 8kHz LPF (12dB/oct) + medium damping (0.35) - natural, balanced decay
-  kColorDark,         // 3kHz LPF (24dB/oct) + high damping (0.65) - vintage, highs decay fast
-  kColorStudio,       // 600Hz HPF + 6kHz LPF + medium damping (0.45) - mix-ready, controlled
+  kColorDark,         // 3kHz LPF (24dB/oct) + aggressive damping (0.75) - vintage, highs die fast
+  kColorStudio,       // 600Hz HPF + 6kHz LPF + moderate damping (0.50) - mix-ready, controlled
   kNumColorModes
 };
 
