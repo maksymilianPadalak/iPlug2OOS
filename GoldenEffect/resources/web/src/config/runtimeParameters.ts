@@ -265,10 +265,28 @@ export const runtimeParameters: RuntimeParameter[] = [
     "automatable": true,
     "key": "kParamWidth"
   },
+  // Freeze captures the current reverb tail and sustains it indefinitely.
+  // When active: feedback = 100%, input to tank = 0, damping bypassed.
+  {
+    "id": 13,
+    "name": "Freeze",
+    "type": "bool",
+    "min": 0,
+    "max": 1,
+    "default": 0,
+    "step": 1,
+    "unit": "",
+    "group": "Output",
+    "shape": "ShapeLinear",
+    "shapeParameter": 0,
+    "enumValues": null,
+    "automatable": true,
+    "key": "kParamFreeze"
+  },
 
   // === EARLY/LATE SECTION ===
   {
-    "id": 13,
+    "id": 14,
     "name": "Early/Late",
     "type": "float",
     "min": 0,
@@ -312,7 +330,8 @@ export const EParams = {
   kParamModRate: 10,
   kParamModDepth: 11,
   kParamWidth: 12,
-  kParamEarlyLate: 13,
+  kParamFreeze: 13,
+  kParamEarlyLate: 14,
 } as const;
 
 export const EControlTags = {

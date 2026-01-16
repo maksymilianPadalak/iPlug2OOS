@@ -88,6 +88,11 @@ enum EParams
 
   // --- Output Section ---
   kParamWidth,        // Stereo spread (0-100%)
+  // Freeze mode captures the current reverb tail and sustains it indefinitely.
+  // Unlike making Freeze a reverb "mode", a toggle lets you freeze ANY mode
+  // (frozen Plate sounds different from frozen Cathedral).
+  // Implementation: feedback → 0.9999, input → 0, damping bypassed.
+  kParamFreeze,       // Infinite sustain toggle (on/off)
 
   // --- Early/Late Section ---
   kParamEarlyLate,    // Balance between early reflections and late reverb (0-100%)

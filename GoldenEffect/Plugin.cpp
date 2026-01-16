@@ -55,6 +55,9 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
   // OUTPUT SECTION
   // ===========================================================================
   GetParam(kParamWidth)->InitDouble("Width", 100., 0., 100., 0.1, "%");
+  // Freeze captures the current reverb tail and sustains it indefinitely.
+  // When active: feedback = 100%, input to tank = 0, damping bypassed.
+  GetParam(kParamFreeze)->InitBool("Freeze", false);
 
   // ===========================================================================
   // EARLY/LATE (Listener Position)

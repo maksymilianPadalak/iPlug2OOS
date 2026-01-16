@@ -5,12 +5,12 @@
  * Based on the Lexicon 224 topology with figure-8 tank.
  * This is a "golden example" for LLMs to learn from.
  *
- * PARAMETERS (13 total):
+ * PARAMETERS (15 total):
  * - Mix: Dry, Wet
  * - Space: Mode, Size, Decay, Pre-Delay, Density, Early/Late
  * - Tone: Low Cut, High Cut, Color (Color includes output EQ + feedback damping)
  * - Modulation: Mod Rate, Mod Depth
- * - Output: Width
+ * - Output: Width, Freeze
  */
 
 import { Section } from 'sharedUi/components/Section';
@@ -20,7 +20,58 @@ import { Meter } from 'sharedUi/components/Meter';
 import { Title } from 'sharedUi/components/Title';
 import { Knob } from 'sharedUi/components/Knob';
 import { Dropdown } from 'sharedUi/components/Dropdown';
+import { useParameter } from 'sharedUi/hooks/useParameter';
 import { EParams } from '@/config/runtimeParameters';
+
+/**
+ * Freeze Toggle Button
+ *
+ * Captures the current reverb tail and sustains it indefinitely.
+ * Implemented as a toggle (not a reverb mode) so users can freeze ANY mode -
+ * a frozen Plate sounds different from a frozen Cathedral.
+ *
+ * DSP mechanism: feedback → 0.9999 (near-infinite), new input muted,
+ * damping bypassed to preserve brightness of the captured tail.
+ *
+ * UI choice: Button with visual state feedback for quick live performance
+ * capture - more immediate than a dropdown mode selector.
+ */
+function FreezeButton() {
+  const { value, setValue, beginChange, endChange } = useParameter(EParams.kParamFreeze);
+  const isActive = value > 0.5;
+
+  const handleClick = () => {
+    beginChange();
+    setValue(isActive ? 0 : 1);
+    endChange();
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <button
+        onClick={handleClick}
+        className={`
+          px-6 py-3 font-bold uppercase tracking-widest text-xs
+          border-2 transition-all cursor-pointer select-none rounded
+          ${isActive
+            ? 'bg-cyan-500 border-cyan-300 text-black'
+            : 'bg-stone-900 border-cyan-600/50 text-cyan-200 hover:bg-stone-800 hover:border-cyan-500'
+          }
+        `}
+        style={{
+          boxShadow: isActive
+            ? '0 0 20px rgba(0, 255, 255, 0.6), inset 0 2px 8px rgba(255, 255, 255, 0.2)'
+            : '0 4px 12px rgba(0, 0, 0, 0.5)'
+        }}
+      >
+        {isActive ? 'FROZEN' : 'FREEZE'}
+      </button>
+      <span className="text-cyan-300/60 text-[9px] uppercase tracking-wider">
+        {isActive ? 'Tail sustained' : 'Hold tail'}
+      </span>
+    </div>
+  );
+}
 
 
 export function PluginBody() {
@@ -89,10 +140,11 @@ export function PluginBody() {
             </SubGroup>
           </Section>
 
-          {/* Output Section - Stereo image */}
-          <Section title="Output" size="compact" description="Stereo width control">
-            <SubGroup title="Stereo" layout="row">
+          {/* Output Section - Stereo image and Freeze */}
+          <Section title="Output" size="compact" description="Stereo and infinite sustain">
+            <SubGroup title="Controls" layout="row">
               <Knob paramId={EParams.kParamWidth} label="Width" color="green" size="medium" />
+              <FreezeButton />
             </SubGroup>
           </Section>
         </GridFoundation>

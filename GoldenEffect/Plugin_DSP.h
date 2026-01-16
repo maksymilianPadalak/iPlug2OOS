@@ -1172,6 +1172,18 @@ public:
       float modDepth = mModDepth.getNext();
       float earlyLate = mEarlyLate.getNext();
 
+      // =======================================================================
+      // FREEZE MODE - Infinite sustain of current reverb tail
+      // =======================================================================
+      // When freeze is active:
+      // - Decay set to 0.9999 (near-infinite feedback)
+      // - Damping bypassed (preserve brightness)
+      // - Input muted later (see tank processing)
+      if (mFreeze) {
+        decay = 0.9999f;
+        damping = 0.0f;  // Bypass damping to preserve highs
+      }
+
       // Update tank when size changes (no clearing - see block comment above)
       if (std::abs(size - mLastSize) > 0.0001f) {
         mTankA.updateDelayTimes(size, scale);
@@ -1316,8 +1328,10 @@ public:
       // =======================================================================
       // STEP 7: Tank Processing (Late Reverb)
       // =======================================================================
+      // When freeze is active, mute new input - only existing tail recirculates
+      float tankInput = mFreeze ? 0.0f : diffused;
       float lateL = 0.0f, lateR = 0.0f;
-      mTankA.process(diffused, decay, lateL, lateR, modOffset1, modOffset3, outputModL, outputModR);
+      mTankA.process(tankInput, decay, lateL, lateR, modOffset1, modOffset3, outputModL, outputModR);
 
       // =======================================================================
       // STEP 8: DC BLOCKING (Prevent DC buildup in feedback)
@@ -1765,6 +1779,15 @@ public:
         mEarlyLate.setTarget(static_cast<float>(value / 100.0));
         break;
 
+      case kParamFreeze:
+        // Freeze captures the current reverb tail and sustains it indefinitely.
+        // Implementation:
+        // - Set tank feedback to ~0.9999 (near-infinite)
+        // - Mute new input to the tank (only existing tail recirculates)
+        // - Bypass damping filter to preserve brightness
+        mFreeze = value > 0.5;
+        break;
+
       default:
         break;
     }
@@ -1791,6 +1814,9 @@ private:
   SmoothedValue<float> mModDepth;      // Modulation intensity (0-1)
   SmoothedValue<float> mEarlyLate;     // Early/Late balance (0=late only, 1=early only)
   SmoothedValue<float> mDensity;       // Tank diffusion - tail texture (0-1)
+
+  // Freeze mode - captures and sustains the reverb tail indefinitely
+  bool mFreeze = false;
 
   int mPreDelaySamples = 0;
 
