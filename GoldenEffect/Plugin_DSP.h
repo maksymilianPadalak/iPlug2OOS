@@ -1095,25 +1095,11 @@ public:
     // =========================================================================
     // BLOCK-LEVEL UPDATES
     // =========================================================================
-    // Update tank parameters that don't need per-sample smoothing
-    // Size is smoothed per-sample, but we update tank once per block
-
-    // Check if size changed significantly (for freeze-and-blend)
-    float currentSize = mSize.current;
-    float sizeGap = std::abs(mSize.target - currentSize);
-    constexpr float kGapThreshold = 0.001f;
-    constexpr float kFadeOutSpeed = 0.1f;
-    constexpr float kFadeInSpeed = 0.06f;
-    constexpr int kSettleBlocks = 15;
-
-    if (sizeGap > kGapThreshold) {
-      mWetGain = std::max(0.0f, mWetGain - kFadeOutSpeed);
-      mSettleCounter = kSettleBlocks;
-    } else if (mSettleCounter > 0) {
-      mSettleCounter--;
-    } else {
-      mWetGain = std::min(1.0f, mWetGain + kFadeInSpeed);
-    }
+    // SIZE CHANGE STRATEGY (Valhalla-style):
+    // We allow the natural pitch shift (Doppler effect) from delay time changes -
+    // this is the "analog" behavior of tape machines and Valhalla reverbs.
+    // 15ms smoothing prevents clicks while keeping the musical pitch bend.
+    // NO clearing needed - old tail decays naturally through feedback.
 
     for (int s = 0; s < nFrames; ++s)
     {
@@ -1131,7 +1117,7 @@ public:
       float modDepth = mModDepth.getNext();
       float earlyLate = mEarlyLate.getNext();
 
-      // Update tank when size changes
+      // Update tank when size changes (no clearing - see block comment above)
       if (std::abs(size - mLastSize) > 0.0001f) {
         mTankA.updateDelayTimes(size, scale);
         mEarlyReflections.updateTapTimes(size);
@@ -1292,8 +1278,8 @@ public:
       // Boost early reflections significantly (3x) so they're clearly audible
       float earlyGain = (1.0f - earlyLate) * 3.0f;
 
-      float wetL = (earlyL * earlyGain + lateL * lateGain) * mWetGain;
-      float wetR = (earlyR * earlyGain + lateR * lateGain) * mWetGain;
+      float wetL = earlyL * earlyGain + lateL * lateGain;
+      float wetR = earlyR * earlyGain + lateR * lateGain;
 
       // =======================================================================
       // STEP 10: Color Filtering (Output Tonal Character)
@@ -1372,15 +1358,24 @@ public:
     // ===========================================================================
     // INITIALIZE SMOOTHED PARAMETERS
     // ===========================================================================
-    // Set smoothing times (in ms) - faster for modulation, slower for filters
+    // Set smoothing times (in ms)
     constexpr float kFastSmooth = 5.0f;   // 5ms for responsive params
     constexpr float kMediumSmooth = 10.0f; // 10ms for most params
-    constexpr float kSlowSmooth = 20.0f;  // 20ms for size (avoid pitch artifacts)
+
+    // SIZE SMOOTHING (Valhalla-style "analog manner"):
+    // Instead of muting reverb during size changes, we allow natural pitch shift
+    // (Doppler effect) - sounds like tape speed change, musically pleasing.
+    //
+    // WHY 15ms:
+    // - Below 10ms: Pitch shift too fast/harsh, sounds like a glitch
+    // - Above 20ms: Pitch shift too slow, feels laggy/unresponsive
+    // - 15ms: Sweet spot - audible pitch bend but smooth and musical
+    constexpr float kSizeSmooth = 15.0f;
 
     mDry.setTime(kFastSmooth, mSampleRate);
     mWet.setTime(kFastSmooth, mSampleRate);
     mDecay.setTime(kMediumSmooth, mSampleRate);
-    mSize.setTime(kSlowSmooth, mSampleRate);
+    mSize.setTime(kSizeSmooth, mSampleRate);
     mWidth.setTime(kMediumSmooth, mSampleRate);
     mDamping.setTime(kMediumSmooth, mSampleRate);
     mDensity.setTime(kMediumSmooth, mSampleRate);
@@ -1697,11 +1692,8 @@ private:
 
   int mPreDelaySamples = 0;
 
-  // Freeze-and-blend state (for artifact-free size changes)
-  // See ProcessBlock comments for detailed explanation of this technique.
-  float mWetGain = 1.0f;      // 0.0 = wet muted, 1.0 = wet at full level
-  int mSettleCounter = 0;     // Countdown: blocks to wait after size stabilizes
-  float mLastSize = 0.5f;     // Track size changes for freeze-and-blend
+  // Parameter change tracking (for per-sample updates)
+  float mLastSize = 0.5f;     // Track size changes
   float mLastDamping = 0.5f;  // Track damping changes
   float mLastDensity = 0.7f;  // Track density changes
 
