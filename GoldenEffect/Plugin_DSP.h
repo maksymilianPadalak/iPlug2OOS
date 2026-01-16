@@ -1240,8 +1240,9 @@ public:
 
       // TANK MODULATION (user-controlled via Mod Depth knob)
       // Professional reverbs use aggressive modulation for "lush" sound.
-      // At 48kHz, 200 samples = ~4ms pitch variation = very audible chorus.
-      float excursion = 50.0f + modDepth * 200.0f;  // 50 to 250 samples
+      // At 48kHz, 250 samples = ~5ms pitch variation = very audible chorus.
+      // Mod Depth = 0 means NO modulation (clean reverb).
+      float excursion = modDepth * 250.0f;  // 0 to 250 samples
       float modOffset1 = mModBank.get(2) * excursion;  // Left tank
       float modOffset3 = mModBank.get(4) * excursion;  // Right tank
 
@@ -1251,15 +1252,15 @@ public:
       float outputModL = mModBank.get(0) * modDepth * 32.0f;
       float outputModR = mModBank.get(1) * modDepth * 32.0f;
 
-      // DIFFUSER MODULATION (always active - essential for removing metallic sound)
-      // These are SUBTLE and NOT tied to Mod Depth knob - always running.
-      // Just enough to break up resonances (±5 samples), no audible pitch wobble.
-      // Using spare LFOs: 3, 5 for input diffusion; 6, 7 for ER diffusion
-      constexpr float kDiffuserModAmt = 5.0f;  // ±5 samples - subtle but effective
-      float inputDiffMod1 = mModBank.get(3) * kDiffuserModAmt;
-      float inputDiffMod2 = mModBank.get(5) * kDiffuserModAmt;
-      float erDiffMod1 = mModBank.get(6) * kDiffuserModAmt;
-      float erDiffMod2 = mModBank.get(7) * kDiffuserModAmt;
+      // ER DIFFUSER MODULATION (user-controlled via Mod Depth knob)
+      // Only ER diffusers (5-21ms) are modulated, NOT input diffusers (3-8ms).
+      //
+      // Per Sean Costello (Valhalla DSP): modulating SHORT allpasses causes
+      // "too audible of a chorusing sound, or a sound similar to water sloshing"
+      // Only LONG allpasses benefit from modulation.
+      constexpr float kERDiffuserModAmt = 5.0f;  // ±5 samples at full Mod Depth
+      float erDiffMod1 = mModBank.get(6) * kERDiffuserModAmt * modDepth;
+      float erDiffMod2 = mModBank.get(7) * kERDiffuserModAmt * modDepth;
 
       // =======================================================================
       // STEP 5: EARLY REFLECTIONS (Room Character)
@@ -1303,16 +1304,14 @@ public:
       // =======================================================================
       // STEP 6: Input Diffusion (4 allpass filters in series)
       // =======================================================================
-      // MODULATED DELAYS: Each allpass gets subtle delay modulation to prevent
-      // metallic ringing. This is the #1 cause of "hitting a pipe" sound.
-      // Pairs share LFOs but with opposite polarity for maximum decorrelation.
-      int inMod1 = static_cast<int>(inputDiffMod1);
-      int inMod2 = static_cast<int>(inputDiffMod2);
+      // NO MODULATION on input diffusers - they have SHORT delays (3-8ms).
+      // Per Sean Costello (Valhalla DSP): modulating short allpasses causes
+      // "too audible of a chorusing sound, or a sound similar to water sloshing"
       float diffused = preDelayed;
-      diffused = mInputAP1.processInt(diffused, mInputDiffusionDelay1 + inMod1);
-      diffused = mInputAP2.processInt(diffused, mInputDiffusionDelay2 - inMod1);
-      diffused = mInputAP3.processInt(diffused, mInputDiffusionDelay3 + inMod2);
-      diffused = mInputAP4.processInt(diffused, mInputDiffusionDelay4 - inMod2);
+      diffused = mInputAP1.processInt(diffused, mInputDiffusionDelay1);
+      diffused = mInputAP2.processInt(diffused, mInputDiffusionDelay2);
+      diffused = mInputAP3.processInt(diffused, mInputDiffusionDelay3);
+      diffused = mInputAP4.processInt(diffused, mInputDiffusionDelay4);
 
       // =======================================================================
       // STEP 7: Tank Processing (Late Reverb)
@@ -1804,7 +1803,7 @@ private:
   // ===========================================================================
   // Mode determines the overall character: Plate (instant/bright) vs Chamber (fast/warm)
   // Diffusion is controlled internally by mode, not exposed to user.
-  int mReverbMode = kModePlate;
+  int mReverbMode = 0;  // kModePlate (defined in Plugin.h)
 
   // ===========================================================================
   // INPUT PROCESSING
@@ -1895,7 +1894,7 @@ private:
   // - Neutral: 0.35 (medium - natural acoustic decay)
   // - Dark: 0.75 (aggressive - highs die fast, vintage)
   // - Studio: 0.50 (moderate - controlled, mix-friendly)
-  int mColorMode = kColorNeutral;
+  int mColorMode = 1;  // kColorNeutral (defined in Plugin.h)
   LowPassFilter mColorLPF_L;   // Color lowpass filter (left)
   LowPassFilter mColorLPF_R;   // Color lowpass filter (right)
   HighPassFilter mColorHPF_L;  // Color highpass filter (left) - Studio mode only
