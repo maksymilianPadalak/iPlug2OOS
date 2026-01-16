@@ -448,12 +448,20 @@ struct AllpassFilter
 // ONE-POLE LOWPASS FILTER
 // =============================================================================
 /**
- * Simple 1-pole lowpass filter for damping.
+ * Simple 1-pole lowpass filter for feedback damping.
  *
  * WHY DAMPING:
  * Real acoustic spaces absorb high frequencies faster than low frequencies.
  * This filter in the feedback path makes the reverb tail progressively
  * darker over time - like a real room.
+ *
+ * HOW IT'S CONTROLLED:
+ * Damping is NOT exposed as a separate parameter. Instead, it's controlled
+ * internally by the Color mode (FutureVerb-style approach):
+ * - Bright: Low damping (0.15) - highs sustain, shimmering tail
+ * - Neutral: Medium damping (0.35) - natural acoustic decay
+ * - Dark: High damping (0.65) - highs decay fast, vintage character
+ * - Studio: Medium-high damping (0.45) - controlled, mix-friendly
  *
  * EQUATION: y[n] = x[n]×(1-g) + y[n-1]×g
  * where g = damping coefficient (0 = no filtering, 1 = full filtering)
@@ -1160,11 +1168,9 @@ public:
         mLastSize = size;
       }
 
-      // Update damping when it changes (independent of size)
-      if (std::abs(damping - mLastDamping) > 0.0001f) {
-        mTankA.setDamping(damping);
-        mLastDamping = damping;
-      }
+      // Update tank damping per-sample (smoothed via mDamping)
+      // Damping is set internally by Color mode, not exposed as a parameter
+      mTankA.setDamping(damping);
 
       // Update density when it changes (controls tank allpass diffusion AND ER smearing)
       if (std::abs(density - mLastDensity) > 0.0001f) {
@@ -1318,11 +1324,15 @@ public:
       float wetR = earlyR * earlyGain + lateR * lateGain;
 
       // =======================================================================
-      // STEP 10: Color Filtering (Output Tonal Character)
+      // STEP 10: Color Filtering (Output EQ - part of Color mode system)
       // =======================================================================
-      // Color modes apply output filtering AFTER the reverb for tonal character.
-      // Bright = bypass, Neutral = 8kHz LPF (12dB/oct), Dark = 3kHz LPF (24dB/oct),
-      // Studio = 600Hz HPF + 6kHz LPF (24dB/oct) - tight bandpass for mix clarity
+      // Color mode controls BOTH this output EQ AND the feedback damping above.
+      // The damping (mDamping) was already applied in the tank via setDamping().
+      // This step applies the OUTPUT filter part of the Color mode:
+      // - Bright: bypass (full bandwidth)
+      // - Neutral: 8kHz LPF (12dB/oct)
+      // - Dark: 3kHz LPF (24dB/oct)
+      // - Studio: 600Hz HPF + 6kHz LPF (24dB/oct)
       switch (mColorMode) {
         case kColorBright:
           // No filtering - full bandwidth, airy
@@ -1413,7 +1423,7 @@ public:
     mDecay.setTime(kMediumSmooth, mSampleRate);
     mSize.setTime(kSizeSmooth, mSampleRate);
     mWidth.setTime(kMediumSmooth, mSampleRate);
-    mDamping.setTime(kMediumSmooth, mSampleRate);
+    mDamping.setTime(kMediumSmooth, mSampleRate);  // Internal, set by Color mode
     mDensity.setTime(kMediumSmooth, mSampleRate);
     mModRate.setTime(kMediumSmooth, mSampleRate);
     mModDepth.setTime(kMediumSmooth, mSampleRate);
@@ -1425,14 +1435,14 @@ public:
     mDecay.setTarget(0.5f * 0.85f); mDecay.snap();
     mSize.setTarget(0.7f); mSize.snap();
     mWidth.setTarget(1.0f); mWidth.snap();
-    mDamping.setTarget(0.5f); mDamping.snap();
+    // Damping default: Neutral mode = 0.35 (see Color mode documentation)
+    mDamping.setTarget(0.35f); mDamping.snap();
     mDensity.setTarget(0.7f); mDensity.snap();
     mModRate.setTarget(0.5f); mModRate.snap();
     mModDepth.setTarget(0.5f); mModDepth.snap();
     mEarlyLate.setTarget(0.5f); mEarlyLate.snap();
 
     mLastSize = 0.7f;
-    mLastDamping = 0.5f;
     mLastDensity = 0.7f;
 
     // ===========================================================================
@@ -1552,12 +1562,6 @@ public:
         mDecay.setTarget(static_cast<float>(value / 100.0) * 0.85f);
         break;
 
-      case kParamDamping:
-        // Damping controls high frequency absorption in the feedback loop
-        // Higher damping = darker reverb tail (highs decay faster)
-        mDamping.setTarget(static_cast<float>(value / 100.0));
-        break;
-
       case kParamSize:
         // Size scales all tank delay times
         // Larger size = longer delays = bigger sounding space
@@ -1653,29 +1657,53 @@ public:
         break;
 
       case kParamColor:
-        // Color mode - output filtering for tonal character
-        // Steep filters (24dB/oct via cascading) for clearly audible differences
+        // =======================================================================
+        // COLOR MODE - Combined Output Filter + Feedback Damping (FutureVerb-style)
+        // =======================================================================
+        // Color controls BOTH the output EQ AND the feedback loop damping.
+        // This is how FutureVerb works - one semantic "tonal character" control
+        // instead of separate technical knobs.
+        //
+        // WHY COMBINE THEM:
+        // - Output filter: Instant effect on brightness (post-reverb EQ)
+        // - Damping: Evolving effect - highs decay faster in feedback loop
+        // - Together they create cohesive character that users understand intuitively
+        //
+        // DAMPING VALUES (0.0 = no damping, 1.0 = full damping):
+        // - Bright (0.15): Almost no HF absorption, highs sustain like a plate
+        // - Neutral (0.35): Natural acoustic absorption, balanced decay
+        // - Dark (0.65): Significant absorption, vintage warm tail
+        // - Studio (0.45): Controlled decay, sits well in dense mixes
+        // =======================================================================
         mColorMode = static_cast<int>(value);
         switch (mColorMode) {
           case kColorBright:
-            // No filtering - full bandwidth, airy
+            // No output filtering - full bandwidth, airy
+            // Low damping (0.15) - highs sustain, shimmering tail
+            mDamping.setTarget(0.15f);
             break;
           case kColorNeutral:
             // 8kHz lowpass (12dB/oct) - gentle rolloff, still open
+            // Medium damping (0.35) - natural acoustic decay
             mColorLPF_L.setCutoff(8000.0f, mSampleRate);
             mColorLPF_R.setCutoff(8000.0f, mSampleRate);
+            mDamping.setTarget(0.35f);
             break;
           case kColorDark:
             // 3kHz lowpass (24dB/oct via cascade) - steep, clearly dark
+            // High damping (0.65) - highs decay fast, vintage character
             mColorLPF_L.setCutoff(3000.0f, mSampleRate);
             mColorLPF_R.setCutoff(3000.0f, mSampleRate);
+            mDamping.setTarget(0.65f);
             break;
           case kColorStudio:
             // 600Hz HPF + 6kHz LPF (both 24dB/oct) - tight bandpass
+            // Medium-high damping (0.45) - controlled, mix-friendly
             mColorHPF_L.setCutoff(600.0f, mSampleRate);
             mColorHPF_R.setCutoff(600.0f, mSampleRate);
             mColorLPF_L.setCutoff(6000.0f, mSampleRate);
             mColorLPF_R.setCutoff(6000.0f, mSampleRate);
+            mDamping.setTarget(0.45f);
             break;
         }
         break;
@@ -1728,7 +1756,7 @@ private:
   SmoothedValue<float> mDecay;         // Feedback amount (0-0.85)
   SmoothedValue<float> mSize;          // Room size (0-1)
   SmoothedValue<float> mWidth;         // Stereo width (0-2)
-  SmoothedValue<float> mDamping;       // High-frequency damping (0-1)
+  SmoothedValue<float> mDamping;       // HF damping (0-1) - INTERNAL, set by Color mode
   SmoothedValue<float> mModRate;       // LFO rate in Hz
   SmoothedValue<float> mModDepth;      // Modulation intensity (0-1)
   SmoothedValue<float> mEarlyLate;     // Early/Late balance (0=late only, 1=early only)
@@ -1738,7 +1766,6 @@ private:
 
   // Parameter change tracking (for per-sample updates)
   float mLastSize = 0.5f;     // Track size changes
-  float mLastDamping = 0.5f;  // Track damping changes
   float mLastDensity = 0.7f;  // Track density changes
 
   // ===========================================================================
@@ -1821,12 +1848,22 @@ private:
   ModulationBank mModBank;
 
   // ===========================================================================
-  // COLOR OUTPUT FILTERS - Tonal character applied after reverb
+  // COLOR SYSTEM - Combined Output Filtering + Feedback Damping
   // ===========================================================================
-  // Color modes apply output filtering AFTER the tank for tonal character.
-  // This doesn't affect the reverb decay - just the final output EQ.
-  // Bright = bypass, Neutral = 8kHz LPF (12dB/oct), Dark = 3kHz LPF (24dB/oct),
-  // Studio = 600Hz HPF + 6kHz LPF (24dB/oct) - tight bandpass for mix clarity
+  // Color mode controls BOTH output EQ AND feedback damping (FutureVerb-style).
+  // This provides one intuitive "tonal character" control instead of two technical knobs.
+  //
+  // OUTPUT FILTERS (applied after reverb):
+  // - Bright: Bypass (full bandwidth)
+  // - Neutral: 8kHz LPF (12dB/oct) - gentle rolloff
+  // - Dark: 3kHz LPF (24dB/oct) - steep, clearly dark
+  // - Studio: 600Hz HPF + 6kHz LPF (24dB/oct) - tight bandpass
+  //
+  // FEEDBACK DAMPING (set in SetParam, used in tank):
+  // - Bright: 0.15 (highs sustain, shimmering)
+  // - Neutral: 0.35 (natural acoustic decay)
+  // - Dark: 0.65 (highs decay fast, vintage)
+  // - Studio: 0.45 (controlled, mix-friendly)
   int mColorMode = kColorNeutral;
   LowPassFilter mColorLPF_L;   // Color lowpass filter (left)
   LowPassFilter mColorLPF_R;   // Color lowpass filter (right)

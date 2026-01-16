@@ -38,15 +38,23 @@ enum EReverbMode
 // =============================================================================
 // COLOR MODES
 // =============================================================================
-// Output color modes for tonal character.
-// These apply filtering AFTER the reverb tank (not in the feedback loop).
+// Color modes control BOTH output filtering AND feedback damping.
+// This is the FutureVerb-style approach: one semantic control for tonal character.
+//
+// WHY COMBINE OUTPUT FILTER + DAMPING:
+// - Output filter: Affects the final EQ of the reverb (instant effect)
+// - Damping: Affects how fast highs decay in the feedback loop (evolving effect)
+// - Together they create cohesive tonal character that users understand intuitively
+//
+// "Bright" = bright output + low damping (highs sustain, airy tail)
+// "Dark" = dark output + high damping (highs decay fast, vintage character)
 // =============================================================================
 enum EColorMode
 {
-  kColorBright = 0,   // No filtering - full bandwidth, airy
-  kColorNeutral,      // 8kHz lowpass (12dB/oct) - takes off harshness, still open
-  kColorDark,         // 3kHz lowpass (24dB/oct) - steep, clearly dark, vintage character
-  kColorStudio,       // 600Hz HPF + 6kHz LPF (24dB/oct) - tight bandpass for mix clarity
+  kColorBright = 0,   // No output filter + low damping (0.15) - full bandwidth, airy, highs sustain
+  kColorNeutral,      // 8kHz LPF (12dB/oct) + medium damping (0.35) - natural, balanced decay
+  kColorDark,         // 3kHz LPF (24dB/oct) + high damping (0.65) - vintage, highs decay fast
+  kColorStudio,       // 600Hz HPF + 6kHz LPF + medium damping (0.45) - mix-ready, controlled
   kNumColorModes
 };
 
@@ -70,10 +78,9 @@ enum EParams
   kParamDensity,      // Tank diffusion - affects tail texture (0-100%)
 
   // --- Tone Section ---
-  kParamDamping,      // High frequency decay rate (0-100%)
-  kParamLowCut,       // Input highpass frequency (20-500Hz)
-  kParamHighCut,      // Tank lowpass frequency (1000-20000Hz)
-  kParamColor,        // Output color mode (Bright/Neutral/Dark/Studio)
+  kParamLowCut,       // Input highpass frequency (20-1000Hz)
+  kParamHighCut,      // Input lowpass frequency (500-20000Hz)
+  kParamColor,        // Tonal character: output filter + feedback damping (Bright/Neutral/Dark/Studio)
 
   // --- Modulation Section ---
   kParamModRate,      // LFO speed for chorus effect (0.1-2Hz)

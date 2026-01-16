@@ -162,22 +162,6 @@ export const runtimeParameters: RuntimeParameter[] = [
   // === TONE SECTION ===
   {
     "id": 7,
-    "name": "Damping",
-    "type": "float",
-    "min": 0,
-    "max": 100,
-    "default": 50,
-    "step": 0.1,
-    "unit": "%",
-    "group": "Tone",
-    "shape": "ShapeLinear",
-    "shapeParameter": 0,
-    "enumValues": null,
-    "automatable": true,
-    "key": "kParamDamping"
-  },
-  {
-    "id": 8,
     "name": "Low Cut",
     "type": "float",
     "min": 20,
@@ -193,7 +177,7 @@ export const runtimeParameters: RuntimeParameter[] = [
     "key": "kParamLowCut"
   },
   {
-    "id": 9,
+    "id": 8,
     "name": "High Cut",
     "type": "float",
     "min": 500,
@@ -208,10 +192,13 @@ export const runtimeParameters: RuntimeParameter[] = [
     "automatable": true,
     "key": "kParamHighCut"
   },
-  // Color mode - output filtering for tonal character
-  // Bright = full bandwidth, Neutral = natural, Dark = warm, Studio = mix-ready
+  // Color mode - controls BOTH output filtering AND feedback damping (FutureVerb-style)
+  // Bright = no filter + low damping (highs sustain)
+  // Neutral = 8kHz LPF + medium damping (natural decay)
+  // Dark = 3kHz LPF + high damping (vintage, highs decay fast)
+  // Studio = bandpass + medium damping (mix-ready)
   {
-    "id": 10,
+    "id": 9,
     "name": "Color",
     "type": "int",
     "min": 0,
@@ -229,7 +216,7 @@ export const runtimeParameters: RuntimeParameter[] = [
 
   // === MODULATION SECTION ===
   {
-    "id": 11,
+    "id": 10,
     "name": "Mod Rate",
     "type": "float",
     "min": 0.1,
@@ -245,7 +232,7 @@ export const runtimeParameters: RuntimeParameter[] = [
     "key": "kParamModRate"
   },
   {
-    "id": 12,
+    "id": 11,
     "name": "Mod Depth",
     "type": "float",
     "min": 0,
@@ -263,7 +250,7 @@ export const runtimeParameters: RuntimeParameter[] = [
 
   // === OUTPUT SECTION ===
   {
-    "id": 13,
+    "id": 12,
     "name": "Width",
     "type": "float",
     "min": 0,
@@ -281,7 +268,7 @@ export const runtimeParameters: RuntimeParameter[] = [
 
   // === EARLY/LATE SECTION ===
   {
-    "id": 14,
+    "id": 13,
     "name": "Early/Late",
     "type": "float",
     "min": 0,
@@ -310,6 +297,7 @@ export const controlTags: ControlTag[] = [
 export const msgTags: MsgTag[] = [];
 
 // Convenience lookups (type-safe)
+// Note: Damping was removed - it's now controlled internally by Color mode
 export const EParams = {
   kParamDry: 0,
   kParamWet: 1,
@@ -318,14 +306,13 @@ export const EParams = {
   kParamDecay: 4,
   kParamPreDelay: 5,
   kParamDensity: 6,
-  kParamDamping: 7,
-  kParamLowCut: 8,
-  kParamHighCut: 9,
-  kParamColor: 10,
-  kParamModRate: 11,
-  kParamModDepth: 12,
-  kParamWidth: 13,
-  kParamEarlyLate: 14,
+  kParamLowCut: 7,
+  kParamHighCut: 8,
+  kParamColor: 9,
+  kParamModRate: 10,
+  kParamModDepth: 11,
+  kParamWidth: 12,
+  kParamEarlyLate: 13,
 } as const;
 
 export const EControlTags = {

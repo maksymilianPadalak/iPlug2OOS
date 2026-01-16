@@ -5,10 +5,10 @@
  * Based on the Lexicon 224 topology with figure-8 tank.
  * This is a "golden example" for LLMs to learn from.
  *
- * PARAMETERS (14 total):
+ * PARAMETERS (13 total):
  * - Mix: Dry, Wet
  * - Space: Mode, Size, Decay, Pre-Delay, Density, Early/Late
- * - Tone: Damping, Low Cut, High Cut, Color
+ * - Tone: Low Cut, High Cut, Color (Color includes output EQ + feedback damping)
  * - Modulation: Mod Rate, Mod Depth
  * - Output: Width
  */
@@ -70,15 +70,13 @@ export function PluginBody() {
           </Section>
 
           {/* Tone Section - Frequency shaping */}
-          <Section title="Tone" size="wide" description="Input EQ, decay damping, and output color">
+          {/* Color controls BOTH output EQ AND feedback damping (FutureVerb-style) */}
+          <Section title="Tone" size="wide" description="Input EQ and tonal character">
             <SubGroup title="Input EQ" layout="row">
               <Knob paramId={EParams.kParamLowCut} label="Low Cut" color="cyan" size="medium" />
               <Knob paramId={EParams.kParamHighCut} label="High Cut" color="magenta" size="medium" />
             </SubGroup>
-            <SubGroup title="Decay" layout="row">
-              <Knob paramId={EParams.kParamDamping} label="Damping" color="orange" size="medium" />
-            </SubGroup>
-            <SubGroup title="Output Color" layout="row">
+            <SubGroup title="Character" layout="row">
               <Dropdown paramId={EParams.kParamColor} label="Color" color="green" />
             </SubGroup>
           </Section>
