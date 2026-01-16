@@ -668,6 +668,34 @@ struct EarlyReflections
   };
 
   // ==========================================================================
+  // HALL MODE - Concert hall (between Chamber and Cathedral)
+  // ==========================================================================
+  // Hall ERs are the classic "concert hall" sound:
+  // - Medium times (5-93ms) = larger than Chamber (2-40ms), smaller than Cathedral (15-184ms)
+  // - Wide stereo spread = enveloping but not overwhelming
+  // - Moderate gain decay = balanced reflections (0.88 down to 0.24)
+  // - Medium diffusion (0.50-0.58) = smooth but with some definition
+  //
+  // MODE GAIN 0.85: Between Chamber (1.0) and Cathedral (0.6).
+  // Hall ERs should be prominent but not as "in your face" as intimate Chamber.
+  //
+  // Think: orchestral concert hall, theater, large performance space
+  static constexpr float kHallTapTimes[NUM_TAPS] = {
+    5.3f, 9.8f, 15.2f, 22.1f, 30.4f, 39.8f,
+    50.2f, 61.5f, 72.3f, 81.7f, 88.4f, 93.1f
+  };
+  // Moderate decay - balanced between intimate Chamber and distant Cathedral
+  static constexpr float kHallTapGains[NUM_TAPS] = {
+    0.88f, -0.80f, 0.74f, -0.68f, 0.62f, 0.56f,
+    -0.50f, 0.44f, -0.38f, 0.33f, 0.28f, -0.24f
+  };
+  // Wide stereo - enveloping concert hall image
+  static constexpr float kHallTapPans[NUM_TAPS] = {
+    -0.5f, 0.6f, -0.75f, 0.4f, -0.55f, 0.8f,
+    -0.65f, 0.35f, 0.85f, -0.7f, 0.5f, -0.4f
+  };
+
+  // ==========================================================================
   // CATHEDRAL MODE - Very sparse, long delays (massive stone space)
   // ==========================================================================
   // Cathedral ERs differ from Plate/Chamber:
@@ -720,7 +748,7 @@ struct EarlyReflections
 
   /**
    * Set the reverb mode - changes ER pattern and gain.
-   * @param mode 0=Plate (sparse), 1=Chamber (dense), 2=Cathedral (very sparse, long)
+   * @param mode 0=Plate, 1=Chamber, 2=Hall, 3=Cathedral
    */
   void setMode(int mode)
   {
@@ -742,7 +770,15 @@ struct EarlyReflections
         }
         mModeGain = 1.0f;  // Chambers have prominent ERs
         break;
-      case 2:  // Cathedral - very sparse, long ERs (massive stone space)
+      case 2:  // Hall - concert hall (wide, balanced)
+        for (int i = 0; i < NUM_TAPS; ++i) {
+          tapTimes[i] = kHallTapTimes[i];
+          tapGains[i] = kHallTapGains[i];
+          tapPans[i] = kHallTapPans[i];
+        }
+        mModeGain = 0.85f;  // Strong but not as intimate as Chamber
+        break;
+      case 3:  // Cathedral - very sparse, long ERs (massive stone space)
         for (int i = 0; i < NUM_TAPS; ++i) {
           tapTimes[i] = kCathedralTapTimes[i];
           tapGains[i] = kCathedralTapGains[i];
@@ -1577,6 +1613,14 @@ public:
               mInputAP2.setFeedback(0.68f);
               mInputAP3.setFeedback(0.58f);
               mInputAP4.setFeedback(0.58f);
+              break;
+            case kModeHall:
+              // Hall: Medium diffusion (0.50-0.58) = balanced attack, wide and smooth
+              // Between Chamber's warmth (0.58-0.68) and Cathedral's clarity (0.42-0.48)
+              mInputAP1.setFeedback(0.58f);
+              mInputAP2.setFeedback(0.58f);
+              mInputAP3.setFeedback(0.50f);
+              mInputAP4.setFeedback(0.50f);
               break;
             case kModeCathedral:
               // Cathedral: Low diffusion (0.4-0.5) = transients pass through, then smear

@@ -30,6 +30,7 @@ enum EReverbMode
 {
   kModePlate = 0,     // Classic plate - instant attack, bright shimmer, no early reflections
   kModeChamber,       // Echo chamber - fast attack, dense early reflections, warm
+  kModeHall,          // Concert hall - medium attack, wide stereo, balanced ERs
   kModeCathedral,     // Cathedral - very slow attack, sparse long ERs, huge ethereal space
   kNumReverbModes
 };
