@@ -1250,29 +1250,41 @@ public:
       // See: https://valhalladsp.com/2011/01/21/reverbs-diffusion-allpass-delays-and-metallic-artifacts/
       mModBank.process(modRate, mSampleRate);
 
-      // TANK MODULATION (user-controlled via Mod Depth knob)
+      // TANK MODULATION (always-on minimum + user-controlled via Mod Depth knob)
       // Professional reverbs use aggressive modulation for "lush" sound.
       // At 48kHz, 250 samples = ~5ms pitch variation = very audible chorus.
-      // Mod Depth = 0 means NO modulation (clean reverb).
-      float excursion = modDepth * 250.0f;  // 0 to 250 samples
+      //
+      // ALWAYS-ON MINIMUM MODULATION:
+      // Even at Mod Depth = 0, we keep subtle modulation (~4 samples = ~0.08ms)
+      // to break up static resonances that cause metallic artifacts.
+      // This is inaudible as pitch wobble but prevents allpass ringing.
+      constexpr float kMinTankMod = 4.0f;     // Always-on: ±4 samples (~0.08ms)
+      constexpr float kMaxTankMod = 250.0f;   // User-controlled: up to ±250 samples
+      float excursion = kMinTankMod + modDepth * (kMaxTankMod - kMinTankMod);
       float modOffset1 = mModBank.get(2) * excursion;  // Left tank
       float modOffset3 = mModBank.get(4) * excursion;  // Right tank
 
       // OUTPUT TAP MODULATION (user-controlled via Mod Depth knob)
       // Makes modulation immediately audible on first reflection, not just tail
       // ±32 samples at 48kHz = ~0.7ms = obvious pitch wobble
+      // No minimum here - output taps don't cause metallic resonances
       float outputModL = mModBank.get(0) * modDepth * 32.0f;
       float outputModR = mModBank.get(1) * modDepth * 32.0f;
 
-      // ER DIFFUSER MODULATION (user-controlled via Mod Depth knob)
+      // ER DIFFUSER MODULATION (always-on minimum + user-controlled)
       // Only ER diffusers (5-21ms) are modulated, NOT input diffusers (3-8ms).
       //
       // Per Sean Costello (Valhalla DSP): modulating SHORT allpasses causes
       // "too audible of a chorusing sound, or a sound similar to water sloshing"
       // Only LONG allpasses benefit from modulation.
-      constexpr float kERDiffuserModAmt = 5.0f;  // ±5 samples at full Mod Depth
-      float erDiffMod1 = mModBank.get(6) * kERDiffuserModAmt * modDepth;
-      float erDiffMod2 = mModBank.get(7) * kERDiffuserModAmt * modDepth;
+      //
+      // ALWAYS-ON MINIMUM: ±1 sample prevents metallic ringing on transients
+      // even when user sets Mod Depth to 0 for a "clean" reverb sound.
+      constexpr float kMinERDiffuserMod = 1.0f;  // Always-on: ±1 sample
+      constexpr float kMaxERDiffuserMod = 5.0f;  // User-controlled: up to ±5 samples
+      float erDiffModAmt = kMinERDiffuserMod + modDepth * (kMaxERDiffuserMod - kMinERDiffuserMod);
+      float erDiffMod1 = mModBank.get(6) * erDiffModAmt;
+      float erDiffMod2 = mModBank.get(7) * erDiffModAmt;
 
       // =======================================================================
       // STEP 5: EARLY REFLECTIONS (Room Character)
