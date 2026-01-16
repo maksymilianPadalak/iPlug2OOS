@@ -1144,9 +1144,22 @@ public:
         mLastDamping = damping;
       }
 
-      // Update density when it changes (controls tank allpass diffusion)
+      // Update density when it changes (controls tank allpass diffusion AND ER smearing)
       if (std::abs(density - mLastDensity) > 0.0001f) {
         mTankA.setDensity(density);
+
+        // SOFT-CLEAR ER DIFFUSERS ON DENSITY CHANGE:
+        // Without this, old audio (processed with old feedback) lingers in the
+        // diffuser buffers. When you increase density, you'd still hear the old
+        // "bouncy" echoes mixed with new smooth ones - sounds wrong.
+        // -20dB attenuation fades old audio quickly without audible clicks.
+        // Same technique as Valhalla-style mode changes.
+        float clearFactor = 0.1f;  // -20dB = 10^(-20/20) ≈ 0.1
+        mERInputDiffuser1.softClear(clearFactor);
+        mERInputDiffuser2.softClear(clearFactor);
+        mERInputDiffuser3.softClear(clearFactor);
+        mERInputDiffuser4.softClear(clearFactor);
+
         mLastDensity = density;
       }
 
@@ -1175,31 +1188,45 @@ public:
       // =======================================================================
       // STEP 4: EARLY REFLECTIONS (Room Character)
       // =======================================================================
-      // Process early reflections in parallel with late reverb
-      float earlyL = 0.0f, earlyR = 0.0f;
-      mEarlyReflections.process(preDelayed, earlyL, earlyR);
-
-      // =======================================================================
-      // STEP 4b: ER DIFFUSION (Density-Controlled Smearing)
-      // =======================================================================
-      // At low density: ERs are distinct taps (individual echoes audible)
-      // At high density: ERs are smeared through allpasses (smooth onset)
-      // This is what Valhalla does - density affects the ENTIRE reverb.
+      // Process early reflections in parallel with late reverb.
       //
-      // Feedback scales from 0 (no smearing) to 0.7 (heavy smearing)
-      // We use 2 allpasses per channel for adequate diffusion.
+      // DENSITY-CONTROLLED ER INPUT DIFFUSION:
+      // At low density: raw input -> distinct ER taps (you hear bouncing echoes)
+      // At high density: diffused input -> blended ER taps (smooth onset)
+      //
+      // This is the correct approach per Valhalla DSP research:
+      // - Allpasses at INPUT expand impulses into many echoes (good)
+      // - Allpasses at OUTPUT cause metallic coloration (bad)
+      //
+      // 4 DIFFUSERS with Fibonacci delays (5, 8, 13, 21ms) for heavy smearing.
+      //
+      // WHY 0.78 MAX FEEDBACK:
+      // - Below 0.7: Not enough smearing for Cathedral's long ER taps (up to 183ms).
+      //              Individual echoes remain audible even at 100% density.
+      // - Above 0.8: Allpass approaches instability, causes audible ringing/resonance.
+      //              The feedback loop starts to self-oscillate on transients.
+      // - 0.78 is the sweet spot: aggressive diffusion without metallic artifacts.
+      float erInput = preDelayed;
       {
-        float erDiffFeedback = density * 0.7f;  // 0 to 0.7
-        mERDiffuserL1.setFeedback(erDiffFeedback);
-        mERDiffuserL2.setFeedback(erDiffFeedback * 0.85f);  // Slightly less
-        mERDiffuserR1.setFeedback(erDiffFeedback);
-        mERDiffuserR2.setFeedback(erDiffFeedback * 0.85f);
+        // Scale feedback with density: 0% = no diffusion, 100% = heavy diffusion
+        float erDiffFeedback = density * 0.78f;
 
-        earlyL = mERDiffuserL1.processInt(earlyL, mERDiffuserDelay1);
-        earlyL = mERDiffuserL2.processInt(earlyL, mERDiffuserDelay2);
-        earlyR = mERDiffuserR1.processInt(earlyR, mERDiffuserDelay1);
-        earlyR = mERDiffuserR2.processInt(earlyR, mERDiffuserDelay2);
+        // Decreasing feedback per stage (1.0, 0.95, 0.90, 0.85) prevents buildup
+        // of resonances that occur when all allpasses have identical feedback.
+        // This is a standard technique from Lexicon/Valhalla reverb design.
+        mERInputDiffuser1.setFeedback(erDiffFeedback);
+        mERInputDiffuser2.setFeedback(erDiffFeedback * 0.95f);
+        mERInputDiffuser3.setFeedback(erDiffFeedback * 0.90f);
+        mERInputDiffuser4.setFeedback(erDiffFeedback * 0.85f);
+
+        erInput = mERInputDiffuser1.processInt(erInput, mERDiffuserDelay1);
+        erInput = mERInputDiffuser2.processInt(erInput, mERDiffuserDelay2);
+        erInput = mERInputDiffuser3.processInt(erInput, mERDiffuserDelay3);
+        erInput = mERInputDiffuser4.processInt(erInput, mERDiffuserDelay4);
       }
+
+      float earlyL = 0.0f, earlyR = 0.0f;
+      mEarlyReflections.process(erInput, earlyL, earlyR);
 
       // =======================================================================
       // STEP 5: Input Diffusion (4 allpass filters in series)
@@ -1394,16 +1421,22 @@ public:
     mEarlyReflections.reset(mSampleRate);
 
     // ===========================================================================
-    // INITIALIZE ER DIFFUSERS (Density-controlled smearing)
+    // INITIALIZE ER INPUT DIFFUSERS
     // ===========================================================================
-    // These allpasses smear the ER output when density is high.
-    // Prime-number delay times prevent resonances.
-    mERDiffuserL1.clear();
-    mERDiffuserL2.clear();
-    mERDiffuserR1.clear();
-    mERDiffuserR2.clear();
-    mERDiffuserDelay1 = static_cast<int>(7.1f * 0.001f * mSampleRate);   // ~7.1ms
-    mERDiffuserDelay2 = static_cast<int>(11.3f * 0.001f * mSampleRate);  // ~11.3ms
+    // These smear the input BEFORE it hits the ER tap network.
+    // Controlled by Density parameter - at 100% density, these provide heavy
+    // diffusion that smooths out Cathedral's long ER taps (no more bouncing).
+    //
+    // Fibonacci-like delays (5, 8, 13, 21ms) are roughly coprime, avoiding
+    // resonant buildup that occurs with evenly-spaced delays.
+    mERInputDiffuser1.clear();
+    mERInputDiffuser2.clear();
+    mERInputDiffuser3.clear();
+    mERInputDiffuser4.clear();
+    mERDiffuserDelay1 = static_cast<int>(5.0f * 0.001f * mSampleRate);   // ~5ms
+    mERDiffuserDelay2 = static_cast<int>(8.0f * 0.001f * mSampleRate);   // ~8ms
+    mERDiffuserDelay3 = static_cast<int>(13.0f * 0.001f * mSampleRate);  // ~13ms
+    mERDiffuserDelay4 = static_cast<int>(21.0f * 0.001f * mSampleRate);  // ~21ms
 
     // ===========================================================================
     // CLEAR AND CONFIGURE TANK
@@ -1692,17 +1725,33 @@ private:
   EarlyReflections mEarlyReflections;
 
   // ===========================================================================
-  // ER DIFFUSION - Density-controlled smearing of early reflections
+  // ER INPUT DIFFUSION - Density-controlled smearing BEFORE ER taps
   // ===========================================================================
-  // At low density: ERs are distinct taps (individual echoes audible)
-  // At high density: ERs are smeared through allpasses (smooth onset)
-  // This is what Valhalla does - density affects the ENTIRE reverb, not just tail.
-  AllpassFilter<1024> mERDiffuserL1;
-  AllpassFilter<1024> mERDiffuserL2;
-  AllpassFilter<1024> mERDiffuserR1;
-  AllpassFilter<1024> mERDiffuserR2;
-  int mERDiffuserDelay1 = 311;  // ~7ms at 44.1kHz (prime number)
-  int mERDiffuserDelay2 = 491;  // ~11ms at 44.1kHz (prime number)
+  // At low density: raw input -> distinct ER taps (you hear individual echoes)
+  // At high density: diffused input -> blended ER taps (smooth onset)
+  //
+  // KEY INSIGHT FROM VALHALLA DSP RESEARCH:
+  // - Allpasses at INPUT expand impulses into many echoes (correct)
+  // - Allpasses at OUTPUT cause metallic coloration (wrong!)
+  // This is because allpasses are "impulse expanders" - they work by smearing
+  // discrete impulses. On output, this creates ringing on already-complex signal.
+  //
+  // DELAY TIME DESIGN:
+  // Fibonacci-like spacing (5, 8, 13, 21ms) ensures delays are roughly coprime,
+  // preventing resonant peaks that occur with evenly-spaced delays.
+  // Total diffusion time: ~47ms - enough to smear Cathedral's long ER taps.
+  //
+  // WHY 4 DIFFUSERS:
+  // Each allpass roughly doubles echo density. 4 stages = 16× density increase.
+  // This matches professional reverbs like Valhalla which use 4-8 input diffusers.
+  AllpassFilter<2048> mERInputDiffuser1;
+  AllpassFilter<2048> mERInputDiffuser2;
+  AllpassFilter<2048> mERInputDiffuser3;
+  AllpassFilter<2048> mERInputDiffuser4;
+  int mERDiffuserDelay1 = 221;   // ~5ms at 44.1kHz (prime)
+  int mERDiffuserDelay2 = 353;   // ~8ms at 44.1kHz (prime)
+  int mERDiffuserDelay3 = 577;   // ~13ms at 44.1kHz (prime)
+  int mERDiffuserDelay4 = 929;   // ~21ms at 44.1kHz (prime)
 
   // ===========================================================================
   // INPUT DIFFUSION - Smear input before tank
