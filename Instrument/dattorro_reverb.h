@@ -172,7 +172,7 @@ struct DCBlocker
  * Formula: tanh(x) ≈ x * (27 + x²) / (27 + 9x²)
  * This is a Padé approximant that matches tanh behavior well.
  */
-inline float fastTanh(float x)
+inline float reverbFastTanh(float x)
 {
   // Clamp to prevent overflow for extreme values
   x = std::max(-3.0f, std::min(3.0f, x));
@@ -1052,7 +1052,7 @@ struct TankSystem
 
     // ----- LEFT TANK -----
     float leftTankIn = diffusedInput + prevRightOut * decay;
-    leftTankIn = fastTanh(leftTankIn);
+    leftTankIn = reverbFastTanh(leftTankIn);
 
     // Apply LFO modulation to allpass delay (creates chorus-like movement)
     float modulatedDelay1 = tankAllpassDelay1 + modOffset1;
@@ -1070,7 +1070,7 @@ struct TankSystem
 
     // ----- RIGHT TANK -----
     float rightTankIn = diffusedInput + prevLeftOut * decay;
-    rightTankIn = fastTanh(rightTankIn);
+    rightTankIn = reverbFastTanh(rightTankIn);
 
     // Apply LFO modulation to allpass delay (slightly detuned for stereo)
     float modulatedDelay3 = tankAllpassDelay3 + modOffset3;
@@ -1577,8 +1577,8 @@ public:
     float outR = inputR * dry + wetR * wet;
 
     // Safety limiting
-    left = fastTanh(outL);
-    right = fastTanh(outR);
+    left = reverbFastTanh(outL);
+    right = reverbFastTanh(outR);
   }
 
 private:
