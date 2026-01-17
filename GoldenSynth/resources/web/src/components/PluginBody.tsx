@@ -51,8 +51,8 @@ export function PluginBody() {
             <div className="flex gap-8 items-center">
               <div className="flex-1 flex gap-4 items-center">
                 <Knob paramId={EParams.kParamGain} label="Gain" color="cyan" />
-                <Dropdown paramId={EParams.kParamVoiceMode} label="Mode" color="cyan" />
-                <Dropdown paramId={EParams.kParamGlideEnable} label="Glide" color="cyan" />
+                <Dropdown paramId={EParams.kParamVoiceMode} label="Mode" />
+                <Dropdown paramId={EParams.kParamGlideEnable} label="Glide" />
                 <Knob paramId={EParams.kParamGlideTime} label="Time" color="cyan" />
                 <div className="flex flex-col gap-2 flex-1">
                   <Meter channel={0} label="L" color="cyan" />
