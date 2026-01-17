@@ -27,6 +27,10 @@
 // LFO (Low Frequency Oscillator - Q library based, tempo sync)
 #include "lfo.h"
 
+// Dattorro Reverb (Lexicon 224-style, modes: Plate/Chamber/Hall/Cathedral)
+// See GoldenSynth/Plugin_DSP.h for usage example
+#include "dattorro_reverb.h"
+
 // Q DSP Library
 #include <q/support/literals.hpp>
 #include <q/support/phase.hpp>
