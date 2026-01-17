@@ -287,6 +287,73 @@ PluginInstance::PluginInstance(const InstanceInfo& info)
     "Stereo", "Ping-Pong");
 
   // ═══════════════════════════════════════════════════════════════════════════════
+  // REVERB - Dattorro plate reverb with professional-quality sound
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // The Dattorro plate reverb uses a figure-8 tank topology for natural-sounding
+  // decay. Features modulated allpass filters for shimmer and multiple modes
+  // (Plate, Chamber, Hall, Cathedral) for different room characteristics.
+  //
+  // SIGNAL FLOW: Processed after delay, before final limiter
+  // ═══════════════════════════════════════════════════════════════════════════════
+  GetParam(kParamReverbEnable)->InitBool("Reverb On", false);  // Default OFF (effect, not core sound)
+
+  // Decay: How long the reverb tail lasts
+  // 0% = very short decay (dry room)
+  // 50% = medium decay (typical studio)
+  // 100% = infinite decay (freeze effect)
+  GetParam(kParamReverbDecay)->InitDouble("Reverb Decay", 50., 0., 100., 0.1, "%");
+
+  // Size: Room size - affects early reflection timing and density
+  // 0% = small room (tight reflections)
+  // 100% = large hall (spacious, longer pre-delay)
+  GetParam(kParamReverbSize)->InitDouble("Reverb Size", 50., 0., 100., 0.1, "%");
+
+  // Damping: High-frequency absorption
+  // 0% = bright reverb (reflective surfaces)
+  // 100% = dark reverb (soft, absorptive surfaces)
+  GetParam(kParamReverbDamping)->InitDouble("Reverb Damp", 50., 0., 100., 0.1, "%");
+
+  // Width: Stereo spread of the reverb
+  // 0% = mono reverb
+  // 100% = full stereo spread
+  GetParam(kParamReverbWidth)->InitDouble("Reverb Width", 100., 0., 100., 0.1, "%");
+
+  // Dry/Wet mix levels
+  GetParam(kParamReverbDry)->InitDouble("Reverb Dry", 100., 0., 100., 0.1, "%");
+  GetParam(kParamReverbWet)->InitDouble("Reverb Wet", 0., 0., 100., 0.1, "%");
+
+  // Pre-delay: Time before reverb onset
+  // Adds space between dry signal and reverb, making the source sound "in front" of the space
+  GetParam(kParamReverbPreDelay)->InitDouble("Pre-Delay", 10., 0., 100., 0.1, "ms");
+
+  // Mode: Different reverb algorithms/characters
+  GetParam(kParamReverbMode)->InitEnum("Reverb Mode", 0, 4, "", IParam::kFlagsNone, "",
+    "Plate", "Chamber", "Hall", "Cathedral");
+
+  // Color: Tonal character preset
+  GetParam(kParamReverbColor)->InitEnum("Reverb Color", 1, 4, "", IParam::kFlagsNone, "",
+    "Bright", "Neutral", "Dark", "Studio");  // Default Neutral (index 1)
+
+  // Reverb internal modulation - creates subtle movement/shimmer in the reverb tail
+  // ModRate: Speed of internal chorus-like modulation (0.1-2.0 Hz)
+  // ModDepth: Amount of pitch/time modulation (0-100%)
+  GetParam(kParamReverbModRate)->InitDouble("Reverb Mod Rate", 0.5, 0.1, 2.0, 0.01, "Hz");
+  GetParam(kParamReverbModDepth)->InitDouble("Reverb Mod Depth", 50., 0., 100., 0.1, "%");
+
+  // LowCut: Removes low-frequency mud/rumble from reverb input (20-500 Hz)
+  GetParam(kParamReverbLowCut)->InitDouble("Reverb Low Cut", 20., 20., 500., 1., "Hz");
+
+  // Density: Controls diffusion density - higher = thicker, more "lush" reverb
+  GetParam(kParamReverbDensity)->InitDouble("Reverb Density", 70., 0., 100., 0.1, "%");
+
+  // EarlyLate: Balance between early reflections (room shape) and late tail (decay)
+  // 0% = mostly early reflections, 100% = mostly late reverb tail
+  GetParam(kParamReverbEarlyLate)->InitDouble("Reverb Early/Late", 50., 0., 100., 0.1, "%");
+
+  // Freeze: Infinite sustain mode - holds the reverb tail indefinitely
+  GetParam(kParamReverbFreeze)->InitBool("Reverb Freeze", false);
+
+  // ═══════════════════════════════════════════════════════════════════════════════
   // VOICE MODE & GLIDE PARAMETERS
   // ═══════════════════════════════════════════════════════════════════════════════
   // Voice mode determines polyphony behavior:

@@ -165,7 +165,7 @@ export function PluginBody() {
           </Section>
 
           {/* Delay - Stereo delay with ping-pong mode */}
-          <Section title="Delay" size="full">
+          <Section title="Delay" size="wide">
             <SubGroup layout="row">
               <Dropdown paramId={EParams.kParamDelayEnable} label="On" />
               <Knob paramId={EParams.kParamDelayTime} label="Time" color="magenta" />
@@ -174,6 +174,30 @@ export function PluginBody() {
               <Knob paramId={EParams.kParamDelayDry} label="Dry" color="magenta" />
               <Knob paramId={EParams.kParamDelayWet} label="Wet" color="magenta" />
               <Dropdown paramId={EParams.kParamDelayMode} label="Mode" />
+            </SubGroup>
+          </Section>
+
+          {/* Reverb - Dattorro plate reverb */}
+          <Section title="Reverb" size="wide">
+            <SubGroup layout="row">
+              <Dropdown paramId={EParams.kParamReverbEnable} label="On" />
+              <Dropdown paramId={EParams.kParamReverbMode} label="Mode" />
+              <Dropdown paramId={EParams.kParamReverbColor} label="Color" />
+              <Dropdown paramId={EParams.kParamReverbFreeze} label="Freeze" />
+              <Knob paramId={EParams.kParamReverbDecay} label="Decay" color="cyan" />
+              <Knob paramId={EParams.kParamReverbSize} label="Size" color="cyan" />
+              <Knob paramId={EParams.kParamReverbDamping} label="Damp" color="cyan" />
+              <Knob paramId={EParams.kParamReverbWidth} label="Width" color="cyan" />
+              <Knob paramId={EParams.kParamReverbPreDelay} label="Pre-Dly" color="cyan" />
+              <Knob paramId={EParams.kParamReverbDry} label="Dry" color="cyan" />
+              <Knob paramId={EParams.kParamReverbWet} label="Wet" color="cyan" />
+            </SubGroup>
+            <SubGroup layout="row">
+              <Knob paramId={EParams.kParamReverbLowCut} label="Lo Cut" color="cyan" />
+              <Knob paramId={EParams.kParamReverbDensity} label="Density" color="cyan" />
+              <Knob paramId={EParams.kParamReverbEarlyLate} label="E/L" color="cyan" />
+              <Knob paramId={EParams.kParamReverbModRate} label="Mod" color="cyan" />
+              <Knob paramId={EParams.kParamReverbModDepth} label="M.Depth" color="cyan" />
             </SubGroup>
           </Section>
 

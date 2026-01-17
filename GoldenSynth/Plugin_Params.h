@@ -145,6 +145,26 @@ enum EParams
   kParamDelayMode,              // Stereo mode: 0=Stereo, 1=Ping-Pong
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // REVERB - Dattorro plate reverb effect
+  // ─────────────────────────────────────────────────────────────────────────────
+  kParamReverbEnable,           // Reverb on/off: 0=Off, 1=On
+  kParamReverbDecay,            // Decay time (0-100%)
+  kParamReverbSize,             // Room size (0-100%)
+  kParamReverbDamping,          // High-frequency damping (0-100%)
+  kParamReverbWidth,            // Stereo width (0-100%)
+  kParamReverbDry,              // Dry signal level (0-100%)
+  kParamReverbWet,              // Wet signal level (0-100%)
+  kParamReverbPreDelay,         // Pre-delay time (0-100 ms)
+  kParamReverbMode,             // Mode: 0=Plate, 1=Chamber, 2=Hall, 3=Cathedral
+  kParamReverbColor,            // Color: 0=Bright, 1=Neutral, 2=Dark, 3=Studio
+  kParamReverbModRate,          // Internal modulation rate (0.1-2.0 Hz)
+  kParamReverbModDepth,         // Internal modulation depth (0-100%)
+  kParamReverbLowCut,           // Low-frequency cut filter (20-500 Hz)
+  kParamReverbDensity,          // Diffusion density (0-100%)
+  kParamReverbEarlyLate,        // Early/Late balance (0=early, 100=late)
+  kParamReverbFreeze,           // Freeze mode: 0=Off, 1=On (infinite sustain)
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // VOICE MODE & GLIDE - Mono/Poly selection and portamento
   // ─────────────────────────────────────────────────────────────────────────────
   kParamVoiceMode,              // Voice mode: 0=Poly, 1=Mono, 2=Legato

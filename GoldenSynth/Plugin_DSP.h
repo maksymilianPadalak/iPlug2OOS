@@ -35,6 +35,9 @@
 // LFO (Low Frequency Oscillator - Q library based)
 #include "lfo.h"
 
+// Dattorro Plate Reverb (professional-quality reverb effect)
+#include "dattorro_reverb.h"
+
 // iPlug2 Synth Infrastructure
 #include "MidiSynth.h"
 
@@ -501,14 +504,120 @@ enum EWaveform
 // PluginInstanceDSP is the main DSP engine that manages synthesis and audio output.
 // It uses iPlug2's MidiSynth infrastructure for voice allocation and MIDI handling.
 //
-// SIGNAL FLOW:
-//   MIDI → MidiSynth → Voice[] → Mix → Master Gain → Output
+// ═══════════════════════════════════════════════════════════════════════════════
+// COMPLETE SIGNAL FLOW (with effects chain)
+// ═══════════════════════════════════════════════════════════════════════════════
 //
-//   1. MIDI events are queued via ProcessMidiMsg()
-//   2. MidiSynth allocates/triggers voices (polyphonic, 32 voices default)
-//   3. Each Voice generates: Oscillator → Filter → Envelope → output
-//   4. Voice outputs are summed (accumulated) into the output buffer
-//   5. Master gain is applied with smoothing for click-free automation
+//   ┌─────────────────────────────────────────────────────────────────────────────┐
+//   │  MIDI → MidiSynth → Voice[] → Mix → Master Gain → EFFECTS → Limiter → Out  │
+//   └─────────────────────────────────────────────────────────────────────────────┘
+//
+//   DETAILED BREAKDOWN:
+//
+//   1. MIDI INPUT
+//      └─ MIDI events queued via ProcessMidiMsg()
+//
+//   2. VOICE SYNTHESIS (per-voice processing)
+//      └─ Each Voice: OSC (with Unison) → Filter → Amp Envelope → Soft Clip
+//      └─ Voices accumulated (+=) into output buffer for polyphony
+//
+//   3. MASTER SECTION
+//      └─ Smoothed master gain applied (click-free automation)
+//      └─ Post-gain soft clipping (fastTanh) to tame transient peaks
+//
+//   4. EFFECTS CHAIN (processed in series, each with bypass)
+//      ┌──────────────────────────────────────────────────────────────────────────┐
+//      │  INPUT → [DELAY] → [REVERB] → [future effects here] → OUTPUT            │
+//      └──────────────────────────────────────────────────────────────────────────┘
+//      │
+//      ├─ DELAY (StereoDelay) - Tempo-syncable stereo/ping-pong delay
+//      │   └─ Controlled by: mDelayEnable, mDelay member variable
+//      │   └─ Processing: Plugin_DSP.h line ~3045 (search "STEREO DELAY EFFECT")
+//      │
+//      └─ REVERB (DattorroReverb) - Dattorro plate reverb algorithm
+//          └─ Controlled by: mReverbEnable, mReverb member variable
+//          └─ Processing: Plugin_DSP.h line ~3065 (search "REVERB EFFECT")
+//
+//   5. OUTPUT LIMITER
+//      └─ Q library soft-knee compressor (brickwall limiting)
+//      └─ Final fastTanh soft clip + NaN/Inf protection
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+// HOW TO ADD A NEW EFFECT
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// Follow this checklist to add a new effect (e.g., chorus, phaser, distortion):
+//
+// 1. CREATE THE EFFECT MODULE (optional - can use inline code for simple effects)
+//    └─ Create myeffect.h in the plugin folder (see dattorro_reverb.h as example)
+//    └─ Class should have: SetSampleRate(), Reset(), Process(left, right)
+//
+// 2. ADD INCLUDE (Plugin_DSP.h, near other effect includes ~line 38)
+//    └─ #include "myeffect.h"
+//
+// 3. ADD PARAMETERS (Plugin_Params.h, in EParams enum)
+//    └─ Add after existing effects section:
+//       kParamMyEffectEnable,    // On/off toggle
+//       kParamMyEffectParam1,    // Effect parameter 1
+//       kParamMyEffectParam2,    // etc.
+//
+// 4. ADD MEMBER VARIABLES (Plugin_DSP.h, near mDelay/mReverb ~line 4240)
+//    └─ MyEffect mMyEffect;
+//    └─ bool mMyEffectEnable = false;  // Default OFF for effects
+//
+// 5. ADD RESET CALL (Plugin_DSP.h, in Reset() function ~line 3205)
+//    └─ mMyEffect.SetSampleRate(static_cast<float>(sampleRate));
+//    └─ mMyEffect.Reset();
+//    └─ Also add in transport restart section if effect has delay lines
+//
+// 6. ADD PROCESSING LOOP (Plugin_DSP.h, after reverb, before limiter ~line 3100)
+//    └─ Pattern:
+//       if (nOutputs >= 2 && mMyEffectEnable)
+//       {
+//         for (int s = 0; s < nFrames; s++)
+//         {
+//           float left = static_cast<float>(outputs[0][s]);
+//           float right = static_cast<float>(outputs[1][s]);
+//           mMyEffect.Process(left, right);  // Process in-place
+//           left = fastTanh(left);           // Post-effect soft clip
+//           right = fastTanh(right);
+//           outputs[0][s] = static_cast<T>(left);
+//           outputs[1][s] = static_cast<T>(right);
+//         }
+//       }
+//
+// 7. ADD SETPARAM HANDLING (Plugin_DSP.h, in SetParam() switch ~line 4080)
+//    └─ case kParamMyEffectEnable:
+//         mMyEffectEnable = value > 0.5;
+//         break;
+//       case kParamMyEffectParam1:
+//         mMyEffect.SetParam1(static_cast<float>(value / 100.0));
+//         break;
+//
+// 8. INITIALIZE PARAMETERS (Plugin.cpp constructor)
+//    └─ GetParam(kParamMyEffectEnable)->InitBool("MyEffect", false);
+//    └─ GetParam(kParamMyEffectParam1)->InitDouble("Param1", 50., 0., 100., 0.1, "%");
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+// EFFECT PROCESSING ORDER
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// Effects are processed in SERIES (output of one feeds input of next):
+//
+//   Dry Signal → Delay → Reverb → [Your Effect] → Limiter → Output
+//
+// Recommended order for common effects:
+//   1. Compressor/Gate (dynamics - applied to dry signal)
+//   2. EQ (tone shaping)
+//   3. Distortion/Saturation (waveshaping)
+//   4. Chorus/Flanger/Phaser (modulation)
+//   5. Delay (time-based, benefits from modulated input)
+//   6. Reverb (space, should be LAST time-based effect)
+//   7. Limiter (always last - prevents clipping)
+//
+// Each effect has its own enable flag for true bypass (zero CPU when off).
+//
+// ═══════════════════════════════════════════════════════════════════════════════
 //
 // VOICE ARCHITECTURE:
 //   Each Voice contains independent instances of all DSP components,
@@ -3060,6 +3169,42 @@ public:
     // When delay is disabled, signal passes through unchanged (already in outputs)
 
     // ─────────────────────────────────────────────────────────────────────────
+    // REVERB EFFECT - Dattorro plate reverb
+    // ─────────────────────────────────────────────────────────────────────────
+    // Dattorro plate reverb provides professional-quality reverb with:
+    //   - Figure-8 tank topology for dense, natural-sounding decay
+    //   - Modulated allpass filters for chorus-like shimmer
+    //   - Early reflections network for realistic room character
+    //   - Configurable modes (Plate, Chamber, Hall, Cathedral)
+    //
+    // PROCESSING: Applied after delay effect, before final limiter.
+    // Uses the same dry/wet mixing approach as the delay for consistency.
+    //
+    // BYPASS: When mReverbEnable is false, the entire loop is skipped.
+    // Signal passes through unchanged (already in outputs buffer).
+    // This provides true zero CPU overhead when reverb is disabled.
+    // ─────────────────────────────────────────────────────────────────────────
+    if (nOutputs >= 2 && mReverbEnable)
+    {
+      for (int s = 0; s < nFrames; s++)
+      {
+        float left = static_cast<float>(outputs[0][s]);
+        float right = static_cast<float>(outputs[1][s]);
+
+        mReverb.Process(left, right);
+
+        // Post-reverb soft clipping: reverb can add dry+wet exceeding 1.0
+        // Must clip BEFORE limiter to prevent transients slipping through
+        left = fastTanh(left);
+        right = fastTanh(right);
+
+        outputs[0][s] = static_cast<T>(left);
+        outputs[1][s] = static_cast<T>(right);
+      }
+    }
+    // When reverb is disabled, signal passes through unchanged (already in outputs)
+
+    // ─────────────────────────────────────────────────────────────────────────
     // OUTPUT LIMITER - Professional-grade brickwall limiting (Q library)
     // ─────────────────────────────────────────────────────────────────────────
     // Uses Q's soft_knee_compressor with envelope followers for transparent
@@ -3162,6 +3307,10 @@ public:
     // Initialize delay effect
     mDelay.SetSampleRate(static_cast<float>(sampleRate));
     mDelay.Reset();
+
+    // Initialize reverb effect
+    mReverb.SetSampleRate(static_cast<float>(sampleRate));
+    mReverb.Reset();
 
     // Initialize output limiter envelope followers with correct sample rate
     // Attack: 0.1ms (fast to catch transients), Release: 50ms for smooth recovery
@@ -3442,6 +3591,9 @@ public:
     {
       // Clear delay buffer to prevent stale data from feeding back as noise
       mDelay.Reset();
+
+      // Clear reverb buffer to prevent stale reverb tails from transport restart
+      mReverb.Reset();
 
       // Reset limiter envelopes to prevent gain pumping on transport start
       mLimiterEnvL = 0.0f;
@@ -3986,6 +4138,91 @@ public:
         break;
 
       // ─────────────────────────────────────────────────────────────────────────
+      // REVERB PARAMETERS
+      // ─────────────────────────────────────────────────────────────────────────
+      case kParamReverbEnable:
+        mReverbEnable = value > 0.5;
+        break;
+
+      case kParamReverbDecay:
+        // Convert 0-100% to 0.0-1.0
+        mReverb.SetDecay(static_cast<float>(value / 100.0));
+        break;
+
+      case kParamReverbSize:
+        // Convert 0-100% to 0.0-1.0
+        mReverb.SetSize(static_cast<float>(value / 100.0));
+        break;
+
+      case kParamReverbDamping:
+        // Damping controls high-frequency rolloff via the high-cut filter
+        // 0% = no damping (bright) = 20000 Hz, 100% = full damping (dark) = 1000 Hz
+        {
+          float damping = static_cast<float>(value / 100.0);
+          float highCutHz = 20000.0f - damping * 19000.0f;  // 20000 -> 1000 Hz
+          mReverb.SetHighCut(highCutHz);
+        }
+        break;
+
+      case kParamReverbWidth:
+        // Convert 0-100% to 0.0-1.0
+        mReverb.SetWidth(static_cast<float>(value / 100.0));
+        break;
+
+      case kParamReverbDry:
+        // Convert 0-100% to 0.0-1.0
+        mReverb.SetDryLevel(static_cast<float>(value / 100.0));
+        break;
+
+      case kParamReverbWet:
+        // Convert 0-100% to 0.0-1.0
+        mReverb.SetWetLevel(static_cast<float>(value / 100.0));
+        break;
+
+      case kParamReverbPreDelay:
+        // Pre-delay in milliseconds (0-100 ms)
+        mReverb.SetPreDelay(static_cast<float>(value));
+        break;
+
+      case kParamReverbMode:
+        mReverb.SetMode(static_cast<ReverbMode>(static_cast<int>(value)));
+        break;
+
+      case kParamReverbColor:
+        mReverb.SetColor(static_cast<ReverbColor>(static_cast<int>(value)));
+        break;
+
+      case kParamReverbModRate:
+        // Modulation rate in Hz (0.1-2.0)
+        mReverb.SetModRate(static_cast<float>(value));
+        break;
+
+      case kParamReverbModDepth:
+        // Modulation depth 0-100% -> 0.0-1.0
+        mReverb.SetModDepth(static_cast<float>(value / 100.0));
+        break;
+
+      case kParamReverbLowCut:
+        // Low-cut frequency in Hz (20-500)
+        mReverb.SetLowCut(static_cast<float>(value));
+        break;
+
+      case kParamReverbDensity:
+        // Density 0-100% -> 0.0-1.0
+        mReverb.SetDensity(static_cast<float>(value / 100.0));
+        break;
+
+      case kParamReverbEarlyLate:
+        // Early/Late balance 0-100% -> 0.0-1.0
+        mReverb.SetEarlyLate(static_cast<float>(value / 100.0));
+        break;
+
+      case kParamReverbFreeze:
+        // Freeze mode on/off
+        mReverb.SetFreeze(value > 0.5);
+        break;
+
+      // ─────────────────────────────────────────────────────────────────────────
       // VOICE MODE & GLIDE PARAMETERS
       // ─────────────────────────────────────────────────────────────────────────
       case kParamVoiceMode:
@@ -4155,6 +4392,19 @@ private:
   // the entire processing loop for true zero-overhead when disabled.
   // ─────────────────────────────────────────────────────────────────────────────
   bool mDelayEnable = false;                // Default OFF (effect, not core sound)
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // DATTORRO PLATE REVERB - Professional-quality reverb effect
+  // Processed after delay but before final output limiter
+  // ─────────────────────────────────────────────────────────────────────────────
+  DattorroReverb mReverb;
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // GLOBAL REVERB ENABLE - Bypass entire reverb processing when off (zero CPU)
+  // Unlike filter bypass which still processes signal path, reverb bypass skips
+  // the entire processing loop for true zero-overhead when disabled.
+  // ─────────────────────────────────────────────────────────────────────────────
+  bool mReverbEnable = false;               // Default OFF (effect, not core sound)
 
   // ─────────────────────────────────────────────────────────────────────────────
   // OUTPUT LIMITER - Professional-grade brickwall limiting using Q library

@@ -138,14 +138,31 @@ export const runtimeParameters: RuntimeParameter[] = [
   { id: 70, name: "Delay Dry", type: "float", min: 0, max: 100, default: 100, step: 0.1, unit: "%", group: "Delay", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamDelayDry" },
   { id: 71, name: "Delay Wet", type: "float", min: 0, max: 100, default: 0, step: 0.1, unit: "%", group: "Delay", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamDelayWet" },
   { id: 72, name: "Delay Mode", type: "enum", min: 0, max: 1, default: 0, step: 1, unit: "", group: "Delay", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Stereo", "Ping-Pong"], automatable: true, key: "kParamDelayMode" },
+  // Dattorro Plate Reverb - professional-quality reverb effect
+  { id: 73, name: "Reverb On", type: "bool", min: 0, max: 1, default: 0, step: 1, unit: "", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Off", "On"], automatable: true, key: "kParamReverbEnable" },
+  { id: 74, name: "Reverb Decay", type: "float", min: 0, max: 100, default: 50, step: 0.1, unit: "%", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamReverbDecay" },
+  { id: 75, name: "Reverb Size", type: "float", min: 0, max: 100, default: 50, step: 0.1, unit: "%", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamReverbSize" },
+  { id: 76, name: "Reverb Damping", type: "float", min: 0, max: 100, default: 50, step: 0.1, unit: "%", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamReverbDamping" },
+  { id: 77, name: "Reverb Width", type: "float", min: 0, max: 100, default: 100, step: 0.1, unit: "%", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamReverbWidth" },
+  { id: 78, name: "Reverb Dry", type: "float", min: 0, max: 100, default: 100, step: 0.1, unit: "%", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamReverbDry" },
+  { id: 79, name: "Reverb Wet", type: "float", min: 0, max: 100, default: 0, step: 0.1, unit: "%", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamReverbWet" },
+  { id: 80, name: "Reverb Pre-Dly", type: "float", min: 0, max: 100, default: 20, step: 0.1, unit: "ms", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamReverbPreDelay" },
+  { id: 81, name: "Reverb Mode", type: "enum", min: 0, max: 3, default: 0, step: 1, unit: "", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Plate", "Chamber", "Hall", "Cathedral"], automatable: true, key: "kParamReverbMode" },
+  { id: 82, name: "Reverb Color", type: "enum", min: 0, max: 3, default: 1, step: 1, unit: "", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Bright", "Neutral", "Dark", "Studio"], automatable: true, key: "kParamReverbColor" },
+  { id: 83, name: "Reverb Mod Rate", type: "float", min: 0.1, max: 2, default: 0.5, step: 0.01, unit: "Hz", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamReverbModRate" },
+  { id: 84, name: "Reverb Mod Depth", type: "float", min: 0, max: 100, default: 50, step: 0.1, unit: "%", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamReverbModDepth" },
+  { id: 85, name: "Reverb Low Cut", type: "float", min: 20, max: 500, default: 20, step: 1, unit: "Hz", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamReverbLowCut" },
+  { id: 86, name: "Reverb Density", type: "float", min: 0, max: 100, default: 70, step: 0.1, unit: "%", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamReverbDensity" },
+  { id: 87, name: "Reverb Early/Late", type: "float", min: 0, max: 100, default: 50, step: 0.1, unit: "%", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: true, key: "kParamReverbEarlyLate" },
+  { id: 88, name: "Reverb Freeze", type: "bool", min: 0, max: 1, default: 0, step: 1, unit: "", group: "Reverb", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Off", "On"], automatable: true, key: "kParamReverbFreeze" },
   // Voice Mode & Glide - Mono/Poly selection and portamento
-  { id: 73, name: "Voice Mode", type: "enum", min: 0, max: 2, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Poly", "Mono", "Legato"], automatable: true, key: "kParamVoiceMode" },
-  { id: 74, name: "Glide On", type: "bool", min: 0, max: 1, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Off", "On"], automatable: true, key: "kParamGlideEnable" },
-  { id: 75, name: "Glide Time", type: "float", min: 1, max: 2000, default: 100, step: 1, unit: "ms", group: "Master", shape: "ShapePowCurve", shapeParameter: 2, enumValues: null, automatable: true, key: "kParamGlideTime" },
+  { id: 89, name: "Voice Mode", type: "enum", min: 0, max: 2, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Poly", "Mono", "Legato"], automatable: true, key: "kParamVoiceMode" },
+  { id: 90, name: "Glide On", type: "bool", min: 0, max: 1, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Off", "On"], automatable: true, key: "kParamGlideEnable" },
+  { id: 91, name: "Glide Time", type: "float", min: 1, max: 2000, default: 100, step: 1, unit: "ms", group: "Master", shape: "ShapePowCurve", shapeParameter: 2, enumValues: null, automatable: true, key: "kParamGlideTime" },
   // Voice count display (read-only)
-  { id: 76, name: "Voices", type: "int", min: 0, max: 32, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: false, key: "kParamVoiceCount" },
+  { id: 92, name: "Voices", type: "int", min: 0, max: 32, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: null, automatable: false, key: "kParamVoiceCount" },
   // Preset selection (uses regular parameter for reliable UI communication)
-  { id: 77, name: "Preset", type: "enum", min: 0, max: 5, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Init", "Classic Lead", "Deep Bass", "Bright Lead", "Lush Pad", "CPU Stress Test"], automatable: true, key: "kParamPresetSelect" },
+  { id: 93, name: "Preset", type: "enum", min: 0, max: 5, default: 0, step: 1, unit: "", group: "Master", shape: "ShapeLinear", shapeParameter: 0, enumValues: ["Init", "Classic Lead", "Deep Bass", "Bright Lead", "Lush Pad", "CPU Stress Test"], automatable: true, key: "kParamPresetSelect" },
 ];
 
 // Control tags (for SCMFD - meters, etc.)
@@ -245,12 +262,29 @@ export const EParams = {
   kParamDelayDry: 70,
   kParamDelayWet: 71,
   kParamDelayMode: 72,
+  // Dattorro Reverb parameters
+  kParamReverbEnable: 73,
+  kParamReverbDecay: 74,
+  kParamReverbSize: 75,
+  kParamReverbDamping: 76,
+  kParamReverbWidth: 77,
+  kParamReverbDry: 78,
+  kParamReverbWet: 79,
+  kParamReverbPreDelay: 80,
+  kParamReverbMode: 81,
+  kParamReverbColor: 82,
+  kParamReverbModRate: 83,
+  kParamReverbModDepth: 84,
+  kParamReverbLowCut: 85,
+  kParamReverbDensity: 86,
+  kParamReverbEarlyLate: 87,
+  kParamReverbFreeze: 88,
   // Voice Mode & Glide
-  kParamVoiceMode: 73,
-  kParamGlideEnable: 74,
-  kParamGlideTime: 75,
-  kParamVoiceCount: 76,
-  kParamPresetSelect: 77,
+  kParamVoiceMode: 89,
+  kParamGlideEnable: 90,
+  kParamGlideTime: 91,
+  kParamVoiceCount: 92,
+  kParamPresetSelect: 93,
 } as const;
 
 export const EControlTags = {
