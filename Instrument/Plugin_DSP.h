@@ -5,6 +5,28 @@
 // iPlug2 Synth Infrastructure
 #include "MidiSynth.h"
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// DSP MODULES - Modular, self-contained DSP components
+// ═══════════════════════════════════════════════════════════════════════════════
+// These modules can be used independently or combined to build synthesizers.
+// Each module is fully documented and includes all necessary utilities.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// DSP Utilities (DenormalGuard, math constants, smoothing, saturation)
+#include "dsp_utilities.h"
+
+// Wavetable Oscillator (WavetableOscillator, WavetableGenerator)
+#include "wavetable.h"
+
+// Resonant Filter (Cytomic SVF - stable under audio-rate modulation)
+#include "resonant_filter.h"
+
+// Stereo Delay (Hermite interpolation, DC blocking, tempo sync)
+#include "stereo_delay.h"
+
+// LFO (Low Frequency Oscillator - Q library based, tempo sync)
+#include "lfo.h"
+
 // Q DSP Library
 #include <q/support/literals.hpp>
 #include <q/support/phase.hpp>
